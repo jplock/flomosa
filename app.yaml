@@ -15,13 +15,21 @@ handlers:
 - url: /test
   script: dot_test.py
 
+- url: /viewed/.*
+  script: app_viewed.py
+  #secure: always
+
 - url: /requests/.*
   script: app_request.py
   #secure: always
-  #login: admin
+
+- url: /processes/.*
+  script: app_process.py
+  #secure: always
 
 - url: /stats.*
   script: $PYTHON_LIB/google/appengine/ext/appstats/ui.py
+  #login: admin
 
 - url: /_ah/queue/request-store
   script: queue_request_store.py
@@ -35,9 +43,6 @@ handlers:
   script: queue_mail_viewed.py
   #login: admin
 
-- url: /_ah/queue/mail-notify
-  script: queue_mail_notify.py
-  #login: admin
-
 - url: /_ah/mail/.+
   script: mail_handler.py
+  #login: admin
