@@ -4,10 +4,12 @@
 #
 
 import logging
+
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import memcache
 from google.appengine.api.labs import taskqueue
+
 import models
 import utils
 
@@ -24,7 +26,7 @@ class TaskHandler(webapp.RequestHandler):
 
         data = self.request.params.items()
         if not data:
-            logging.error('No request data found')
+            logging.error('No request data found. Exiting.')
             return None
 
         request_key = self.request.get('_id')
@@ -33,15 +35,15 @@ class TaskHandler(webapp.RequestHandler):
 
         process = utils.load_from_cache(process_key, models.Process)
         if not process:
-            logging.error('Process "%s" was not found. Exiting.' % process_key)
+            logging.error('Process ID "%s" was not found. Exiting.' % process_key)
             return None
         elif not process.is_valid():
-            logging.error('Process "%s" is not valid. Exiting.' % process_key)
+            logging.error('Process ID "%s" is not valid. Exiting.' % process_key)
             return None
 
         request = models.Request.get_by_key_name(request_key)
         if not request:
-            logging.info('Request "%s" not found in datastore, creating.' % \
+            logging.info('Request ID "%s" not found in datastore, creating.' % \
                 request_key)
             request = models.Request(key_name=request_key, process=process,
                 requestor=requestor)
@@ -52,8 +54,8 @@ class TaskHandler(webapp.RequestHandler):
             try:
                 request.put()
             except:
-                logging.error('Unable to save request object in datastore. ' \
-                    'Re-queuing.')
+                logging.error('Unable to save Request ID "%s" in datastore. ' \
+                    'Re-queuing.' % request_key)
                 self.error(500)
                 return None
 

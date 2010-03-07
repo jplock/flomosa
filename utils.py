@@ -4,6 +4,7 @@
 
 import uuid
 import logging
+
 from django.utils import simplejson
 from google.appengine.api import memcache
 from google.appengine.ext import db
@@ -47,10 +48,11 @@ def load_from_cache(key, model):
 
     obj = memcache.get(key)
     if not isinstance(obj, model):
-        logging.warning('%s "%s" not found in memcache' % (model.kind(), key))
+        logging.warning('%s ID "%s" not found in memcache. Trying datastore.' % \
+            (model.kind(), key))
         obj = model.get_by_key_name(key)
         if not isinstance(obj, model):
-            logging.error('%s "%s" not found in datastore' % (model.kind(),
+            logging.error('%s ID "%s" not found in datastore.' % (model.kind(),
                 key))
             return None
         memcache.set(key, obj)

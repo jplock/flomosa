@@ -1,4 +1,4 @@
 *.kpf
-*.py?
+*.pyc
 *.egg-info
 *.swp

@@ -12,9 +12,6 @@ handlers:
   script: app_main.py
   #login: admin
 
-- url: /test
-  script: dot_test.py
-
 - url: /viewed/.*
   script: app_viewed.py
   #secure: always
@@ -27,8 +24,12 @@ handlers:
   script: app_process.py
   #secure: always
 
-- url: /stats.*
-  script: $PYTHON_LIB/google/appengine/ext/appstats/ui.py
+- url: /teams/.*
+  script: app_team.py
+  #secure: always
+
+- url: /_ah/queue/process-store
+  script: queue_process_store.py
   #login: admin
 
 - url: /_ah/queue/request-store

@@ -37,9 +37,12 @@ class Process(db.Model):
         return found_member
 
     def to_dict(self):
-        data = dict(name=self.name, description=self.description)
+        data = dict(kind=self.kind(), name=self.name,
+            description=self.description)
         if self.is_saved():
             data['id'] = self.id
+        data['steps'] = [step.to_dict() for step in self.steps]
+        data['actions'] = [action.to_dict() for action in self.actions]
         return data
 
     def to_dot(self):
@@ -83,10 +86,28 @@ class Step(db.Model):
     def prior(self):
         return Action.all().filter('outgoing', self.key())
 
+    def to_dict(self):
+        data = dict(kind=self.kind(), name=self.name,
+            description=self.description, is_start=self.is_start, teams=[])
+        for team_key in self.teams:
+            team = utils.load_from_cache(team_key, Team)
+            if team:
+                data['teams'].append(team.to_dict())
+        if self.is_saved():
+            data['id'] = self.id
+        return data
+
 class Team(db.Model):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     members = db.ListProperty(basestring)
+
+    def to_dict(self):
+        data = dict(kind=self.kind(), name=self.name,
+            description=self.description, members=self.members)
+        if self.is_saved():
+            data['id'] = self.id
+        return data
 
     @property
     def id(self):
@@ -108,6 +129,19 @@ class Action(db.Model):
     def id(self):
         return self.key().id_or_name()
 
+    def to_dict(self):
+        data = dict(kind=self.kind(), process=self.process.id, name=self.name,
+            is_complete=bool(self.is_complete), incoming=[], outgoing=[])
+        for step_key in self.incoming:
+            step = utils.load_from_cache(step_key, Step)
+            if step:
+                data['incoming'].append(step.to_dict())
+        for step_key in self.outgoing:
+            step = utils.load_from_cache(step_key, Step)
+            if step:
+                data['outgoing'].append(step.to_dict())
+        return data
+
 class Request(db.Expando):
     process = db.ReferenceProperty(Process, collection_name='requests',
         required=True)
@@ -120,11 +154,11 @@ class Request(db.Expando):
         return self.key().id_or_name()
 
     def to_dict(self):
-        data = dict(process=self.process.id,
-            requestor=self.requestor, is_draft=self.is_draft)
+        data = dict(kind=self.kind(), process=self.process.id,
+            requestor=self.requestor, contact=self.contact,
+            is_draft=self.is_draft)
         for property in self.dynamic_properties():
             data[property] = getattr(self, property)
-
         if self.is_saved():
             data['id'] = self.id
         return data

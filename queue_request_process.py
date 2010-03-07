@@ -33,12 +33,22 @@ class TaskHandler(webapp.RequestHandler):
                 execution_key)
             return None
 
+        if not execution.step:
+            logging.error('Execution "%s" has no step defined. Exiting.' % \
+                execution_key)
+            return None
+
         if not execution.step.actions:
-            logging.error('No actions found for Step "%s". Exiting.' % \
+            logging.error('Step "%s" has no actions defined. Exiting.' % \
                 execution.step.id)
             return None
 
-        # If we have not send the notification email yet
+        if not execution.member:
+            logging.error('Execution "%s" has no email address. Exiting.' % \
+                execution_key)
+            return None
+
+        # If we have not sent the email notifications
         if not execution.sent_date:
             directory = os.path.dirname(__file__)
             text_template_file = os.path.join(directory,

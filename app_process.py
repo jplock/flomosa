@@ -5,87 +5,82 @@
 
 import logging
 
-from google.appengine.ext import webapp
+from django.utils import simplejson
+from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import memcache
+from google.appengine.api.labs import taskqueue
 
 import models
 import utils
 
-class NewHandler(webapp.RequestHandler):
-
-    def post(self):
-        logging.debug('Begin NewHandler.post() function')
-
-        name = self.request.get('name')
-        if not name:
-            return utils.build_json(self, 'Missing "name" parameter', code=400)
-
-        description = self.request.get('description')
-
-        process_key = utils.generate_key()
-        process = models.Process(key_name=process_key, name=name,
-            description=description)
-
-        try:
-            process.put()
-        except:
-            return utils.build_json(self, 'Unable to save process', code=500)
-
-        memcache.set(process_key, process)
-
-        utils.build_json(self, process.to_dict(), 201)
-
-        logging.debug('Finished NewHandler.post() function')
-
-class EditHandler(webapp.RequestHandler):
+class ProcessHandler(webapp.RequestHandler):
 
     def get(self, process_key):
-        logging.debug('Begin EditHandler.get() function')
+        logging.debug('Begin ProcessHandler.get() function')
 
         process = utils.load_from_cache(process_key, models.Process)
         if not process:
-            return utils.build_json(self,
-                'Unable to find process with ID "%s"' % process_key, code=404)
+            return utils.build_json(self, 'Process ID "%s" does not exist.' % \
+                process_key, code=404)
 
         utils.build_json(self, process.to_dict())
 
-        logging.debug('Finished EditHandler.get() function')
+        logging.debug('Finished ProcessHandler.get() function')
 
-    def post(self, process_key):
-        logging.debug('Begin EditHandler.post() function')
-
-        process = utils.load_from_cache(process_key, models.Process)
-        if not process:
-            return utils.build_json(self,
-                'Unable to find process with ID "%s"' % process_key, code=404)
-
-        name = self.request.get('name', default_value=None)
-        description = self.request.get('description', default_value=None)
-
-        if name is not None:
-            logging.info('Found "name" parameter')
-            process.name = name
-        if description is not None:
-            logging.info('Found "description" parameter')
-            process.description = description
+    def put(self, process_key):
+        logging.debug('Begin ProcessHandler.put() function')
 
         try:
-            process.put()
+            data = simplejson.loads(self.request.body)
         except:
-            return utils.build_json(self, 'Unable to save process', code=500)
+            return utils.build_json(self, 'Error parsing JSON request.',
+                code=500)
 
-        memcache.set(process_key, process)
+        try:
+            name = data['name']
+        except KeyError:
+            return utils.build_json(self, 'Missing "name" parameter.', code=400)
 
-        utils.build_json(self, process.to_dict())
+        params = {'_id': process_key, 'data': self.request.body}
 
-        logging.debug('Finished EditHandler.post() function')
+        queue = taskqueue.Queue('process-store')
+        task = taskqueue.Task(params=params)
+        queue.add(task)
+
+        utils.build_json(self, {'id': process_key}, 201)
+
+        logging.debug('Finished ProcessHandler.put() function')
+
+    def delete(self, process_key):
+        logging.debug('Begin ProcessHandler.delete() function')
+
+        entities = []
+        entity_keys = []
+
+        process = models.Process.get_by_key_name(process_key)
+        if process:
+            entities.append(process)
+            entity_keys.append(process_key)
+
+            for action in process.actions:
+                entities.append(action)
+                entity_keys.append(action.id)
+
+            for step in process.steps:
+                entities.append(step)
+                entity_keys.append(step.id)
+
+        db.delete(entities)
+        memcache.delete_multi(entity_keys)
+
+        self.error(204)
+
+        logging.debug('Finished ProcessHandler.delete() function')
 
 def main():
     application = webapp.WSGIApplication(
-        [('/processes/', NewHandler),
-        (r'/processes/(.*)\.json', EditHandler)],
-        debug=utils._DEBUG)
+        [(r'/processes/(.*)\.json', ProcessHandler)], debug=utils._DEBUG)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':
