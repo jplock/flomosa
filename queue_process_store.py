@@ -29,25 +29,17 @@ class TaskHandler(webapp.RequestHandler):
             logging.error('Error parsing JSON request. Exiting.')
             return None
 
-        try:
-            name = data['name']
-        except KeyError:
-            logging.error('Missing "name" parameter. Exiting.')
+        kind = data.get('kind', None)
+        if not kind or kind != 'Process':
+            logging.error('Invalid "kind" parameter; expected "kind=Process".' \
+                ' Exiting.')
             return None
 
         try:
-            description = data['description']
-        except KeyError:
-            description = None
-
-        process = utils.load_from_cache(process_key, models.Process)
-        if process:
-            process.name = name
-            if description is not None:
-                process.description = description
-        else:
-            process = models.Process(key_name=process_key, name=name,
-                description=description)
+            process = models.Process.from_dict(data)
+        except Exception, e:
+            logging.error(str(e)+' Exiting.')
+            return None
 
         try:
             process.put()
@@ -56,6 +48,46 @@ class TaskHandler(webapp.RequestHandler):
                 'Re-queuing.' % process_key)
             self.error(500)
             return None
+
+        # Load any steps on this process
+        steps = data.get('steps', list)
+        for step_data in steps:
+            step_kind = step_data.get('kind', None)
+            step_process_key = step_data.get('process', None)
+            if not step_kind or step_kind != 'Step':
+                continue
+            if not step_process_key or step_process_key != process_key:
+                continue
+
+            try:
+                step = models.Step.from_dict(step_data)
+            except Exception, e:
+                logging.error(str(e)+ 'Exiting.')
+                continue
+
+            try:
+                step.put()
+            except:
+                logging.error('Unable to save Step ID "%s" in datastore. ' \
+                    'Re-queuing.' % step.id)
+                self.error(500)
+                return None
+
+        # Load any actions on this process
+        actions = data.get('actions', list)
+        for action_data in actions:
+            action_kind = action_data.get('kind', None)
+            action_process_key = action_data.get('process', None)
+            if not action_kind or action_kind != 'Action':
+                continue
+            if not action_process_key or action_process_key != process_key:
+                continue
+
+            try:
+                action = models.Action.from_dict(action_data)
+            except Exception, e:
+                logging.error(str(e)+ 'Exiting.')
+                continue
 
         logging.debug('Finished process-store task handler')
 

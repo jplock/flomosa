@@ -18,16 +18,18 @@ def generate_key():
 def build_json(webapp, data, code=200):
     """Build a JSON error message response."""
 
+    if isinstance(data, Exception):
+        data = dict(message=str(data))
     if not isinstance(data, dict):
         data = dict(message=data)
     if not str(code).startswith('2'):
         data['code'] = code
-        logging.error(data['message'])
+        logging.error('JSON ERROR: '+data['message'])
 
     try:
         json = simplejson.dumps(data)
     except:
-        logging.critical('Error parsing JSON')
+        logging.critical('Error parsing JSON.')
         return None
 
     webapp.error(code)
@@ -48,12 +50,17 @@ def load_from_cache(key, model):
 
     obj = memcache.get(key)
     if not isinstance(obj, model):
-        logging.warning('%s ID "%s" not found in memcache. Trying datastore.' % \
-            (model.kind(), key))
+        logging.warning('%s ID "%s" not found in memcache. Trying datastore.' \
+            % (model.kind(), key))
         obj = model.get_by_key_name(key)
         if not isinstance(obj, model):
             logging.error('%s ID "%s" not found in datastore.' % (model.kind(),
                 key))
             return None
+        else:
+            logging.info('%s ID "%s" found in datastore. Writing to memcache.' \
+                % (model.kind(), key))
         memcache.set(key, obj)
+    else:
+        logging.info('%s ID "%s" found in memcache.' % (model.kind(), key))
     return obj

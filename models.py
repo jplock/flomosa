@@ -13,6 +13,38 @@ class Process(db.Model):
     def id(self):
         return self.key().id_or_name()
 
+    @classmethod
+    def from_dict(cls, data):
+        if not data or not isinstance(data, dict):
+            return None
+
+        process_key = data.get('id', None)
+        kind = data.get('kind', None)
+        name = data.get('name', None)
+        description = data.get('description', None)
+
+        if not name:
+            raise KeyError('Missing "name" parameter.')
+        if not kind:
+            raise KeyError('Missing "kind" parameter.')
+        if kind != cls.__name__:
+            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
+                (cls.__name__, kind))
+
+        if process_key:
+            process = utils.load_from_cache(process_key, cls)
+        else:
+            process_key = utils.generate_key()
+
+        if process:
+            process.name = name
+        else:
+            process = cls(key_name=process_key, name=name)
+
+        if description is not None:
+            process.description = description
+        return process
+
     def get_start_step(self):
         query = Step.all().filter('is_start', True)
         return query.get()
@@ -86,6 +118,60 @@ class Step(db.Model):
     def prior(self):
         return Action.all().filter('outgoing', self.key())
 
+    @classmethod
+    def from_dict(cls, data):
+        if not data or not isinstance(data, dict):
+            return None
+
+        step_key = data.get('id', None)
+        kind = data.get('kind', None)
+        process_key = data.get('process', None)
+        name = data.get('name', None)
+        description = data.get('description', None)
+        is_start = data.get('is_start', None)
+        teams = data.get('teams', None)
+
+        if not name:
+            raise KeyError('Missing "name" parameter.')
+        if not kind:
+            raise KeyError('Missing "kind" parameter.')
+        if kind != cls.__name__:
+            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
+                (cls.__name__, kind))
+        if not process_key:
+            raise KeyError('Missing "process" parameter.')
+
+        process = utils.load_from_cache(process_key, Process)
+        if not process:
+            raise ValueError('Process ID "%s" does not exist.' % process_key)
+
+        if step_key:
+            step = utils.load_from_cache(step_key, cls)
+        else:
+            step_key = utils.generate_key()
+
+        if step:
+            step.name = name
+        else:
+            step = cls(key_name=step_key, process=process, name=name)
+
+        if description is not None:
+            step.description = description
+        if is_start is not None:
+            step.is_start = bool(is_start)
+        team_keys = []
+        if teams is not None:
+            for team_data in teams:
+                try:
+                    team = Team.from_dict(team_data)
+                except:
+                    continue
+                team_keys.append(team.key())
+        if team_keys:
+            step.teams = team_keys
+
+        return step
+
     def to_dict(self):
         data = dict(kind=self.kind(), name=self.name,
             description=self.description, is_start=self.is_start, teams=[])
@@ -102,13 +188,6 @@ class Team(db.Model):
     description = db.TextProperty()
     members = db.ListProperty(basestring)
 
-    def to_dict(self):
-        data = dict(kind=self.kind(), name=self.name,
-            description=self.description, members=self.members)
-        if self.is_saved():
-            data['id'] = self.id
-        return data
-
     @property
     def id(self):
         return self.key().id_or_name()
@@ -116,6 +195,48 @@ class Team(db.Model):
     @property
     def steps(self):
         return Step.all().filter('teams', self.key())
+
+    @classmethod
+    def from_dict(cls, data):
+        if not data or not isinstance(data, dict):
+            return None
+
+        team_key = data.get('id', None)
+        kind = data.get('kind', None)
+        name = data.get('name', None)
+        description = data.get('description', None)
+        members = data.get('members', None)
+
+        if not name:
+            raise KeyError('Missing "name" parameter.')
+        if not kind:
+            raise KeyError('Missing "kind" parameter.')
+        if kind != cls.__name__:
+            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
+                (cls.__name__, kind))
+
+        if team_key:
+            team = utils.load_from_cache(team_key, cls)
+        else:
+            team_key = utils.generate_key()
+
+        if team:
+            team.name = name
+        else:
+            team = cls(key_name=team_key, name=name)
+
+        if description is not None:
+            team.description = description
+        if isinstance(members, list):
+            team.members = members
+        return team
+
+    def to_dict(self):
+        data = dict(kind=self.kind(), name=self.name,
+            description=self.description, members=self.members)
+        if self.is_saved():
+            data['id'] = self.id
+        return data
 
 class Action(db.Model):
     process = db.ReferenceProperty(Process, collection_name='actions',

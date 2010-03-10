@@ -37,10 +37,14 @@ class ProcessHandler(webapp.RequestHandler):
             return utils.build_json(self, 'Error parsing JSON request.',
                 code=500)
 
-        try:
-            name = data['name']
-        except KeyError:
+        name = data.get('name', None)
+        if not name:
             return utils.build_json(self, 'Missing "name" parameter.', code=400)
+
+        kind = data.get('kind', None)
+        if not kind or kind != 'Process':
+            return utils.build_json(self, 'Invalid "kind" parameter; ' \
+                'expected "kind=Process".', code=400)
 
         params = {'_id': process_key, 'data': self.request.body}
 

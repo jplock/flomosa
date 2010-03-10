@@ -37,9 +37,8 @@ class RequestHandler(webapp.RequestHandler):
             return utils.build_json(self, 'Error parsing JSON request.',
                 code=500)
 
-        try:
-            process_key = data['process']
-        except KeyError:
+        process_key = data.get('process', None)
+        if not process_key:
             return utils.build_json(self, 'Missing "process" parameter.',
                 code=400)
 
@@ -52,9 +51,8 @@ class RequestHandler(webapp.RequestHandler):
             return utils.build_json(self, 'Process ID "%s" is not valid.' % \
                 process_key, code=500)
 
-        try:
-            requestor = data['requestor']
-        except KeyError:
+        requestor = data.get('requestor', None)
+        if not requestor:
             return utils.build_json(self, 'Missing "requestor" parameter.',
                 code=400)
 

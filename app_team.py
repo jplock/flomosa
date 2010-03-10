@@ -37,43 +37,14 @@ class TeamHandler(webapp.RequestHandler):
                 code=500)
 
         try:
-            name = data['name']
-        except KeyError:
-            return utils.build_json(self, 'Missing "name" parameter',
-                code=400)
-
-        try:
-            team_key = data['id']
-        except KeyError:
-            team_key = None
-
-        try:
-            description = data['description']
-        except KeyError:
-            description = None
-
-        try:
-            members = data['members']
-        except KeyError:
-            members = None
-
-        if team_key:
-            team = utils.load_from_cache(team_key, models.Team)
-            if team:
-                team.name = name
-                if description is not None:
-                    team.description = description
-                if members is not None:
-                    team.members = members
-
-        if not team:
-            team = models.Team(key_name=team_key, name=name,
-                description=description, members=members)
+            team = models.Team.from_dict(data)
+        except Exception, e:
+            return utils.build_json(self, e, code=400)
 
         try:
             team.put()
         except:
-            return utils.build_json(self, 'Unable to save team', code=500)
+            return utils.build_json(self, 'Unable to save team.', code=500)
 
         memcache.set(team_key, team)
 
