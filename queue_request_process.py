@@ -22,9 +22,9 @@ class TaskHandler(webapp.RequestHandler):
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
         logging.info('Task has been executed %s times' % num_tries)
 
-        execution_key = self.request.get('execution_key')
+        execution_key = self.request.get('key')
         if not execution_key:
-            logging.error('Missing "execution_key" parameter. Exiting.')
+            logging.error('Missing "key" parameter. Exiting.')
             return None
 
         execution = utils.load_from_cache(execution_key, models.Execution)

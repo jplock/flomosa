@@ -21,7 +21,10 @@ class TaskHandler(webapp.RequestHandler):
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
         logging.info('Task has been executed %s times' % num_tries)
 
-        process_key = self.request.get('_id')
+        process_key = self.request.get('key', None)
+        if not process_key:
+            logging.error('Missing "process_key" parameter. Existing.')
+            return None
 
         try:
             data = simplejson.loads(self.request.get('data'))
@@ -44,7 +47,7 @@ class TaskHandler(webapp.RequestHandler):
         try:
             process.put()
         except:
-            logging.error('Unable to save Process ID "%s" in datastore. ' \
+            logging.error('Unable to save Process Key "%s" in datastore. ' \
                 'Re-queuing.' % process_key)
             self.error(500)
             return None
@@ -68,7 +71,7 @@ class TaskHandler(webapp.RequestHandler):
             try:
                 step.put()
             except:
-                logging.error('Unable to save Step ID "%s" in datastore. ' \
+                logging.error('Unable to save Step Key "%s" in datastore. ' \
                     'Re-queuing.' % step.id)
                 self.error(500)
                 return None

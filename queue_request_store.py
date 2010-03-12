@@ -29,21 +29,22 @@ class TaskHandler(webapp.RequestHandler):
             logging.error('No request data found. Exiting.')
             return None
 
-        request_key = self.request.get('_id')
+        request_key = self.request.get('key')
         process_key = self.request.get('process')
         requestor = self.request.get('requestor')
 
         process = utils.load_from_cache(process_key, models.Process)
         if not process:
-            logging.error('Process ID "%s" was not found. Exiting.' % process_key)
+            logging.error('Process key "%s" was not found in memcache or ' \
+                'the datastore. Exiting.' % process_key)
             return None
         elif not process.is_valid():
-            logging.error('Process ID "%s" is not valid. Exiting.' % process_key)
+            logging.error('Process "%s" is not valid. Exiting.' % process_key)
             return None
 
         request = models.Request.get_by_key_name(request_key)
         if not request:
-            logging.info('Request ID "%s" not found in datastore, creating.' % \
+            logging.info('Request key "%s" not found in datastore, creating.' % \
                 request_key)
             request = models.Request(key_name=request_key, process=process,
                 requestor=requestor)
@@ -54,7 +55,7 @@ class TaskHandler(webapp.RequestHandler):
             try:
                 request.put()
             except:
-                logging.error('Unable to save Request ID "%s" in datastore. ' \
+                logging.error('Unable to save Request key "%s" in datastore. ' \
                     'Re-queuing.' % request_key)
                 self.error(500)
                 return None
@@ -75,8 +76,8 @@ class TaskHandler(webapp.RequestHandler):
 
                 execution_key = _EXECUTION_QUERY.get()
                 if execution_key:
-                    logging.info('Execution "%s" previously queued for "%s".' % \
-                        (execution_key.name(), member))
+                    logging.info('Execution "%s" previously queued for ' \
+                        '"%s".' % (execution_key.name(), member))
                     continue
 
                 execution_key = utils.generate_key()
@@ -94,7 +95,7 @@ class TaskHandler(webapp.RequestHandler):
 
                 memcache.set(execution_key, execution)
 
-                params = {'execution_key': execution_key}
+                params = {'key': execution_key}
                 task = taskqueue.Task(params=params)
                 queue.add(task)
 

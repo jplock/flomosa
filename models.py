@@ -18,7 +18,7 @@ class Process(db.Model):
         if not data or not isinstance(data, dict):
             return None
 
-        process_key = data.get('id', None)
+        process_key = data.get('key', None)
         kind = data.get('kind', None)
         name = data.get('name', None)
         description = data.get('description', None)
@@ -72,7 +72,7 @@ class Process(db.Model):
         data = dict(kind=self.kind(), name=self.name,
             description=self.description)
         if self.is_saved():
-            data['id'] = self.id
+            data['key'] = self.id
         data['steps'] = [step.to_dict() for step in self.steps]
         data['actions'] = [action.to_dict() for action in self.actions]
         return data
@@ -123,7 +123,7 @@ class Step(db.Model):
         if not data or not isinstance(data, dict):
             return None
 
-        step_key = data.get('id', None)
+        step_key = data.get('key', None)
         kind = data.get('kind', None)
         process_key = data.get('process', None)
         name = data.get('name', None)
@@ -180,7 +180,7 @@ class Step(db.Model):
             if team:
                 data['teams'].append(team.to_dict())
         if self.is_saved():
-            data['id'] = self.id
+            data['key'] = self.id
         return data
 
 class Team(db.Model):
@@ -201,7 +201,7 @@ class Team(db.Model):
         if not data or not isinstance(data, dict):
             return None
 
-        team_key = data.get('id', None)
+        team_key = data.get('key', None)
         kind = data.get('kind', None)
         name = data.get('name', None)
         description = data.get('description', None)
@@ -235,7 +235,7 @@ class Team(db.Model):
         data = dict(kind=self.kind(), name=self.name,
             description=self.description, members=self.members)
         if self.is_saved():
-            data['id'] = self.id
+            data['key'] = self.id
         return data
 
 class Action(db.Model):
@@ -281,7 +281,7 @@ class Request(db.Expando):
         for property in self.dynamic_properties():
             data[property] = getattr(self, property)
         if self.is_saved():
-            data['id'] = self.id
+            data['key'] = self.id
         return data
 
 class Execution(db.Model):

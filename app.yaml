@@ -28,6 +28,14 @@ handlers:
   script: app_team.py
   #secure: always
 
+- url: /stats/.*
+  script: app_stat.py
+  #secure: always
+  
+- url: /search/.*
+  script: app_search.py
+  #secure: always
+
 - url: /_ah/queue/process-store
   script: queue_process_store.py
   #login: admin
