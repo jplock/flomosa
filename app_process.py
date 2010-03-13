@@ -71,41 +71,20 @@ class ProcessHandler(webapp.RequestHandler):
     def delete(self, process_key):
         logging.debug('Begin ProcessHandler.delete() function')
 
-        entities = []
-        entity_keys = []
-
         process = models.Process.get_by_key_name(process_key)
-        if process:
-            logging.info('Deleting Process "%s" from datastore.' % \
-                process.id)
-            entities.append(process)
-            logging.info('Deleting Process "%s" from memcache.' % \
-                process.id)
-            entity_keys.append(process.id)
-            entity_keys.append(process_key)
+        if isinstance(process, models.Process):
+            process.delete_steps_actions()
 
-            for action in process.actions:
-                logging.info('Deleting Action "%s" from datastore.' % \
-                    action.id)
-                entities.append(action)
-                logging.info('Deleting Action "%s" from memcache.' % \
-                    action.id)
-                entity_keys.append(action.id)
-
-            for step in process.steps:
-                logging.info('Deleting Step "%s" from datastore.' % \
-                    step.id)
-                entities.append(step)
-                logging.info('Deleting Step "%s" from memcache.' % step.id)
-                entity_keys.append(step.id)
+            logging.info('Deleting Process "%s" from memcache.' % process.id)
+            memcache.delete(process.id)
+            try:
+                logging.info('Deleting Process "%s" from datastore.' % process.id)
+                process.delete()
+            except:
+                pass
         else:
             logging.warning('Process key "%s" not found in datastore to ' \
                 'delete.' % process_key)
-
-        if entities:
-            db.delete(entities)
-        if entity_keys:
-            memcache.delete_multi(entity_keys)
 
         self.error(204)
 
