@@ -6,6 +6,7 @@ import logging
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
+from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
 import utils
@@ -67,6 +68,8 @@ class Process(db.Model):
             try:
                 db.delete(entities)
             except apiproxy_errors.CapabilityDisabledError:
+                logging.error('Unable to delete steps and actions from ' \
+                    'Process "%s" due to maintenance.' % self.id)
                 pass
         if entity_keys:
             memcache.delete_multi(entity_keys)
@@ -199,6 +202,51 @@ class Step(db.Model):
         if self.is_saved():
             data['key'] = self.id
         return data
+
+    def queue_tasks(self, request):
+        """Queue execution tasks for a given request."""
+
+        query = Execution.find_query()
+
+        queue = taskqueue.Queue('request-process')
+        for team_key in self.teams:
+            team = utils.load_from_cache(team_key, Team)
+            if not team:
+                continue
+
+            for member in team.members:
+                execution_key = utils.generate_key()
+
+                execution = Execution(key_name=execution_key,
+                    process=self.process, request=request, step=self,
+                    team=team, member=member)
+
+                logging.info('Storing Execution "%s" in datastore.' % \
+                    execution.id)
+                try:
+                    execution.put()
+                except apiproxy_errors.CapabilityDisabledError:
+                    logging.error('Unable to save Execution "%s" due to ' \
+                        'maintenance.' % execution.id)
+                    continue
+                except:
+                    logging.error('Unable to save Execution "%s" in ' \
+                        'datastore.' % execution.id)
+                    continue
+
+                if execution.is_saved():
+                    logging.info('Storing Execution "%s" in memcache.' % \
+                        execution.id)
+                    memcache.set(execution.id, execution)
+
+                try:
+                    task = taskqueue.Task(params={'key': execution.id})
+                except taskqueue.TaskTooLargeError:
+                    logging.error('Execution "%s" task is too large. ' \
+                        'Continuing.' % execution.id)
+                    continue
+
+                queue.add(task)
 
 class Team(db.Model):
     name = db.StringProperty(required=True)

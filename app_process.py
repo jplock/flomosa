@@ -78,11 +78,15 @@ class ProcessHandler(webapp.RequestHandler):
             logging.error(utils.get_log_message(error_msg, 500))
             return utils.build_json(self, error_msg, 500)
 
-        logging.info('Storing Process "%s" in memcache.' % process.id)
-        memcache.set(process.id, process)
+        if process.is_saved():
+            logging.info('Storing Process "%s" in memcache.' % process.id)
+            memcache.set(process.id, process)
+
+        # Clear out any old steps and actions
+        process.delete_steps_actions()
 
         # Load any steps on this process
-        for step_data in data.get('steps'):
+        for step_data in data.get('steps', list):
             try:
                 step = models.Step.from_dict(step_data)
             except Exception, e:
@@ -102,11 +106,12 @@ class ProcessHandler(webapp.RequestHandler):
                 logging.error(utils.get_log_message(error_msg, 500))
                 return utils.build_json(self, error_msg, 500)
 
-            logging.info('Storing Step "%s" in memcache.' % step.id)
-            memcache.set(step.id, step)
+            if step.is_saved():
+                logging.info('Storing Step "%s" in memcache.' % step.id)
+                memcache.set(step.id, step)
 
         # Load any actions on this process
-        for action_data in data.get('actions'):
+        for action_data in data.get('actions', list):
             try:
                 action = models.Action.from_dict(action_data)
             except Exception, e:
@@ -127,8 +132,9 @@ class ProcessHandler(webapp.RequestHandler):
                 logging.error(utils.get_log_message(error_msg, 500))
                 return utils.build_json(self, error_msg, 500)
 
-            logging.info('Storing Action "%s" in memcache.' % action.id)
-            memcache.set(action.id, action)
+            if action.is_saved():
+                logging.info('Storing Action "%s" in memcache.' % action.id)
+                memcache.set(action.id, action)
 
         logging.info('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, {'key': process.id}, 201)

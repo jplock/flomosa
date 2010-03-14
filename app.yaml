@@ -36,16 +36,8 @@ handlers:
   script: app_search.py
   #secure: always
 
-- url: /_ah/queue/request-store
-  script: queue_request_store.py
-  #login: admin
-
 - url: /_ah/queue/request-process
   script: queue_request_process.py
-  #login: admin
-
-- url: /_ah/queue/mail-viewed
-  script: queue_mail_viewed.py
   #login: admin
 
 - url: /_ah/mail/.+

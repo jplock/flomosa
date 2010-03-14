@@ -31,19 +31,23 @@ class ViewedHandler(webapp.RequestHandler):
         execution = utils.load_from_cache(execution_key, models.Execution)
         if isinstance(execution, models.Execution):
             if not execution.viewed_date:
-                params = {
-                    'execution_key': execution_key,
-                    'viewed_date': time.time()
-                }
+                execution.viewed_date = datetime.now()
 
-                queue = taskqueue.Queue('mail-viewed')
+                logging.info('Storing Execution "%s" in datastore.' % \
+                    execution.id)
                 try:
-                    task = taskqueue.Task(params=params)
-                except taskqueue.TaskTooLargeError:
-                    logging.error('Execution "%s" task is too large.' % \
+                    execution.put()
+                except apiproxy_errors.CapabilityDisabledError:
+                    logging.error('Unable to save Execution "%s" due to ' \
+                        'maintenance. Exiting.' % execution.id)
+                except:
+                    logging.error('Unable to save Execution "%s". Exiting.' % \
                         execution.id)
 
-                queue.add(task)
+                if execution.is_saved():
+                    logging.info('Storing Execution "%s" in memcache.' % \
+                        execution.id)
+                    memcache.set(execution.id, execution)
 
         pixel = base64.b64decode(_PIXEL_GIF)
         self.response.headers['Content-Type'] = 'image/gif'
@@ -76,12 +80,6 @@ class ActionHandler(webapp.RequestHandler):
 
         execution.action = action
         execution.end_date = datetime.now()
-        delta = execution.end_date - execution.start_date
-        execution.duration = delta.days * 86400 + delta.seconds
-
-        if execution.viewed_date:
-            delta = execution.end_date - execution.viewed_date
-            execution.action_delay = delta.days * 86400 + delta.seconds
 
         logging.info('Storing Execution "%s" in datastore.' % execution.id)
         try:
@@ -89,16 +87,13 @@ class ActionHandler(webapp.RequestHandler):
         except apiproxy_errors.CapabilityDisabledError:
             logging.error('Unable to save Execution "%s" due to maintenance.' \
                 % execution.id)
-            self.error(500)
-            return None
         except:
             logging.error('Unable to save Execution "%s" in datastore.' % \
                 execution.id)
-            self.error(500)
-            return None
 
-        logging.info('Storing Execution "%s" in memcache.' % execution.id)
-        memcache.set(execution.id, execution)
+        if execution.is_saved():
+            logging.info('Storing Execution "%s" in memcache.' % execution.id)
+            memcache.set(execution.id, execution)
 
         self.response.out.write('Thank you. This window will now close.')
 

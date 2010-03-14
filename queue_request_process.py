@@ -9,8 +9,8 @@ from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
+from google.appengine.api import mail, memcache
 from google.appengine.api.labs import taskqueue
-from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
 import models
@@ -41,6 +41,11 @@ class TaskHandler(webapp.RequestHandler):
                 execution.id)
             return None
 
+        if not isinstance(execution.request, models.Request):
+            logging.error('Execution "%s" has no request defined. Exiting.' % \
+                execution.step.id)
+            return None
+
         if not execution.step.actions:
             logging.error('Step "%s" has no actions defined. Exiting.' % \
                 execution.step.id)
@@ -62,14 +67,15 @@ class TaskHandler(webapp.RequestHandler):
             template_vars = {
                 'execution_key': execution.id,
                 'actions': execution.step.actions,
-                'request_data': execution.request.to_dict()
+                'request_data': execution.request.to_dict(),
+                'step_name': execution.step.name
             }
 
             text_body = template.render(text_template_file, template_vars)
             html_body = template.render(html_template_file, template_vars)
 
             message = mail.EmailMessage(
-                sender='Flomosa &lt;reply+%s@flomosa.appspotmail.com&gt;' % \
+                sender='Flomosa <reply+%s@flomosa.appspotmail.com>' % \
                     execution.id,
                 to=execution.member,
                 subject='[flomosa] New request for your action',
@@ -104,14 +110,53 @@ class TaskHandler(webapp.RequestHandler):
                 self.error(500)
                 return None
 
-            logging.info('Storing Execution "%s" in memcache.' % execution.id)
-            memcache.set(execution.id, execution)
+            if execution.is_saved():
+                logging.info('Storing Execution "%s" in memcache.' % \
+                    execution.id)
+                memcache.set(execution.id, execution)
 
-        if not execution.viewed_date:
-            pass
+        # if this action has been completed
+        elif execution.end_date:
+            if execution.viewed_date and execution.sent_date:
+                delta = execution.viewed_date - execution.sent_date
+                execution.email_delay = delta.days * 86400 + delta.seconds
+            if execution.viewed_date and execution.end_date:
+                delta = execution.end_date - execution.viewed_date
+                execution.action_delay = delta.days * 86400 + delta.seconds
+            if execution.start_date and execution.end_date:
+                delta = execution.end_date - execution.start_date
+                execution.duration = delta.days * 86400 + delta.seconds
 
-        if not execution.action:
-            pass
+            try:
+                execution.put()
+            except apiproxy_errors.CapabilityDisabledError:
+                logging.error('Unable to save Execution "%s" due to ' \
+                    'maintenance. Re-queuing.' % execution.id)
+                self.error(500)
+                return None
+            except:
+                logging.error('Unable to save Execution "%s". Re-queuing.' % \
+                    execution.id)
+                self.error(500)
+                return None
+
+            if execution.is_saved():
+                logging.info('Storing Execution "%s" in memcache.' % \
+                    execution.id)
+                memcache.set(execution.id, execution)
+
+            # If an action has been chosen, queue the next tasks
+            if isinstance(execution.action, models.Action):
+                for step_key in execution.action.outgoing:
+                    step = utils.load_from_cache(step_key, models.Step)
+                    if isinstance(step, models.Step):
+                        step.queue_tasks(execution.request)
+
+        if execution.end_date:
+            logging.info('Completed Execution "%s". Exiting.' % execution.id)
+        else:
+            logging.info('Re-queuing Execution "%s".' % execution.id)
+            self.error(500)
 
         logging.debug('Finished request-process task handler')
 

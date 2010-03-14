@@ -2,7 +2,3 @@ queue:
 - name: request-process
   rate: 5/s
   bucket_size: 5
-
-- name: mail-viewed
-  rate: 5/s
-  bucket_size: 5

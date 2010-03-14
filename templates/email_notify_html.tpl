@@ -8,13 +8,14 @@
 
 <p>--- Reply ABOVE THIS LINE to take action on this request, or to post a comment ---</p>
 
-<p>The following request has been sent to you for your action. Please reply
-to this email with one of these phrases to move this request to the next step
-in the process. The phrase needs to match exactly as written.</p>
+<p>The following request has been sent to you for your action in the
+<strong>{{ step_name }}</strong> step. Please reply to this email with one of
+these phrases to move this request to the next step in the process. The phrase
+needs to exactly match as written.</p>
 
 <ul>
 {% for action in actions %}
-<li>"<a href="http://127.0.0.1:8080/viewed/{{ execution_key }}/{{ action.id }}.json">{{ action.name }}</a>"</li>
+<li>"<a href="http://flomosa.appspot.com/viewed/{{ execution_key }}/{{ action.id }}.json">{{ action.name }}</a>"</li>
 {% endfor %}
 </ul>
 
@@ -31,7 +32,7 @@ in the process. The phrase needs to match exactly as written.</p>
 
 <p>Thanks.</p>
 
-<p>-Flomosa Team<img src="http://127.0.0.1:8080/viewed/{{ execution_key }}.json" height="1" width="1" border="0"/></p>
+<p>-Flomosa Team<img src="http://flomosa.appspot.com/viewed/{{ execution_key }}.json" height="1" width="1" border="0"/></p>
 
 </body>
 </html>

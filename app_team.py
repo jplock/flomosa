@@ -67,8 +67,9 @@ class TeamHandler(webapp.RequestHandler):
             logging.error(utils.get_log_message(error_msg, 500))
             return utils.build_json(self, error_msg, code=500)
 
-        logging.info('Storing Team "%s" in memcache.' % team.id)
-        memcache.set(team.id, team)
+        if team.is_saved():
+            logging.info('Storing Team "%s" in memcache.' % team.id)
+            memcache.set(team.id, team)
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
         utils.build_json(self, team.to_dict(), 201)

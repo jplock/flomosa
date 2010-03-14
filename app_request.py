@@ -15,9 +15,6 @@ from google.appengine.runtime import apiproxy_errors
 import models
 import utils
 
-_EXECUTION_QUERY = db.GqlQuery("SELECT __key__ FROM Execution " \
-    "WHERE process = :process AND request = :request AND step = :step " \
-    "AND team = :team AND member = :member LIMIT 1")
 
 class RequestHandler(webapp.RequestHandler):
 
@@ -36,15 +33,10 @@ class RequestHandler(webapp.RequestHandler):
 
         logging.debug('Finished RequestHandler.get() function')
 
-    def post(self, request_key):
+    def post(self, request_key=None):
         logging.debug('Begin RequestHandler.post() function')
 
-        try:
-            data = simplejson.loads(self.request.body)
-        except:
-            error_msg = 'Error parsing JSON request.'
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, 500)
+        data = self.request.params
 
         process_key = data.get('process', None)
         if not process_key:
@@ -69,86 +61,44 @@ class RequestHandler(webapp.RequestHandler):
             logging.error(utils.get_log_message(error_msg, 400))
             return utils.build_json(self, error_msg, 400)
 
-        request = utils.load_from_cache(request_key, models.Request)
-        if request:
-            error_msg = 'Request "%s" already exists.' % request_key
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, 500)
+        if request_key:
+            request = utils.load_from_cache(request_key, models.Request)
+            if request:
+                error_msg = 'Request "%s" already exists.' % request_key
+                logging.error(utils.get_log_message(error_msg, 500))
+                return utils.build_json(self, error_msg, 500)
         else:
+            request_key = utils.generate_key()
+            request = None
+
+        if not request:
             request = models.Request(key_name=request_key, process=process,
                 requestor=requestor)
 
-        for key, value in data:
+        for key, value in data.items():
             if not hasattr(request, key):
                 setattr(request, key, value)
 
-        logging.info('Storing Request "%s" in datastore.' % request.id)
+        logging.info('Storing Request "%s" in datastore.' % request_key)
         try:
             request.put()
         except apiproxy_errors.CapabilityDisabledError:
             error_msg = 'Unable to save Request key "%s" due to maintenance.' \
-                % request.id
+                % request_key
             logging.error(utils.get_log_message(error_msg, 500))
             return utils.build_json(self, error_msg, 500)
         except:
             error_msg = 'Unable to save Request key "%s" in datastore.' % \
-                request.id
+                request_key
             logging.error(utils.get_log_message(error_msg, 500))
             return utils.build_json(self, error_msg, 500)
 
-        logging.info('Storing Request "%s" in memcache.' % request.id)
-        memcache.set(request_key, request)
+        if request.is_saved():
+            logging.info('Storing Request "%s" in memcache.' % request.id)
+            memcache.set(request.id, request)
 
         step = process.get_start_step()
-
-        queue = taskqueue.Queue('request-process')
-        for team_key in step.teams:
-            team = utils.load_from_cache(team_key, models.Team)
-            if not team:
-                continue
-
-            for member in team.members:
-                _EXECUTION_QUERY.bind(process=process, request=request,
-                    step=step, team=team, member=member)
-
-                execution_key = _EXECUTION_QUERY.get()
-                if execution_key:
-                    logging.info('Execution "%s" previously queued for ' \
-                        '"%s".' % (execution_key.name(), member))
-                    continue
-
-                execution_key = utils.generate_key()
-                execution = models.Execution(key_name=execution_key,
-                    process=process, request=request, step=step, team=team,
-                    member=member)
-
-                logging.info('Storing Execution "%s" in datastore.' % \
-                    execution.id)
-                try:
-                    execution.put()
-                except apiproxy_errors.CapabilityDisabledError:
-                    logging.error('Unable to save Execution "%s" due to ' \
-                        'maintenance.' % execution.id)
-                    continue
-                except:
-                    logging.error('Unable to save Execution "%s" in ' \
-                        'datastore.' % execution.id)
-                    continue
-
-                logging.info('Storing Execution "%s" in memcache.' % \
-                    execution.id)
-                memcache.set(execution.id, execution)
-
-                params = {'key': execution.id}
-
-                try:
-                    task = taskqueue.Task(params=params)
-                except taskqueue.TaskTooLargeError:
-                    logging.error('Execution "%s" task is too large. ' \
-                        'Continuing.' % execution.id)
-                    continue
-
-                queue.add(task)
+        step.queue_tasks(request)
 
         logging.info('Returning Request "%s" as JSON to client.' % request.id)
         utils.build_json(self, {'key': request.id}, 201)
@@ -175,8 +125,9 @@ class RequestHandler(webapp.RequestHandler):
         logging.debug('Finished RequestHandler.delete() function')
 
 def main():
-    application = webapp.WSGIApplication([(r'/requests/(.*)\.json',
-        RequestHandler)], debug=utils._DEBUG)
+    application = webapp.WSGIApplication(
+        [(r'/requests/(.*)\.json', RequestHandler),
+        (r'/requests/', RequestHandler)], debug=utils._DEBUG)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':
