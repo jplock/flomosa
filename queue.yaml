@@ -1,12 +1,4 @@
 queue:
-- name: process-store
-  rate: 5/s
-  bucket_size: 5
-
-- name: request-store
-  rate: 5/s
-  bucket_size: 5
-
 - name: request-process
   rate: 5/s
   bucket_size: 5

@@ -36,10 +36,6 @@ handlers:
   script: app_search.py
   #secure: always
 
-- url: /_ah/queue/process-store
-  script: queue_process_store.py
-  #login: admin
-
 - url: /_ah/queue/request-store
   script: queue_request_store.py
   #login: admin

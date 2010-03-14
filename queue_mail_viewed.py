@@ -9,6 +9,7 @@ from datetime import datetime
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import memcache
+from google.appengine.runtime import apiproxy_errors
 
 import models
 import utils
@@ -30,8 +31,10 @@ class TaskHandler(webapp.RequestHandler):
             logging.error('Missing "viewed_date" parameter. Exiting.')
             return None
 
+        logging.info('Looking up Execution "%s" in memcache then datastore.' % \
+            execution_key)
         execution = utils.load_from_cache(execution_key, models.Execution)
-        if not execution:
+        if not isinstance(execution, models.Execution):
             logging.error('Execution "%s" was not found. Exiting.' % \
                 execution_key)
             return None
@@ -41,15 +44,22 @@ class TaskHandler(webapp.RequestHandler):
             delta = execution.viewed_date - execution.sent_date
             execution.email_delay = delta.days * 86400 + delta.seconds
 
+        logging.info('Storing Execution "%s" in datastore.' % execution.id)
         try:
             execution.put()
-        except:
+        except apiproxy_errors.CapabilityDisabledError:
+            logging.error('Unable to save Execution "%s" due to maintenance.' \
+                ' Re-queuing.' % execution.id)
             self.error(500)
-            logging.error('Unable to save execution "%s". Re-queuing.' % \
-                execution_key)
+            return None
+        except:
+            logging.error('Unable to save Execution "%s". Re-queuing.' % \
+                execution.id)
+            self.error(500)
             return None
 
-        memcache.set(execution_key, execution)
+        logging.info('Storing Execution "%s" in memcache.' % execution.id)
+        memcache.set(execution.id, execution)
 
         logging.debug('Finished mail-viewed task handler')
 

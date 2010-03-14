@@ -1,8 +1,13 @@
 #
 # Copyright 2010 Flomosa, LLC
 #
+
 import logging
+
 from google.appengine.ext import db
+from google.appengine.api import memcache
+from google.appengine.runtime import apiproxy_errors
+
 import utils
 
 class Process(db.Model):
@@ -20,7 +25,7 @@ class Process(db.Model):
         if not data or not isinstance(data, dict):
             return None
 
-        process_key = data.get('key', None)
+        process_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
         name = data.get('name', None)
         description = data.get('description', None)
@@ -33,14 +38,8 @@ class Process(db.Model):
             raise ValueError('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
-        logging.info('Looking up Process key "%s" in memcache, then ' \
-            'datastore.' % process_key)
-        process = utils.load_from_cache(process_key, cls)
-
-        if isinstance(process, cls):
-            process.name = name
-        else:
-            process = cls(key_name=process_key, name=name)
+        process = cls.get_or_insert(process_key, name=name)
+        process.name = name
 
         if description is not None:
             process.description = description
@@ -65,7 +64,10 @@ class Process(db.Model):
             entity_keys.append(step.id)
 
         if entities:
-            db.delete(entities)
+            try:
+                db.delete(entities)
+            except apiproxy_errors.CapabilityDisabledError:
+                pass
         if entity_keys:
             memcache.delete_multi(entity_keys)
 
@@ -99,8 +101,11 @@ class Process(db.Model):
 
     def to_dict(self):
         """Return process as a dict object."""
-        data = {'kind': self.kind(), 'name': self.name,
-            'description': self.description}
+        data = {
+            'kind': self.kind(),
+            'name': self.name,
+            'description': self.description
+        }
         if self.is_saved():
             data['key'] = self.id
         data['steps'] = [step.to_dict() for step in self.steps]
@@ -118,22 +123,26 @@ class Step(db.Model):
 
     @property
     def id(self):
+        """Return the unique ID for this step."""
         return self.key().id_or_name()
 
     @property
     def actions(self):
+        """Return the actions that come after this step."""
         return Action.all().filter('incoming', self.key())
 
     @property
     def prior(self):
+        """Return the actions that come before this step."""
         return Action.all().filter('outgoing', self.key())
 
     @classmethod
     def from_dict(cls, data):
+        """Return a new Step instance from a dict object."""
         if not data or not isinstance(data, dict):
             return None
 
-        step_key = data.get('key', None)
+        step_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
         process_key = data.get('process', None)
         name = data.get('name', None)
@@ -155,16 +164,9 @@ class Step(db.Model):
         if not process:
             raise ValueError('Process key "%s" does not exist.' % process_key)
 
-        if step_key:
-            step = utils.load_from_cache(step_key, cls)
-        else:
-            step_key = utils.generate_key()
-            step = None
-
-        if isinstance(step, cls):
-            step.name = name
-        else:
-            step = cls(key_name=step_key, process=process, name=name)
+        step = cls.get_or_insert(step_key, process=process, name=name)
+        step.process = process
+        step.name = name
 
         if description is not None:
             step.description = description
@@ -173,7 +175,7 @@ class Step(db.Model):
         team_keys = []
         for team_key in teams:
             team = utils.load_from_cache(team_key, Team)
-            if isinstance(team, Team):
+            if isinstance(team, Team) and team.key() not in team_keys:
                 team_keys.append(team.key())
         if team_keys:
             step.teams = team_keys
@@ -181,12 +183,18 @@ class Step(db.Model):
         return step
 
     def to_dict(self):
-        data = {'kind': self.kind(), 'name': self.name,
-            'process': self.process.id, 'description': self.description,
-            'is_start': bool(self.is_start), 'teams': []}
+        """Return step as a dict object."""
+        data = {
+            'kind': self.kind(),
+            'name': self.name,
+            'process': self.process.id,
+            'description': self.description,
+            'is_start': bool(self.is_start),
+            'teams': []
+        }
         for team_key in self.teams:
             team = utils.load_from_cache(team_key, Team)
-            if isinstance(team, Team):
+            if isinstance(team, Team) and team.id not in data['teams']:
                 data['teams'].append(team.id)
         if self.is_saved():
             data['key'] = self.id
@@ -199,18 +207,21 @@ class Team(db.Model):
 
     @property
     def id(self):
+        """Return the unique ID for this team."""
         return self.key().id_or_name()
 
     @property
     def steps(self):
+        """Return the steps this team belongs to."""
         return Step.all().filter('teams', self.key())
 
     @classmethod
     def from_dict(cls, data):
+        """Return a new Team instance from a dict object."""
         if not data or not isinstance(data, dict):
             return None
 
-        team_key = data.get('key', None)
+        team_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
         name = data.get('name', None)
         description = data.get('description', None)
@@ -224,16 +235,8 @@ class Team(db.Model):
             raise ValueError('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
-        if team_key:
-            team = utils.load_from_cache(team_key, cls)
-        else:
-            team_key = utils.generate_key()
-            team = None
-
-        if isinstance(team, cls):
-            team.name = name
-        else:
-            team = cls(key_name=team_key, name=name)
+        team = cls.get_or_insert(team_key, name=name)
+        team.name = name
 
         if description is not None:
             team.description = description
@@ -242,8 +245,13 @@ class Team(db.Model):
         return team
 
     def to_dict(self):
-        data = {'kind': self.kind(), 'name': self.name,
-            'description': self.description, 'members': self.members}
+        """Return process as a dict object."""
+        data = {
+            'kind': self.kind(),
+            'name': self.name,
+            'description': self.description,
+            'members': self.members
+        }
         if self.is_saved():
             data['key'] = self.id
         return data
@@ -258,20 +266,19 @@ class Action(db.Model):
 
     @property
     def id(self):
+        """Return the unique ID for this action."""
         return self.key().id_or_name()
 
     @classmethod
     def from_dict(cls, data):
+        """Return a new Action instance from a dict object."""
         if not data or not isinstance(data, dict):
             return None
 
-        action_key = data.get('key', None)
+        action_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
         name = data.get('name', None)
-        process_key = data.get('process', None)
         is_complete = data.get('is_complete', None)
-        incoming = data.get('incoming', None)
-        outgoing = data.get('outgoing', None)
 
         if not name:
             raise KeyError('Missing "name" parameter.')
@@ -280,41 +287,36 @@ class Action(db.Model):
         if kind != cls.__name__:
             raise ValueError('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
-        if not process_key:
+        try:
+            process_key = data['process']
+        except KeyError:
             raise KeyError('Missing "process" parameter.')
 
         process = utils.load_from_cache(process_key, Process)
         if not process:
             raise ValueError('Process key "%s" does not exist.' % process_key)
 
-        if action_key:
-            action = utils.load_from_cache(action_key, cls)
-        else:
-            action_key = utils.generate_key()
-            action = None
-
-        if isinstance(action, cls):
-            action.name = name
-        else:
-            action = cls(key_name=action_key, process=process, name=name)
+        action = cls.get_or_insert(action_key, process=process, name=name)
+        action.process = process
+        action.name = name
 
         if is_complete is not None:
             action.is_complete = bool(is_complete)
 
         # Parse incoming step keys
         step_keys = []
-        for step_key in incoming:
+        for step_key in data.get('incoming'):
             step = utils.load_from_cache(step_key, Step)
-            if isinstance(step, Step):
+            if isinstance(step, Step) and step.key() not in step_keys:
                 step_keys.append(step.key())
         if step_keys:
             action.incoming = step_keys
 
         # Parse outgoing step keys
         step_keys = []
-        for step_key in outgoing:
+        for step_key in data.get('outgoing'):
             step = utils.load_from_cache(step_key, Step)
-            if isinstance(step, Step):
+            if isinstance(step, Step) and step.key() not in step_keys:
                 step_keys.append(step.key())
         if step_keys:
             action.outgoing = step_keys
@@ -322,16 +324,24 @@ class Action(db.Model):
         return action
 
     def to_dict(self):
-        data = {'kind': self.kind(), 'process': self.process.id,
-            'name': self.name, 'is_complete': bool(self.is_complete),
-            'incoming': [], 'outgoing': []}
+        """Return action as a dict object."""
+        data = {
+            'kind': self.kind(),
+            'process': self.process.id,
+            'name': self.name,
+            'is_complete': bool(self.is_complete),
+            'incoming': [],
+            'outgoing': []
+        }
+        if self.is_saved():
+            data['key'] = self.id
         for step_key in self.incoming:
             step = utils.load_from_cache(step_key, Step)
-            if isinstance(step, Step):
+            if isinstance(step, Step) and step.id not in data['incoming']:
                 data['incoming'].append(step.id)
         for step_key in self.outgoing:
             step = utils.load_from_cache(step_key, Step)
-            if isinstance(step, Step):
+            if isinstance(step, Step) and step.id not in data['outgoing']:
                 data['outgoing'].append(step.id)
         return data
 
@@ -344,12 +354,18 @@ class Request(db.Expando):
 
     @property
     def id(self):
+        """Return the unique ID for this request."""
         return self.key().id_or_name()
 
     def to_dict(self):
-        data = {'kind': self.kind(), 'process': self.process.id,
-            'requestor': self.requestor, 'contact': self.contact,
-            'is_draft': self.is_draft}
+        """Return request as a dict object."""
+        data = {
+            'kind': self.kind(),
+            'process': self.process.id,
+            'requestor': self.requestor,
+            'contact': self.contact,
+            'is_draft': self.is_draft
+        }
         for property in self.dynamic_properties():
             data[property] = getattr(self, property)
         if self.is_saved():
@@ -376,4 +392,5 @@ class Execution(db.Model):
 
     @property
     def id(self):
+        """Return the unique ID for this execution."""
         return self.key().id_or_name()

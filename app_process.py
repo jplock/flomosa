@@ -9,7 +9,7 @@ from django.utils import simplejson
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import memcache
-from google.appengine.api.labs import taskqueue
+from google.appengine.runtime import apiproxy_errors
 
 import models
 import utils
@@ -19,16 +19,15 @@ class ProcessHandler(webapp.RequestHandler):
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() function')
 
-        logging.info('Looking up Process key "%s" in memcache then datastore.' \
-            % process_key)
+        logging.info('Looking up Process "%s" in memcache then datastore.' % \
+            process_key)
         process = utils.load_from_cache(process_key, models.Process)
-        if not process:
+        if not isinstance(process, models.Process):
             error_msg = 'Process key "%s" does not exist.' % process_key
             logging.error(utils.get_log_message(error_msg, 404))
             return utils.build_json(self, error_msg, 404)
 
-        logging.info('Returning Process "%s" as JSON to client.' % \
-            process.id)
+        logging.info('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, process.to_dict())
 
         logging.debug('Finished ProcessHandler.get() function')
@@ -43,28 +42,96 @@ class ProcessHandler(webapp.RequestHandler):
             logging.error(utils.get_log_message(error_msg, 500))
             return utils.build_json(self, error_msg, 500)
 
-        name = data.get('name', None)
-        if not name:
+        if not data.get('name'):
             error_msg = 'Missing "name" parameter.'
             logging.error(utils.get_log_message(error_msg, 400))
             return utils.build_json(self, error_msg, 400)
 
-        kind = data.get('kind', None)
-        if not kind or kind != 'Process':
+        if data.get('kind') != 'Process':
             error_msg = 'Invalid "kind" parameter; expected "kind=Process".'
             logging.error(utils.get_log_message(error_msg, 400))
             return utils.build_json(self, error_msg, 400)
 
-        params = {'key': process_key, 'data': self.request.body}
-        queue = taskqueue.Queue('process-store')
-        task = taskqueue.Task(params=params)
+        # Load the process data
+        try:
+            process = models.Process.from_dict(data)
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 400))
+            return utils.build_json(self, e, 400)
 
-        logging.info('Queued Process "%s" for creation.' % process_key)
-        queue.add(task)
+        if not isinstance(process, models.Process):
+            error_msg = 'Unable to create Process "%s".' % process_key
+            logging.error(utils.get_log_message(error_msg, 500))
+            return utils.build_json(self, error_msg, 500)
 
-        logging.info('Returning Process "%s" as JSON to client.' % \
-            process_key)
-        utils.build_json(self, {'key': process_key}, 202)
+        logging.info('Storing Process "%s" in datastore.' % process.id)
+        try:
+            process.put()
+        except apiproxy_errors.CapabilityDisabledError:
+            error_msg = 'Unable to save Process "%s" due to maintenance. ' % \
+                process.id
+            logging.error(utils.get_log_message(error_msg, 500))
+            return utils.build_json(self, error_msg, 500)
+        except:
+            error_msg = 'Unable to save Process "%s" in datastore.' % \
+                process.id
+            logging.error(utils.get_log_message(error_msg, 500))
+            return utils.build_json(self, error_msg, 500)
+
+        logging.info('Storing Process "%s" in memcache.' % process.id)
+        memcache.set(process.id, process)
+
+        # Load any steps on this process
+        for step_data in data.get('steps'):
+            try:
+                step = models.Step.from_dict(step_data)
+            except Exception, e:
+                logging.error('%s. Continuing.' % e)
+                continue
+
+            try:
+                logging.info('Storing Step "%s" in datastore.' % step.id)
+                step.put()
+            except apiproxy_errors.CapabilityDisabledError:
+                error_msg = 'Unable to save Step "%s" due to maintenance.' % \
+                    step.id
+                logging.error(utils.get_log_message(error_msg, 500))
+                return utils.build_json(self, error_msg, 500)
+            except:
+                error_msg = 'Unable to save Step "%s" in datastore.' % step.id
+                logging.error(utils.get_log_message(error_msg, 500))
+                return utils.build_json(self, error_msg, 500)
+
+            logging.info('Storing Step "%s" in memcache.' % step.id)
+            memcache.set(step.id, step)
+
+        # Load any actions on this process
+        for action_data in data.get('actions'):
+            try:
+                action = models.Action.from_dict(action_data)
+            except Exception, e:
+                logging.error('%s. Continuing.' % e)
+                continue
+
+            logging.info('Storing Action "%s" in datastore.' % action.id)
+            try:
+                action.put()
+            except apiproxy_errors.CapabilityDisabledError:
+                error_msg = 'Unable to save Action "%s" due to maintenance.' \
+                    % action.id
+                logging.error(utils.get_log_message(error_msg, 500))
+                return utils.build_json(self, error_msg, 500)
+            except:
+                error_msg = 'Unable to save Action "%s" in datastore.' % \
+                    action.id
+                logging.error(utils.get_log_message(error_msg, 500))
+                return utils.build_json(self, error_msg, 500)
+
+            logging.info('Storing Action "%s" in memcache.' % action.id)
+            memcache.set(action.id, action)
+
+        logging.info('Returning Process "%s" as JSON to client.' % process.id)
+        utils.build_json(self, {'key': process.id}, 201)
 
         logging.debug('Finished ProcessHandler.put() function')
 
@@ -76,12 +143,14 @@ class ProcessHandler(webapp.RequestHandler):
             process.delete_steps_actions()
 
             logging.info('Deleting Process "%s" from memcache.' % process.id)
-            memcache.delete(process.id)
+            memcache.delete_multi([process_key, process.id])
+
+            logging.info('Deleting Process "%s" from datastore.' % process.id)
             try:
-                logging.info('Deleting Process "%s" from datastore.' % process.id)
                 process.delete()
-            except:
-                pass
+            except apiproxy_errors.CapabilityDisabledError:
+                logging.warning('Unable to delete Process "%s" due to ' \
+                    'maintenance.' % process.id)
         else:
             logging.warning('Process key "%s" not found in datastore to ' \
                 'delete.' % process_key)
