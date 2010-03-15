@@ -5,7 +5,6 @@ api_version: 1
 
 inbound_services:
 - mail
-- xmpp_message
 
 handlers:
 - url: /
@@ -14,7 +13,6 @@ handlers:
 
 - url: /viewed/.*
   script: app_viewed.py
-  #secure: always
 
 - url: /requests/.*
   script: app_request.py
@@ -38,6 +36,18 @@ handlers:
 
 - url: /_ah/queue/request-process
   script: queue_request_process.py
+  #login: admin
+
+- url: /_ah/queue/mail-request-notify
+  script: queue_mail_request_notify.py
+  #login: admin
+
+- url: /_ah/queue/mail-request-confirmation
+  script: queue_mail_request_confirmation.py
+  #login: admin
+
+- url: /_ah/queue/mail-request-complete
+  script: queue_mail_request_complete.py
   #login: admin
 
 - url: /_ah/mail/.+

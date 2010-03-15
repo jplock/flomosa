@@ -206,8 +206,6 @@ class Step(db.Model):
     def queue_tasks(self, request):
         """Queue execution tasks for a given request."""
 
-        query = Execution.find_query()
-
         queue = taskqueue.Queue('request-process')
         for team_key in self.teams:
             team = utils.load_from_cache(team_key, Team)
@@ -229,15 +227,10 @@ class Step(db.Model):
                     logging.error('Unable to save Execution "%s" due to ' \
                         'maintenance.' % execution.id)
                     continue
-                except:
+                except Exception, e:
                     logging.error('Unable to save Execution "%s" in ' \
-                        'datastore.' % execution.id)
+                        'datastore. (%s)' % (execution.id, e))
                     continue
-
-                if execution.is_saved():
-                    logging.info('Storing Execution "%s" in memcache.' % \
-                        execution.id)
-                    memcache.set(execution.id, execution)
 
                 try:
                     task = taskqueue.Task(params={'key': execution.id})
@@ -246,6 +239,9 @@ class Step(db.Model):
                         'Continuing.' % execution.id)
                     continue
 
+                logging.info('Queuing: (member="%s") (team="%s") (step="%s") ' \
+                    '(process="%s")' % (member, team.name, self.name,
+                    self.process.name))
                 queue.add(task)
 
 class Team(db.Model):
@@ -431,6 +427,7 @@ class Execution(db.Model):
     team = db.ReferenceProperty(Team, collection_name='executions')
     member = db.EmailProperty(required=True)
     start_date = db.DateTimeProperty(auto_now_add=True)
+    queued_for_send = db.BooleanProperty(default=False)
     sent_date = db.DateTimeProperty()
     viewed_date = db.DateTimeProperty()
     end_date = db.DateTimeProperty()

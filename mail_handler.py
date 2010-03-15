@@ -9,7 +9,6 @@ from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util, mail_handlers
-from google.appengine.api import memcache
 from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
@@ -23,10 +22,9 @@ class MailHandler(mail_handlers.InboundMailHandler):
         user, hostname = message.to.split('@')
         temp, execution_key = user.split('+')
 
-        logging.info('Looking up Execution "%s" in memcache then datastore.' % \
-            execution_key)
-        execution = utils.load_from_cache(execution_key, models.Execution)
-        if not isinstance(execution, models.Execution):
+        logging.info('Looking up Execution "%s" in datastore.' % execution_key)
+        execution = models.Execution.get_by_key_name(execution_key)
+        if not execution:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \
                 execution_key)
             return None
@@ -52,9 +50,10 @@ class MailHandler(mail_handlers.InboundMailHandler):
             return None
 
         sender = email.utils.parseaddr(message.sender)
-        sender = sender[1].lower()
+        if sender[1]:
+            sender = sender[1]
 
-        if execution.member.lower() != sender:
+        if execution.member.lower() != sender.lower():
             logging.error('Email sent from "%s", expected "%s". Exiting.' % \
                 (sender, execution.member))
             return None
@@ -70,6 +69,8 @@ class MailHandler(mail_handlers.InboundMailHandler):
             for line in body.decode().splitlines():
                 for name, action in actions.iteritems():
                     if line.lower().find(name) != -1:
+                        logging.info('Found Action named "%s" for Execution ' \
+                            '"%s".' % (action.name, execution.id))
                         executed_action = action
                         break
                 if isinstance(executed_action, models.Action) or \
@@ -86,8 +87,20 @@ class MailHandler(mail_handlers.InboundMailHandler):
                 reply_text)
             return None
 
+        logging.info('Queuing confirmation email to be sent to "%s".' % \
+            execution.member)
+        task = taskqueue.Task(params={'key': execution.id})
+        queue = taskqueue.Queue('mail-request-confirmation')
+        queue.add(task)
+
         execution.action = executed_action
         execution.end_date = datetime.now()
+        if execution.viewed_date and not execution.action_delay:
+            delta = execution.end_date - execution.viewed_date
+            execution.action_delay = delta.days * 86400 + delta.seconds
+        if execution.start_date and not execution.duration:
+            delta = execution.end_date - execution.start_date
+            execution.duration = delta.days * 86400 + delta.seconds
 
         logging.info('Storing Execution "%s" in datastore.' % execution.id)
         try:
@@ -101,15 +114,11 @@ class MailHandler(mail_handlers.InboundMailHandler):
                 execution.id)
             return None
 
-        if execution.is_saved():
-            logging.info('Storing Execution "%s" in memcache.' % execution.id)
-            memcache.set(execution.id, execution)
-
         logging.debug('Finished incoming mail handler')
 
 def main():
-    application = webapp.WSGIApplication([(r'/_ah/mail/.+',
-        MailHandler)], debug=utils._DEBUG)
+    application = webapp.WSGIApplication([(r'/_ah/mail/.+', MailHandler)],
+        debug=utils._DEBUG)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

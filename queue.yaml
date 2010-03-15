@@ -2,3 +2,15 @@ queue:
 - name: request-process
   rate: 5/s
   bucket_size: 5
+  
+- name: mail-request-notify
+  rate: 5/s
+  bucket_size: 5
+  
+- name: mail-request-confirmation
+  rate: 5/s
+  bucket_size: 5
+  
+- name: mail-request-complete
+  rate: 5/s
+  bucket_size: 5

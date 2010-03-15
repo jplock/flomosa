@@ -10,8 +10,6 @@ from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
-from google.appengine.api import memcache
-from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
 import models
@@ -26,12 +24,17 @@ class ViewedHandler(webapp.RequestHandler):
     def get(self, execution_key):
         logging.debug('Begin ViewedHandler.get() function')
 
-        logging.info('Looking up Execution "%s" in memcache then datastore.' % \
-            execution_key)
+        logging.info('Looking up Execution "%s" in datastore.' % execution_key)
         execution = utils.load_from_cache(execution_key, models.Execution)
         if isinstance(execution, models.Execution):
+            logging.info('Execution "%s" found in datastore.' % execution.id)
             if not execution.viewed_date:
+                logging.info('Execution "%s" not currently viewed, saving.' % \
+                    execution.id)
                 execution.viewed_date = datetime.now()
+                if not execution.email_delay:
+                    delta = execution.viewed_date - execution.sent_date
+                    execution.email_delay = delta.days * 86400 + delta.seconds
 
                 logging.info('Storing Execution "%s" in datastore.' % \
                     execution.id)
@@ -39,15 +42,13 @@ class ViewedHandler(webapp.RequestHandler):
                     execution.put()
                 except apiproxy_errors.CapabilityDisabledError:
                     logging.error('Unable to save Execution "%s" due to ' \
-                        'maintenance. Exiting.' % execution.id)
+                        'maintenance.' % execution.id)
                 except:
-                    logging.error('Unable to save Execution "%s". Exiting.' % \
-                        execution.id)
-
-                if execution.is_saved():
-                    logging.info('Storing Execution "%s" in memcache.' % \
-                        execution.id)
-                    memcache.set(execution.id, execution)
+                    logging.error('Unable to save Execution "%s" in ' \
+                        'datastore.' % execution.id)
+        else:
+            logging.error('Execution "%s" not found in datastore.' % \
+                execution_key)
 
         pixel = base64.b64decode(_PIXEL_GIF)
         self.response.headers['Content-Type'] = 'image/gif'
@@ -62,8 +63,8 @@ class ActionHandler(webapp.RequestHandler):
 
         logging.info('Looking up Execution "%s" in memcache then datastore.' \
             % execution_key)
-        execution = utils.load_from_cache(execution_key, models.Execution)
-        if not isinstance(execution, models.Execution):
+        execution = models.Execution.get_by_key_name(execution_key)
+        if not execution:
             logging.error('Execution "%s" not found. Returning 404 to user.' \
                 % execution_key)
             self.error(404)
@@ -80,6 +81,12 @@ class ActionHandler(webapp.RequestHandler):
 
         execution.action = action
         execution.end_date = datetime.now()
+        if execution.viewed_date and not execution.action_delay:
+            delta = execution.end_date - execution.viewed_date
+            execution.action_delay = delta.days * 86400 + delta.seconds
+        if execution.start_date and not execution.duration:
+            delta = execution.end_date - execution.start_date
+            execution.duration = delta.days * 86400 + delta.seconds
 
         logging.info('Storing Execution "%s" in datastore.' % execution.id)
         try:
@@ -91,11 +98,7 @@ class ActionHandler(webapp.RequestHandler):
             logging.error('Unable to save Execution "%s" in datastore.' % \
                 execution.id)
 
-        if execution.is_saved():
-            logging.info('Storing Execution "%s" in memcache.' % execution.id)
-            memcache.set(execution.id, execution)
-
-        self.response.out.write('Thank you. This window will now close.')
+        self.response.out.write('Thank you. You can close this window.')
 
         logging.debug('Finished ActionHandler.get() function')
 
