@@ -1,16 +1,13 @@
-#!/usr/bin/env python
 #
 # Copyright 2010 Flomosa, LLC
 #
 
 import base64
 import logging
-import time
 from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
-from google.appengine.runtime import apiproxy_errors
 
 import models
 import utils
@@ -22,12 +19,13 @@ _PIXEL_GIF = \
 class ViewedHandler(webapp.RequestHandler):
 
     def get(self, execution_key):
-        logging.debug('Begin ViewedHandler.get() function')
+        logging.debug('Begin ViewedHandler.get() method')
 
-        logging.info('Looking up Execution "%s" in datastore.' % execution_key)
-        execution = utils.load_from_cache(execution_key, models.Execution)
+        logging.debug('Looking up Execution "%s" in memcache then datastore.' \
+            % execution_key)
+        execution = models.Execution.get(execution_key)
         if isinstance(execution, models.Execution):
-            logging.info('Execution "%s" found in datastore.' % execution.id)
+            logging.debug('Execution "%s" found in datastore.' % execution.id)
             if not execution.viewed_date:
                 logging.info('Execution "%s" not currently viewed, saving.' % \
                     execution.id)
@@ -36,16 +34,10 @@ class ViewedHandler(webapp.RequestHandler):
                     delta = execution.viewed_date - execution.sent_date
                     execution.email_delay = delta.days * 86400 + delta.seconds
 
-                logging.info('Storing Execution "%s" in datastore.' % \
-                    execution.id)
                 try:
                     execution.put()
-                except apiproxy_errors.CapabilityDisabledError:
-                    logging.error('Unable to save Execution "%s" due to ' \
-                        'maintenance.' % execution.id)
-                except:
-                    logging.error('Unable to save Execution "%s" in ' \
-                        'datastore.' % execution.id)
+                except Exception, e:
+                    logging.error(e)
         else:
             logging.error('Execution "%s" not found in datastore.' % \
                 execution_key)
@@ -54,25 +46,25 @@ class ViewedHandler(webapp.RequestHandler):
         self.response.headers['Content-Type'] = 'image/gif'
         self.response.out.write(pixel)
 
-        logging.debug('Finished ViewedHandler.get() function')
+        logging.debug('Finished ViewedHandler.get() method')
 
 class ActionHandler(webapp.RequestHandler):
 
     def get(self, execution_key, action_key):
-        logging.debug('Begin ActionHandler.get() function')
+        logging.debug('Begin ActionHandler.get() method')
 
-        logging.info('Looking up Execution "%s" in memcache then datastore.' \
+        logging.debug('Looking up Execution "%s" in memcache then datastore.' \
             % execution_key)
-        execution = models.Execution.get_by_key_name(execution_key)
+        execution = models.Execution.get(execution_key)
         if not execution:
             logging.error('Execution "%s" not found. Returning 404 to user.' \
                 % execution_key)
             self.error(404)
             return None
 
-        logging.info('Looking up Action "%s" in memcache then datastore.' \
+        logging.debug('Looking up Action "%s" in memcache then datastore.' \
             % action_key)
-        action = utils.load_from_cache(action_key, models.Action)
+        action = models.Action.get(action_key)
         if not isinstance(action, models.Action):
             logging.error('Action "%s" not found. Returning 404 to user.' % \
                 action_key)
@@ -88,25 +80,19 @@ class ActionHandler(webapp.RequestHandler):
             delta = execution.end_date - execution.start_date
             execution.duration = delta.days * 86400 + delta.seconds
 
-        logging.info('Storing Execution "%s" in datastore.' % execution.id)
         try:
             execution.put()
-        except apiproxy_errors.CapabilityDisabledError:
-            logging.error('Unable to save Execution "%s" due to maintenance.' \
-                % execution.id)
-        except:
-            logging.error('Unable to save Execution "%s" in datastore.' % \
-                execution.id)
+        except Exception, e:
+            logging.error(e)
 
         self.response.out.write('Thank you. You can close this window.')
 
-        logging.debug('Finished ActionHandler.get() function')
+        logging.debug('Finished ActionHandler.get() method')
 
 def main():
     application = webapp.WSGIApplication(
         [(r'/viewed/(.*)/(.*)\.json', ActionHandler),
-        (r'/viewed/(.*)\.json', ViewedHandler)],
-        debug=utils._DEBUG)
+        (r'/viewed/(.*)\.json', ViewedHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

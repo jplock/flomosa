@@ -8,31 +8,36 @@ inbound_services:
 
 handlers:
 - url: /
-  script: app_main.py
-  #login: admin
+  script: app_index.py
+  secure: optional
+
+- url: /account/.*
+  script: app_account.py
+  secure: always
 
 - url: /viewed/.*
   script: app_viewed.py
+  secure: optional
 
 - url: /requests/.*
   script: app_request.py
-  #secure: always
+  secure: always
 
 - url: /processes/.*
   script: app_process.py
-  #secure: always
+  secure: optional
 
 - url: /teams/.*
   script: app_team.py
-  #secure: always
+  secure: optional
 
 - url: /stats/.*
   script: app_stat.py
-  #secure: always
+  secure: optional
   
 - url: /search/.*
   script: app_search.py
-  #secure: always
+  secure: optional
 
 - url: /_ah/queue/request-process
   script: queue_request_process.py
@@ -48,6 +53,10 @@ handlers:
 
 - url: /_ah/queue/mail-request-complete
   script: queue_mail_request_complete.py
+  #login: admin
+
+- url: /_ah/queue/mail-request-step
+  script: queue_mail_request_step.py
   #login: admin
 
 - url: /_ah/mail/.+

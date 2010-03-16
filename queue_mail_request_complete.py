@@ -5,7 +5,6 @@
 
 import os.path
 import logging
-from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
@@ -13,7 +12,6 @@ from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
 import models
-import utils
 
 class TaskHandler(webapp.RequestHandler):
     def post(self):
@@ -28,7 +26,7 @@ class TaskHandler(webapp.RequestHandler):
             return None
 
         logging.info('Looking up Execution "%s" in datastore.' % execution_key)
-        execution = models.Execution.get_by_key_name(execution_key)
+        execution = models.Execution.get(execution_key)
         if not execution:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \
                 execution_key)
@@ -55,31 +53,30 @@ class TaskHandler(webapp.RequestHandler):
         html_body = template.render(html_template_file, template_vars)
 
         message = mail.EmailMessage(
-            sender='Flomosa <no-reply@flomosa.com>',
+            sender='Flomosa <no-reply@flomosa.appspotmail.com>',
             to=execution.request.requestor,
-            subject='[flomosa] Your Request Has Been: %s' % \
-                execution.action.name,
+            subject='[flomosa] Request #%s' % execution.request.id,
             body=text_body,
             html=html_body)
 
+        logging.info('Sending completion email to "%s".' % \
+            execution.request.requestor)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            logging.error('Over email quota limit to send notification ' \
-                'email to "%s". Re-queuing.' % execution.member)
+            logging.error('Over email quota limit to send completion ' \
+                'email to "%s". Re-queuing.' % execution.request.requestor)
             self.error(500)
-            return None
-        except:
-            logging.error('Unable to send notification email to "%s". ' \
-                'Re-queuing.' % execution.member)
+        except Exception, e:
+            logging.error('Unable to send completion email to "%s" (%s). ' \
+                'Re-queuing.' % (execution.request.requestor, e))
             self.error(500)
-            return None
 
         logging.debug('Finished mail-request-complete task handler')
 
 def main():
     application = webapp.WSGIApplication([('/_ah/queue/mail-request-complete',
-        TaskHandler)], debug=utils._DEBUG)
+        TaskHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

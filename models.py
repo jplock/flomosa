@@ -10,19 +10,45 @@ from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
 import utils
+import cache
 
-class Process(db.Model):
-    name = db.StringProperty(required=True)
-    description = db.TextProperty()
+class FlomosaBase(db.Model):
+    """Base model inherited by other models."""
 
     @property
     def id(self):
-        """Return the unique ID for this process."""
+        """Return the unique ID for this model."""
         return self.key().id_or_name()
+
+    @classmethod
+    def get(cls, key):
+        """Lookup the model in memcache and then the datastore."""
+        return cache.get_from_cache(cls, key)
+
+    def put(self):
+        """Save the model to the datastore and memcache."""
+        return cache.save_to_cache(self)
+
+    def delete(self):
+        """Delete the model from the datastore and memcache."""
+        return cache.delete_from_cache(self)
+
+class Process(FlomosaBase):
+    name = db.StringProperty(required=True)
+    description = db.TextProperty()
+
+    def delete(self):
+        """Delete the process from the datastore and memcache.
+
+        This also deletes and actions and steps created under this process.
+        """
+        self.delete_steps_actions()
+        return cache.delete_from_cache(self)
 
     @classmethod
     def from_dict(cls, data):
         """Return a new Process instance from a dict object."""
+
         if not data or not isinstance(data, dict):
             return None
 
@@ -53,15 +79,15 @@ class Process(db.Model):
         entity_keys = []
 
         for action in self.actions:
-            logging.info('Deleting Action "%s" from datastore.' % action.id)
+            logging.debug('Deleting Action "%s" from datastore.' % action.id)
             entities.append(action)
-            logging.info('Deleting Action "%s" from memcache.' % action.id)
+            logging.debug('Deleting Action "%s" from memcache.' % action.id)
             entity_keys.append(action.id)
 
         for step in self.steps:
-            logging.info('Deleting Step "%s" from datastore.' % step.id)
+            logging.debug('Deleting Step "%s" from datastore.' % step.id)
             entities.append(step)
-            logging.info('Deleting Step "%s" from memcache.' % step.id)
+            logging.debug('Deleting Step "%s" from memcache.' % step.id)
             entity_keys.append(step.id)
 
         if entities:
@@ -70,12 +96,12 @@ class Process(db.Model):
             except apiproxy_errors.CapabilityDisabledError:
                 logging.error('Unable to delete steps and actions from ' \
                     'Process "%s" due to maintenance.' % self.id)
-                pass
         if entity_keys:
             memcache.delete_multi(entity_keys)
 
     def get_start_step(self):
         """Get start step in this process."""
+
         query = Step.all().filter('is_start', True)
         return query.get()
 
@@ -85,13 +111,14 @@ class Process(db.Model):
         - Must have a start step defined
         - Must be at least one team member and team assigned to the start step
         """
+
         step = self.get_start_step()
         if not step:
             return False
 
         found_member = False
         for team_key in step.teams:
-            team = utils.load_from_cache(team_key, Team)
+            team = Team.get(team_key)
             if not team:
                 continue
             elif not team.members:
@@ -104,6 +131,7 @@ class Process(db.Model):
 
     def to_dict(self):
         """Return process as a dict object."""
+
         data = {
             'kind': self.kind(),
             'name': self.name,
@@ -116,18 +144,13 @@ class Process(db.Model):
         return data
 
 
-class Step(db.Model):
+class Step(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='steps',
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     is_start = db.BooleanProperty(default=False)
     teams = db.ListProperty(db.Key)
-
-    @property
-    def id(self):
-        """Return the unique ID for this step."""
-        return self.key().id_or_name()
 
     @property
     def actions(self):
@@ -142,6 +165,7 @@ class Step(db.Model):
     @classmethod
     def from_dict(cls, data):
         """Return a new Step instance from a dict object."""
+
         if not data or not isinstance(data, dict):
             return None
 
@@ -163,7 +187,7 @@ class Step(db.Model):
         if not process_key:
             raise KeyError('Missing "process" parameter.')
 
-        process = utils.load_from_cache(process_key, Process)
+        process = Process.get(process_key)
         if not process:
             raise ValueError('Process key "%s" does not exist.' % process_key)
 
@@ -177,7 +201,7 @@ class Step(db.Model):
             step.is_start = bool(is_start)
         team_keys = []
         for team_key in teams:
-            team = utils.load_from_cache(team_key, Team)
+            team = Team.get(team_key)
             if isinstance(team, Team) and team.key() not in team_keys:
                 team_keys.append(team.key())
         if team_keys:
@@ -187,6 +211,7 @@ class Step(db.Model):
 
     def to_dict(self):
         """Return step as a dict object."""
+
         data = {
             'kind': self.kind(),
             'name': self.name,
@@ -196,7 +221,7 @@ class Step(db.Model):
             'teams': []
         }
         for team_key in self.teams:
-            team = utils.load_from_cache(team_key, Team)
+            team = Team.get(team_key)
             if isinstance(team, Team) and team.id not in data['teams']:
                 data['teams'].append(team.id)
         if self.is_saved():
@@ -206,9 +231,12 @@ class Step(db.Model):
     def queue_tasks(self, request):
         """Queue execution tasks for a given request."""
 
+        if not isinstance(request, Request):
+            return None
+
         queue = taskqueue.Queue('request-process')
         for team_key in self.teams:
-            team = utils.load_from_cache(team_key, Team)
+            team = Team.get(team_key)
             if not team:
                 continue
 
@@ -219,40 +247,22 @@ class Step(db.Model):
                     process=self.process, request=request, step=self,
                     team=team, member=member)
 
-                logging.info('Storing Execution "%s" in datastore.' % \
-                    execution.id)
                 try:
                     execution.put()
-                except apiproxy_errors.CapabilityDisabledError:
-                    logging.error('Unable to save Execution "%s" due to ' \
-                        'maintenance.' % execution.id)
-                    continue
                 except Exception, e:
-                    logging.error('Unable to save Execution "%s" in ' \
-                        'datastore. (%s)' % (execution.id, e))
-                    continue
-
-                try:
-                    task = taskqueue.Task(params={'key': execution.id})
-                except taskqueue.TaskTooLargeError:
-                    logging.error('Execution "%s" task is too large. ' \
-                        'Continuing.' % execution.id)
+                    logging.error(e)
                     continue
 
                 logging.info('Queuing: (member="%s") (team="%s") (step="%s") ' \
                     '(process="%s")' % (member, team.name, self.name,
                     self.process.name))
+                task = taskqueue.Task(params={'key': execution.id})
                 queue.add(task)
 
-class Team(db.Model):
+class Team(FlomosaBase):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     members = db.ListProperty(basestring)
-
-    @property
-    def id(self):
-        """Return the unique ID for this team."""
-        return self.key().id_or_name()
 
     @property
     def steps(self):
@@ -262,6 +272,7 @@ class Team(db.Model):
     @classmethod
     def from_dict(cls, data):
         """Return a new Team instance from a dict object."""
+
         if not data or not isinstance(data, dict):
             return None
 
@@ -290,6 +301,7 @@ class Team(db.Model):
 
     def to_dict(self):
         """Return process as a dict object."""
+
         data = {
             'kind': self.kind(),
             'name': self.name,
@@ -300,7 +312,7 @@ class Team(db.Model):
             data['key'] = self.id
         return data
 
-class Action(db.Model):
+class Action(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='actions',
         required=True)
     name = db.StringProperty(required=True)
@@ -308,14 +320,10 @@ class Action(db.Model):
     outgoing = db.ListProperty(db.Key)
     is_complete = db.BooleanProperty(default=False)
 
-    @property
-    def id(self):
-        """Return the unique ID for this action."""
-        return self.key().id_or_name()
-
     @classmethod
     def from_dict(cls, data):
         """Return a new Action instance from a dict object."""
+
         if not data or not isinstance(data, dict):
             return None
 
@@ -336,7 +344,7 @@ class Action(db.Model):
         except KeyError:
             raise KeyError('Missing "process" parameter.')
 
-        process = utils.load_from_cache(process_key, Process)
+        process = Process.get(process_key)
         if not process:
             raise ValueError('Process key "%s" does not exist.' % process_key)
 
@@ -350,7 +358,7 @@ class Action(db.Model):
         # Parse incoming step keys
         step_keys = []
         for step_key in data.get('incoming'):
-            step = utils.load_from_cache(step_key, Step)
+            step = Step.get(step_key)
             if isinstance(step, Step) and step.key() not in step_keys:
                 step_keys.append(step.key())
         if step_keys:
@@ -359,7 +367,7 @@ class Action(db.Model):
         # Parse outgoing step keys
         step_keys = []
         for step_key in data.get('outgoing'):
-            step = utils.load_from_cache(step_key, Step)
+            step = Step.get(step_key)
             if isinstance(step, Step) and step.key() not in step_keys:
                 step_keys.append(step.key())
         if step_keys:
@@ -369,6 +377,7 @@ class Action(db.Model):
 
     def to_dict(self):
         """Return action as a dict object."""
+
         data = {
             'kind': self.kind(),
             'process': self.process.id,
@@ -380,11 +389,11 @@ class Action(db.Model):
         if self.is_saved():
             data['key'] = self.id
         for step_key in self.incoming:
-            step = utils.load_from_cache(step_key, Step)
+            step = Step.get(step_key)
             if isinstance(step, Step) and step.id not in data['incoming']:
                 data['incoming'].append(step.id)
         for step_key in self.outgoing:
-            step = utils.load_from_cache(step_key, Step)
+            step = Step.get(step_key)
             if isinstance(step, Step) and step.id not in data['outgoing']:
                 data['outgoing'].append(step.id)
         return data
@@ -401,8 +410,22 @@ class Request(db.Expando):
         """Return the unique ID for this request."""
         return self.key().id_or_name()
 
+    @classmethod
+    def get(cls, key):
+        """Lookup the request key in memcache and then the datastore."""
+        return cache.get_from_cache(cls, key)
+
+    def put(self):
+        """Save the Request to the datastore and memcache."""
+        return cache.save_to_cache(self)
+
+    def delete(self):
+        """Delete the Request from the datastore and memcache."""
+        return cache.delete_from_cache(self)
+
     def to_dict(self):
         """Return request as a dict object."""
+
         data = {
             'kind': self.kind(),
             'process': self.process.id,
@@ -416,7 +439,7 @@ class Request(db.Expando):
             data['key'] = self.id
         return data
 
-class Execution(db.Model):
+class Execution(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='executions',
         required=True)
     request = db.ReferenceProperty(Request, collection_name='executions',
@@ -435,7 +458,11 @@ class Execution(db.Model):
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
-    @property
-    def id(self):
-        """Return the unique ID for this execution."""
-        return self.key().id_or_name()
+class Consumer(db.Model):
+    oauth_token = db.StringProperty(required=True)
+    oauth_secret = db.StringProperty(required=True)
+    first_name = db.StringProperty()
+    last_name = db.StringProperty()
+    email_address = db.EmailProperty(required=True)
+    password = db.StringProperty(required=True)
+    created_date = db.DateTimeProperty(auto_now_add=True)

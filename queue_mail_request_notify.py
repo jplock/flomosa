@@ -13,7 +13,6 @@ from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
 import models
-import utils
 
 class TaskHandler(webapp.RequestHandler):
     def post(self):
@@ -27,8 +26,8 @@ class TaskHandler(webapp.RequestHandler):
             logging.error('Missing "key" parameter. Exiting.')
             return None
 
-        logging.info('Looking up Execution "%s" in datastore.' % execution_key)
-        execution = models.Execution.get_by_key_name(execution_key)
+        logging.debug('Looking up Execution "%s" in datastore.' % execution_key)
+        execution = models.Execution.get(execution_key)
         if not execution:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \
                 execution_key)
@@ -64,10 +63,12 @@ class TaskHandler(webapp.RequestHandler):
             sender='Flomosa <reply+%s@flomosa.appspotmail.com>' % \
                 execution.id,
             to=execution.member,
-            subject='[flomosa] New Request for your Action',
+            subject='[flomosa] Request #%s' % execution.request.id,
             body=text_body,
             html=html_body)
 
+        logging.info('Sending email to "%s" for Execution "%s".' % \
+            (execution.member, execution.id))
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
@@ -75,9 +76,9 @@ class TaskHandler(webapp.RequestHandler):
                 'email to "%s". Re-queuing.' % execution.member)
             self.error(500)
             return None
-        except:
-            logging.error('Unable to send notification email to "%s". ' \
-                'Re-queuing.' % execution.member)
+        except Exception, e:
+            logging.error('Unable to send notification email to "%s" (%s). ' \
+                'Re-queuing.' % (execution.member, e))
             self.error(500)
             return None
 
@@ -85,22 +86,15 @@ class TaskHandler(webapp.RequestHandler):
 
         try:
             execution.put()
-        except apiproxy_errors.CapabilityDisabledError:
-            logging.error('Unable to save Execution "%s" due to ' \
-                'maintenance. Re-queuing.' % execution.id)
+        except Exception, e:
+            logging.error(e)
             self.error(500)
-            return None
-        except:
-            logging.error('Unable to save Execution "%s" in datastore.' % \
-                execution.id)
-            self.error(500)
-            return None
 
         logging.debug('Finished mail-request-notify task handler')
 
 def main():
     application = webapp.WSGIApplication([('/_ah/queue/mail-request-notify',
-        TaskHandler)], debug=utils._DEBUG)
+        TaskHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@ import models
 
 class TaskHandler(webapp.RequestHandler):
     def post(self):
-        logging.debug('Begin mail-request-confirmation task handler')
+        logging.debug('Begin mail-request-step task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
         logging.info('Task has been executed %s times' % num_tries)
@@ -32,26 +32,21 @@ class TaskHandler(webapp.RequestHandler):
                 execution_key)
             return None
 
-        if not execution.member:
-            logging.error('Execution "%s" has no email address. Exiting.' % \
+        if not execution.request.requestor:
+            logging.error('Request "%s" has no email address. Exiting.' % \
                 execution.id)
-            return None
-
-        if not isinstance(execution.action, models.Action):
-            logging.error('Execution "%s" has no action. Re-queuing.' % \
-                execution.id)
-            self.error(500)
             return None
 
         directory = os.path.dirname(__file__)
         text_template_file = os.path.join(directory,
-            'templates/email_confirmation_text.tpl')
+            'templates/email_step_text.tpl')
         html_template_file = os.path.join(directory,
-            'templates/email_confirmation_html.tpl')
+            'templates/email_step_html.tpl')
 
         template_vars = {
-            'request_data': execution.request.to_dict(),
             'step_name': execution.step.name,
+            'process_name': execution.process.name,
+            'request_data': execution.request.to_dict(),
             'action_name': execution.action.name
         }
 
@@ -59,30 +54,30 @@ class TaskHandler(webapp.RequestHandler):
         html_body = template.render(html_template_file, template_vars)
 
         message = mail.EmailMessage(
-            sender='Flomosa <reply+%s@flomosa.appspotmail.com>' % \
-                execution.id,
-            to=execution.member,
+            sender='Flomosa <no-reply@flomosa.appspotmail.com>',
+            to=execution.request.requestor,
             subject='[flomosa] Request #%s' % execution.request.id,
             body=text_body,
             html=html_body)
 
-        logging.info('Sending confirmation email to "%s".' % execution.member)
+        logging.info('Sending step email to "%s".' % \
+            execution.request.requestor)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            logging.error('Over email quota limit to send confirmation ' \
-                'email to "%s". Re-queuing.' % execution.member)
+            logging.error('Over email quota limit to send step email to ' \
+                '"%s". Re-queuing.' % execution.request.requestor)
             self.error(500)
         except Exception, e:
-            logging.error('Unable to send confirmation email to "%s" (%s). ' \
-                'Re-queuing.' % (execution.member, e))
+            logging.error('Unable to send step email to "%s" (%s). ' \
+                'Re-queuing.' % (execution.request.requestor, e))
             self.error(500)
 
-        logging.debug('Finished mail-request-confirmation task handler')
+        logging.debug('Finished mail-request-step task handler')
 
 def main():
-    application = webapp.WSGIApplication(
-        [('/_ah/queue/mail-request-confirmation', TaskHandler)], debug=False)
+    application = webapp.WSGIApplication([('/_ah/queue/mail-request-step',
+        TaskHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

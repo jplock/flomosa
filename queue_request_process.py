@@ -5,15 +5,12 @@
 
 import os.path
 import logging
-from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
-from google.appengine.runtime import apiproxy_errors
 
 import models
-import utils
 
 class TaskHandler(webapp.RequestHandler):
     def post(self):
@@ -27,8 +24,9 @@ class TaskHandler(webapp.RequestHandler):
             logging.error('Missing "key" parameter. Exiting.')
             return None
 
-        logging.info('Looking up Execution "%s" in datastore.' % execution_key)
-        execution = models.Execution.get_by_key_name(execution_key)
+        logging.debug('Looking up Execution "%s" in memcache then datastore.' \
+            % execution_key)
+        execution = models.Execution.get(execution_key)
         if execution is None:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \
                 execution_key)
@@ -56,27 +54,24 @@ class TaskHandler(webapp.RequestHandler):
 
         # If we have not sent the email notifications
         if not execution.queued_for_send:
+            execution.queued_for_send = True
+
+            try:
+                execution.put()
+            except Exception, e:
+                logging.error(e)
+
             logging.info('Queuing notification email to be sent "%s".' % \
                 execution.member)
             task = taskqueue.Task(params={'key': execution.id})
             queue = taskqueue.Queue('mail-request-notify')
             queue.add(task)
 
-            execution.queued_for_send = True
-
-            try:
-                execution.put()
-            except apiproxy_errors.CapabilityDisabledError:
-                logging.error('Unable to save Execution "%s" due to ' \
-                    'maintenance.' % execution.id)
-            except:
-                logging.error('Unable to save Execution "%s" in datastore.' % \
-                    execution.id)
-
         # If an action has been chosen, queue the next tasks
         if isinstance(execution.action, models.Action):
             logging.info('Action "%s" taken on Execution "%s".' % \
                 (execution.action.name, execution.id))
+
             if execution.action.is_complete:
                 logging.info('Queuing completed email to be sent to "%s".' % \
                     execution.request.requestor)
@@ -84,8 +79,14 @@ class TaskHandler(webapp.RequestHandler):
                 queue = taskqueue.Queue('mail-request-complete')
                 queue.add(task)
             else:
+                logging.info('Queuing step email to be sent to "%s".' % \
+                    execution.request.requestor)
+                task = taskqueue.Task(params={'key': execution.id})
+                queue = taskqueue.Queue('mail-request-step')
+                queue.add(task)
+
                 for step_key in execution.action.outgoing:
-                    step = utils.load_from_cache(step_key, models.Step)
+                    step = models.Step.get(step_key)
                     if isinstance(step, models.Step):
                         step.queue_tasks(execution.request)
             logging.info('Completed Execution "%s". Exiting.' % execution.id)
@@ -97,7 +98,7 @@ class TaskHandler(webapp.RequestHandler):
 
 def main():
     application = webapp.WSGIApplication([('/_ah/queue/request-process',
-        TaskHandler)], debug=utils._DEBUG)
+        TaskHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

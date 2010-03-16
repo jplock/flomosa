@@ -14,3 +14,7 @@ queue:
 - name: mail-request-complete
   rate: 5/s
   bucket_size: 5
+  
+- name: mail-request-step
+  rate: 5/s
+  bucket_size: 5

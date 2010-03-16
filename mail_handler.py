@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Copyright 2010 Flomosa, LLC
 #
@@ -10,10 +9,8 @@ from datetime import datetime
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util, mail_handlers
 from google.appengine.api.labs import taskqueue
-from google.appengine.runtime import apiproxy_errors
 
 import models
-import utils
 
 class MailHandler(mail_handlers.InboundMailHandler):
     def receive(self, message):
@@ -22,8 +19,8 @@ class MailHandler(mail_handlers.InboundMailHandler):
         user, hostname = message.to.split('@')
         temp, execution_key = user.split('+')
 
-        logging.info('Looking up Execution "%s" in datastore.' % execution_key)
-        execution = models.Execution.get_by_key_name(execution_key)
+        logging.debug('Looking up Execution "%s" in datastore.' % execution_key)
+        execution = models.Execution.get(execution_key)
         if not execution:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \
                 execution_key)
@@ -87,12 +84,6 @@ class MailHandler(mail_handlers.InboundMailHandler):
                 reply_text)
             return None
 
-        logging.info('Queuing confirmation email to be sent to "%s".' % \
-            execution.member)
-        task = taskqueue.Task(params={'key': execution.id})
-        queue = taskqueue.Queue('mail-request-confirmation')
-        queue.add(task)
-
         execution.action = executed_action
         execution.end_date = datetime.now()
         if execution.viewed_date and not execution.action_delay:
@@ -102,23 +93,23 @@ class MailHandler(mail_handlers.InboundMailHandler):
             delta = execution.end_date - execution.start_date
             execution.duration = delta.days * 86400 + delta.seconds
 
-        logging.info('Storing Execution "%s" in datastore.' % execution.id)
         try:
             execution.put()
-        except apiproxy_errors.CapabilityDisabledError:
-            logging.error('Unable to save Execution "%s" due to maintenance.' \
-                ' Exiting.' % execution.id)
+        except Exception, e:
+            logging.error('%s Exiting.' % e)
             return None
-        except:
-            logging.error('Unable to save Execution "%s". Exiting.' % \
-                execution.id)
-            return None
+
+        logging.info('Queuing confirmation email to be sent to "%s".' % \
+            execution.member)
+        task = taskqueue.Task(params={'key': execution.id})
+        queue = taskqueue.Queue('mail-request-confirmation')
+        queue.add(task)
 
         logging.debug('Finished incoming mail handler')
 
 def main():
     application = webapp.WSGIApplication([(r'/_ah/mail/.+', MailHandler)],
-        debug=utils._DEBUG)
+        debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

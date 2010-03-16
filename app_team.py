@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Copyright 2010 Flomosa, LLC
 #
@@ -6,23 +5,22 @@
 import logging
 
 from django.utils import simplejson
-from google.appengine.ext import db, webapp
+from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
-from google.appengine.api import memcache
-from google.appengine.runtime import apiproxy_errors
 
 import models
 import utils
+import cache
 
 
 class TeamHandler(webapp.RequestHandler):
 
     def get(self, team_key):
-        logging.debug('Begin TeamHandler.get() function')
+        logging.debug('Begin TeamHandler.get() method')
 
-        logging.info('Looking up Team "%s" in memcache then datastore.' % \
+        logging.debug('Looking up Team "%s" in memcache then datastore.' % \
             team_key)
-        team = utils.load_from_cache(team_key, models.Team)
+        team = models.Team.get(team_key)
         if not team:
             error_msg = 'Team key "%s" not found.' % team_key
             logging.error(utils.get_log_message(error_msg, 404))
@@ -31,10 +29,10 @@ class TeamHandler(webapp.RequestHandler):
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
         utils.build_json(self, team.to_dict())
 
-        logging.debug('Finished TeamHandler.get() function')
+        logging.debug('Finished TeamHandler.get() method')
 
     def put(self, team_key):
-        logging.debug('Begin TeamHandler.put() function')
+        logging.debug('Begin TeamHandler.put() method')
 
         try:
             data = simplejson.loads(self.request.body)
@@ -54,50 +52,28 @@ class TeamHandler(webapp.RequestHandler):
             logging.error(utils.get_log_message(error_msg, 500))
             return utils.build_json(self, error_msg, 500)
 
-        logging.info('Storing Team "%s" in datastore.' % team.id)
         try:
             team.put()
-        except apiproxy_errors.CapabilityDisabledError:
-            error_msg = 'Unable to save Team "%s" due to maintenance. ' % \
-                team.id
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, code=500)
-        except:
-            error_msg = 'Unable to save Team "%s" in datastore.' % team.id
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, code=500)
-
-        if team.is_saved():
-            logging.info('Storing Team "%s" in memcache.' % team.id)
-            memcache.set(team.id, team)
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 500))
+            return utils.build_json(self, e, code=500)
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
         utils.build_json(self, team.to_dict(), 201)
 
-        logging.debug('Finished TeamHandler.put() function')
+        logging.debug('Finished TeamHandler.put() method')
 
     def delete(self, team_key):
-        logging.debug('Begin TeamHandler.delete() function')
+        logging.debug('Begin TeamHandler.delete() method')
 
-        key = db.Key.from_path('Team', team_key)
-
-        logging.info('Deleting Team "%s" from datastore.' % team_key)
-        try:
-            db.delete(key)
-        except apiproxy_errors.CapabilityDisabledError:
-            logging.warning('Unable to delete Team "%s" due to ' \
-                'maintenance.' % team_key)
-
-        logging.info('Deleting Team "%s" from memcache.' % team_key)
-        memcache.delete(team_key)
-
+        cache.delete_from_cache(kind='Team', key=team_key)
         self.error(204)
 
-        logging.debug('Finished TeamHandler.delete() function')
+        logging.debug('Finished TeamHandler.delete() method')
 
 def main():
     application = webapp.WSGIApplication([(r'/teams/(.*)\.json', TeamHandler)],
-        debug=utils._DEBUG)
+        debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':
