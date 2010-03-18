@@ -6,7 +6,7 @@
 </head>
 <body>
 
-<p>Your action of <strong>{{ action_name }}</strong> in the
+<p>Your replied action of <strong>{{ action_name }}</strong> in the
 <strong>{{ step_name }}</strong> has been confirmed.</p>
 
 <p>Below is the request data for your reference:</p>

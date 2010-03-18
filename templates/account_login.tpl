@@ -6,10 +6,20 @@
 
 <h1>Login</h1>
 
+{% if messages %}
+    <div id="messages">
+        <ul>
+        {% for message in messages %}
+        <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
 <form method="POST" action="/account/login/">
 <div>
     <label for="email_address">Email Address</label>
-    <input type="text" name="email_address" size="30" maxlength="80"/>
+    <input type="text" name="email_address" value="{{ email_address }}" size="30" maxlength="80"/>
 </div>
 <div>
     <label for="password">Password</label>

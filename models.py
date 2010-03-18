@@ -115,6 +115,8 @@ class Process(FlomosaBase):
         step = self.get_start_step()
         if not step:
             return False
+        if not step.teams:
+            return False
 
         found_member = False
         for team_key in step.teams:
@@ -458,11 +460,12 @@ class Execution(FlomosaBase):
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
-class Consumer(db.Model):
-    oauth_token = db.StringProperty(required=True)
-    oauth_secret = db.StringProperty(required=True)
+class Consumer(FlomosaBase):
+    oauth_token = db.StringProperty()
+    oauth_secret = db.StringProperty()
     first_name = db.StringProperty()
     last_name = db.StringProperty()
+    company = db.StringProperty()
     email_address = db.EmailProperty(required=True)
     password = db.StringProperty(required=True)
     created_date = db.DateTimeProperty(auto_now_add=True)

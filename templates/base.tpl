@@ -6,7 +6,22 @@
     <title>{% block title %}Flomosa{% endblock %}</title>
 </head>
 
-<body>
+<body id="flomosa">
+
+    <div id="header">
+        <div style="float:right">
+            {% if current_consumer %}
+                Welcome {{ current_consumer.email_address }},
+                <a href="/">Home</a> -
+                <a href="/account/">My Account</a> -
+                <a href="/account/logout/">Logout</a>
+            {% else %}
+                <a href="/">Home</a> -
+                <a href="/account/login/">Login</a> -
+                <a href="/account/register/">Register</a>
+            {% endif %}
+        </div>
+    </div>
 
     <div id="content">
         {% block content %}{% endblock %}
