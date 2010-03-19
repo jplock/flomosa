@@ -89,7 +89,7 @@ class AccountHandler(authapp.SecureRequestHandler):
         template_vars = {'url': self.request.uri}
 
         client = self.get_current_client()
-        if not client:
+        if not isinstance(client, models.Client):
             self.redirect('/account/login/')
 
         template_vars['current_client'] = client
