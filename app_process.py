@@ -10,11 +10,18 @@ from google.appengine.ext.webapp import util
 
 import models
 import utils
+import oauthapp
 
-class ProcessHandler(webapp.RequestHandler):
+class ProcessHandler(oauthapp.OAuthHandler):
 
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() method')
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
 
         logging.debug('Looking up Process "%s" in memcache then datastore.' % \
             process_key)
@@ -31,6 +38,12 @@ class ProcessHandler(webapp.RequestHandler):
 
     def put(self, process_key):
         logging.debug('Begin ProcessHandler.put() method')
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
 
         try:
             data = simplejson.loads(self.request.body)
@@ -105,6 +118,12 @@ class ProcessHandler(webapp.RequestHandler):
 
     def delete(self, process_key):
         logging.debug('Begin ProcessHandler.delete() method')
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
 
         process = models.Process.get_by_key_name(process_key)
         if isinstance(process, models.Process):

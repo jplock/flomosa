@@ -460,8 +460,7 @@ class Execution(FlomosaBase):
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
-class Consumer(FlomosaBase):
-    oauth_token = db.StringProperty()
+class Client(FlomosaBase):
     oauth_secret = db.StringProperty()
     first_name = db.StringProperty()
     last_name = db.StringProperty()
@@ -469,3 +468,7 @@ class Consumer(FlomosaBase):
     email_address = db.EmailProperty(required=True)
     password = db.StringProperty(required=True)
     created_date = db.DateTimeProperty(auto_now_add=True)
+
+    @property
+    def secret(self):
+        return self.oauth_secret

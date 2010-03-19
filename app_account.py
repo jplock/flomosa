@@ -14,26 +14,103 @@ import authapp
 
 
 class AccountHandler(authapp.SecureRequestHandler):
-    def get(self):
-        logging.debug('Begin AccountHandler.get() method')
-
-        template_vars = {}
-
-        consumer = self.get_current_consumer()
-        if not consumer:
-            self.redirect('/account/login/')
-        else:
-            template_vars['current_consumer'] = consumer
+    def show_form(self, template_vars=None):
+        if not template_vars:
+            template_vars = {'uri': self.request.uri}
+        if not template_vars.get('uri', None):
+            template_vars['uri'] = self.request.uri
 
         template_file = os.path.join(os.path.dirname(__file__),
             'templates/account.tpl')
-        output = template.render(template_file, template_vars)
-        self.response.out.write(output)
+        return template.render(template_file, template_vars)
+
+    def post(self):
+        logging.debug('Begin AccountHandler.post() method')
+
+        client = self.get_current_client()
+        if not client:
+            self.redirect('/account/login/')
+
+        template_vars = {
+            'current_client': client,
+            'messages': []
+        }
+
+        old_password = self.request.get('old_password')
+        new_password = self.request.get('new_password')
+        confirm_password = self.request.get('confirm_password')
+        first_name = self.request.get('first_name')
+        last_name = self.request.get('last_name')
+        company = self.request.get('company')
+
+        if old_password:
+            if self.encrypt_string(old_password) != client.password:
+                template_vars['messages'].append('Old password does not ' \
+                    'match your existing password')
+            elif not new_password:
+                template_vars['messages'].append('Please provide a new ' \
+                    'password')
+            elif not confirm_password:
+                template_vars['messages'].append('Please confirm your new ' \
+                    'password')
+            elif new_password != confirm_password:
+                template_vars['messages'].append('New passwords do not match')
+
+        if template_vars['messages']:
+            for key, value in self.request.params.items():
+                template_vars[key] = value
+            template_vars['email_address'] = client.email_address
+            template_vars['client_key'] = client.id
+            template_vars['oauth_secret'] = client.oauth_secret
+
+            self.response.out.write(self.show_form(template_vars))
+        else:
+            if new_password:
+                client.password = self.encrypt_string(new_password)
+            client.first_name = first_name
+            client.last_name = last_name
+            client.company = company
+
+            try:
+                client.put()
+            except Exception, e:
+                logging.error(e)
+                template_vars['messages'] = [e]
+                self.response.out.write(self.show_form(template_vars))
+
+            if client.is_saved():
+                self.redirect('/')
+
+        logging.debug('Finished AccountHandler.post() method')
+
+    def get(self):
+        logging.debug('Begin AccountHandler.get() method')
+
+        template_vars = {'url': self.request.uri}
+
+        client = self.get_current_client()
+        if not client:
+            self.redirect('/account/login/')
+
+        template_vars['current_client'] = client
+        template_vars['email_address'] = client.email_address
+        template_vars['first_name'] = client.first_name or ''
+        template_vars['last_name'] = client.last_name or ''
+        template_vars['company'] = client.company or ''
+        template_vars['client_key'] = client.id
+        template_vars['oauth_secret'] = client.oauth_secret
+
+        self.response.out.write(self.show_form(template_vars))
 
         logging.debug('Finished AccountHandler.get() method')
 
 class RegisterHandler(authapp.SecureRequestHandler):
-    def show_form(self, template_vars={}):
+    def show_form(self, template_vars=None):
+        if not template_vars:
+            template_vars = {'uri': self.request.uri}
+        elif not template_vars.get('uri', None):
+            template_vars['uri'] = self.request.uri
+
         template_file = os.path.join(os.path.dirname(__file__),
             'templates/account_register.tpl')
         return template.render(template_file, template_vars)
@@ -50,6 +127,7 @@ class RegisterHandler(authapp.SecureRequestHandler):
         confirm_password = self.request.get('confirm_password')
         first_name = self.request.get('first_name')
         last_name = self.request.get('last_name')
+        company = self.request.get('company')
 
         if not email_address:
             template_vars['messages'].append('Please provide an email address')
@@ -60,7 +138,7 @@ class RegisterHandler(authapp.SecureRequestHandler):
         elif password != confirm_password:
             template_vars['messages'].append('Passwords do not match')
 
-        query = models.Consumer.all()
+        query = models.Client.all()
         query.filter('email_address =', email_address)
         if query.get():
             template_vars['messages'].append('Email address already exists')
@@ -71,37 +149,55 @@ class RegisterHandler(authapp.SecureRequestHandler):
 
             self.response.out.write(self.show_form(template_vars))
         else:
-            consumer_key = utils.generate_key()
-            consumer = models.Consumer(key_name=consumer_key,
+            client_key = utils.generate_key()
+            client = models.Client(key_name=client_key,
                 email_address=email_address,
                 password=self.encrypt_string(password))
-            consumer.oauth_token = utils.generate_key()
-            consumer.oauth_secret = utils.generate_key()
+            client.first_name = first_name
+            client.last_name = last_name
+            client.company = company
+            client.oauth_secret = utils.generate_key()
 
             try:
-                consumer.put()
+                client.put()
             except Exception, e:
                 logging.error(e)
+                template_vars['messages'] = [e]
+                self.response.out.write(self.show_form(template_vars))
 
-            self.set_secure_cookie(consumer_key)
-
-            self.redirect('/')
+            if client.is_saved():
+                self.set_secure_cookie(client_key)
+                next_url = self.request.get('next')
+                if next_url:
+                    self.redirect(next_url)
+                else:
+                    self.redirect('/')
 
         logging.debug('Finished RegisterHandler.post() method')
 
     def get(self):
         logging.debug('Begin RegisterHandler.get() method')
 
-        consumer = self.get_current_consumer()
-        if consumer:
+        client = self.get_current_client()
+        if client:
             self.redirect('/account/')
 
-        self.response.out.write(self.show_form())
+        template_vars = {}
+        next_url = self.request.get('next')
+        if next_url:
+            template_vars['next'] = next_url
+
+        self.response.out.write(self.show_form(template_vars))
 
         logging.debug('Finished RegisterHandler.get() method')
 
 class LoginHandler(authapp.SecureRequestHandler):
-    def show_form(self, template_vars={}):
+    def show_form(self, template_vars=None):
+        if not template_vars:
+            template_vars = {'uri': self.request.uri}
+        elif not template_vars.get('uri', None):
+            template_vars['uri'] = self.request.uri
+
         template_file = os.path.join(os.path.dirname(__file__),
             'templates/account_login.tpl')
         return template.render(template_file, template_vars)
@@ -122,13 +218,18 @@ class LoginHandler(authapp.SecureRequestHandler):
             template_vars['messages'].append('Please provide a password')
 
         if email_address and password:
-            query = models.Consumer.all()
+            query = models.Client.all()
             query.filter('email_address =', email_address)
             query.filter('password =', self.encrypt_string(password))
-            consumer = query.get()
-            if isinstance(consumer, models.Consumer):
-                self.set_secure_cookie(consumer.id)
-                self.redirect('/account/')
+            client = query.get()
+            if isinstance(client, models.Client):
+                self.set_secure_cookie(client.id)
+
+                next_url = self.request.get('next')
+                if next_url:
+                    self.redirect(next_url)
+                else:
+                    self.redirect('/account/')
             else:
                 template_vars['messages'].append('Invalid email address or ' \
                     'password')
@@ -144,17 +245,26 @@ class LoginHandler(authapp.SecureRequestHandler):
     def get(self):
         logging.debug('Begin LoginHandler.get() method')
 
-        consumer = self.get_current_consumer()
-        if consumer:
+        client = self.get_current_client()
+        if client:
             self.redirect('/account/')
 
-        self.response.out.write(self.show_form())
+        template_vars = {}
+        next_url = self.request.get('next')
+        if next_url:
+            template_vars['next'] = next_url
+
+        self.response.out.write(self.show_form(template_vars))
 
         logging.debug('Finished LoginHandler.get() method')
 
 class LogoutHandler(authapp.SecureRequestHandler):
     def get(self):
         logging.debug('Begin LogoutHandler.get() method')
+
+        client = self.get_current_client()
+        if not client:
+            self.redirect('/account/login/')
 
         self.delete_secure_cookie()
 
@@ -165,11 +275,31 @@ class LogoutHandler(authapp.SecureRequestHandler):
 
         logging.debug('Finished LogoutHandler.get() method')
 
+class CloseHandler(authapp.SecureRequestHandler):
+    def get(self):
+        logging.debug('Begin CloseHandler.get() method')
+
+        client = self.get_current_client()
+        if not client:
+            self.redirect('/account/login/')
+
+        try:
+            client.delete()
+        except Exception, e:
+            logging.error(e)
+
+        self.delete_secure_cookie()
+
+        self.redirect('/')
+
+        logging.debug('Finished CloseHandler.get() method')
+
 def main():
     application = webapp.WSGIApplication(
         [(r'/account/login/', LoginHandler),
         (r'/account/logout/', LogoutHandler),
         (r'/account/register/', RegisterHandler),
+        (r'/account/close/', CloseHandler),
         (r'/account/', AccountHandler)], debug=False)
     util.run_wsgi_app(application)
 

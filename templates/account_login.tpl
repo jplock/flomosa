@@ -17,6 +17,7 @@
 {% endif %}
 
 <form method="POST" action="/account/login/">
+<input type="hidden" name="next" value="{{ next }}"/>
 <div>
     <label for="email_address">Email Address</label>
     <input type="text" name="email_address" value="{{ email_address }}" size="30" maxlength="80"/>
@@ -26,7 +27,7 @@
     <input type="password" name="password" size="30"/>
 </div>
 <div>
-    <input type="submit" name="Login"/>
+    <input type="submit" value="Login"/> <a href="/">Cancel</a>
 </div>
 </form>
 

@@ -8,9 +8,10 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
 import models
+import oauthapp
 
 
-class ProcessHandler(webapp.RequestHandler):
+class ProcessHandler(oauthapp.OAuthHandler):
 
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() method')
@@ -25,7 +26,7 @@ class ProcessHandler(webapp.RequestHandler):
         logging.debug('Finished ProcessHandler.get() method')
 
 
-class StepHandler(webapp.RequestHandler):
+class StepHandler(oauthapp.OAuthHandler):
 
     def get(self, step_key):
         logging.debug('Begin StepHandler.get() method')

@@ -11,9 +11,10 @@ from google.appengine.ext.webapp import util
 import models
 import utils
 import cache
+import oauthapp
 
 
-class RequestHandler(webapp.RequestHandler):
+class RequestHandler(oauthapp.OAuthHandler):
 
     def get(self, request_key=None):
         logging.debug('Begin RequestHandler.get() method')
@@ -97,6 +98,12 @@ class RequestHandler(webapp.RequestHandler):
 
     def delete(self, request_key):
         logging.debug('Begin RequestHandler.delete() method')
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
 
         cache.delete_from_cache(kind='Request', key=request_key)
         self.error(204)

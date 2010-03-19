@@ -10,15 +10,15 @@
 
     <div id="header">
         <div style="float:right">
-            {% if current_consumer %}
-                Welcome {{ current_consumer.email_address }},
+            {% if current_client %}
+                Welcome {{ current_client.email_address }},
                 <a href="/">Home</a> -
                 <a href="/account/">My Account</a> -
                 <a href="/account/logout/">Logout</a>
             {% else %}
                 <a href="/">Home</a> -
-                <a href="/account/login/">Login</a> -
-                <a href="/account/register/">Register</a>
+                <a href="/account/login/?next={{ uri|escape }} ">Login</a> -
+                <a href="/account/register/?next={{ uri|escape }} ">Register</a>
             {% endif %}
         </div>
     </div>

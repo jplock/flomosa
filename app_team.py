@@ -11,12 +11,19 @@ from google.appengine.ext.webapp import util
 import models
 import utils
 import cache
+import oauthapp
 
 
-class TeamHandler(webapp.RequestHandler):
+class TeamHandler(oauthapp.OAuthHandler):
 
     def get(self, team_key):
         logging.debug('Begin TeamHandler.get() method')
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
 
         logging.debug('Looking up Team "%s" in memcache then datastore.' % \
             team_key)
@@ -33,6 +40,12 @@ class TeamHandler(webapp.RequestHandler):
 
     def put(self, team_key):
         logging.debug('Begin TeamHandler.put() method')
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
 
         try:
             data = simplejson.loads(self.request.body)
@@ -65,6 +78,12 @@ class TeamHandler(webapp.RequestHandler):
 
     def delete(self, team_key):
         logging.debug('Begin TeamHandler.delete() method')
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
 
         cache.delete_from_cache(kind='Team', key=team_key)
         self.error(204)

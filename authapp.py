@@ -19,13 +19,13 @@ class SecureRequestHandler(webapp.RequestHandler):
     _COOKIE_NAME = 'flomosa'
     _COOKIE_SECRET = 'F10m0sA'
 
-    def get_current_consumer(self):
-        """Get the currently logged in consumer."""
-        consumer_key = self.get_secure_cookie()
-        if consumer_key:
-            consumer = models.Consumer.get(consumer_key)
-            if isinstance(consumer, models.Consumer):
-                return consumer
+    def get_current_client(self):
+        """Get the currently logged in client."""
+        client_key = self.get_secure_cookie()
+        if client_key:
+            client = models.Client.get(client_key)
+            if isinstance(client, models.Client):
+                return client
         return None
 
     def set_secure_cookie(self, data, name=_COOKIE_NAME, expires=None):

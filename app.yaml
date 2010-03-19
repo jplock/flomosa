@@ -10,10 +10,12 @@ handlers:
 - url: /
   script: app_index.py
   secure: optional
+  login: admin
 
 - url: /account/.*
   script: app_account.py
   secure: always
+  login: admin
 
 - url: /viewed/.*
   script: app_viewed.py
@@ -57,6 +59,10 @@ handlers:
 
 - url: /_ah/queue/mail-request-step
   script: queue_mail_request_step.py
+  #login: admin
+
+- url: /_ah/mail/support@flomosa.appspotmail.com
+  script: mail_handler_support.py
   #login: admin
 
 - url: /_ah/mail/.+

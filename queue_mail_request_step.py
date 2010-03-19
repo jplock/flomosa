@@ -54,7 +54,7 @@ class TaskHandler(webapp.RequestHandler):
         html_body = template.render(html_template_file, template_vars)
 
         message = mail.EmailMessage(
-            sender='Flomosa <no-reply@flomosa.appspotmail.com>',
+            sender='Flomosa <support@flomosa.appspotmail.com>',
             to=execution.request.requestor,
             subject='[flomosa] Request #%s' % execution.request.id,
             body=text_body,
