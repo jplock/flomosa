@@ -2,7 +2,6 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os
 import re
 import Cookie
 import base64
@@ -39,10 +38,6 @@ class SecureRequestHandler(webapp.RequestHandler):
         cookie = Cookie.SimpleCookie()
         cookie[name] = str(signed_data)
         cookie[name]['path'] = '/'
-        if os.environ.get('SERVER_SOFTWARE').startswith('Development'):
-            cookie[name]['domain'] = '127.0.0.1'
-        else:
-            cookie[name]['domain'] = os.environ.get('HTTP_HOST')
         if expires:
             cookie[name]['expires'] = expires
 
