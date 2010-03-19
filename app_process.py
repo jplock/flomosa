@@ -31,6 +31,11 @@ class ProcessHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(error_msg, 404))
             return utils.build_json(self, error_msg, 404)
 
+        if process.client.id != client.id:
+            error_msg = 'Permission denied.'
+            logging.error(utils.get_log_message(error_msg, 401))
+            return utils.build_json(self, error_msg, 401)
+
         logging.debug('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, process.to_dict())
 
@@ -64,7 +69,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
 
         # Load the process data
         try:
-            process = models.Process.from_dict(data)
+            process = models.Process.from_dict(client, data)
         except Exception, e:
             logging.error(utils.get_log_message(e, 400))
             return utils.build_json(self, e, 400)
@@ -127,10 +132,16 @@ class ProcessHandler(oauthapp.OAuthHandler):
 
         process = models.Process.get_by_key_name(process_key)
         if isinstance(process, models.Process):
-            process.delete()
+            if process.client.id != client.id:
+                error_msg = 'Permission denied.'
+                logging.error(utils.get_log_message(error_msg, 401))
+                return utils.build_json(self, error_msg, 401)
+            else:
+                process.delete()
         else:
-            logging.info('Process key "%s" not found in datastore to ' \
-                'delete.' % process_key)
+            logging.info('Process "%s" not found in datastore to delete.' % \
+                process_key)
+
         self.error(204)
 
         logging.debug('Finished ProcessHandler.delete() method')

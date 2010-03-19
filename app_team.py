@@ -33,6 +33,11 @@ class TeamHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(error_msg, 404))
             return utils.build_json(self, error_msg, 404)
 
+        if team.client.id != client.id:
+            error_msg = 'Permission denied.'
+            logging.error(utils.get_log_message(error_msg, 401))
+            return utils.build_json(self, error_msg, 401)
+
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
         utils.build_json(self, team.to_dict())
 
@@ -55,7 +60,7 @@ class TeamHandler(oauthapp.OAuthHandler):
             return utils.build_json(self, error_msg, 500)
 
         try:
-            team = models.Team.from_dict(data)
+            team = models.Team.from_dict(client, data)
         except Exception, e:
             logging.error(utils.get_log_message(e, 400))
             return utils.build_json(self, e, 400)
@@ -85,7 +90,18 @@ class TeamHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 404))
             return utils.build_json(self, e, 404)
 
-        cache.delete_from_cache(kind='Team', key=team_key)
+        team = models.Team.get_by_key_name(team_key)
+        if isinstance(team, models.Team):
+            if team.client.id != client.id:
+                error_msg = 'Permission denied.'
+                logging.error(utils.get_log_message(error_msg, 401))
+                return utils.build_json(self, error_msg, 401)
+            else:
+                cache.delete_from_cache(team)
+        else:
+            logging.info('Team "%s" not found in datastore to delete.' % \
+                team_key)
+
         self.error(204)
 
         logging.debug('Finished TeamHandler.delete() method')

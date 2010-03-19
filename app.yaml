@@ -10,12 +10,10 @@ handlers:
 - url: /
   script: app_index.py
   secure: optional
-  login: admin
 
 - url: /account/.*
   script: app_account.py
   secure: always
-  login: admin
 
 - url: /viewed/.*
   script: app_viewed.py

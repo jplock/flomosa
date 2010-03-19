@@ -12,6 +12,7 @@ from google.appengine.runtime import apiproxy_errors
 import utils
 import cache
 
+
 class FlomosaBase(db.Model):
     """Base model inherited by other models."""
 
@@ -33,7 +34,24 @@ class FlomosaBase(db.Model):
         """Delete the model from the datastore and memcache."""
         return cache.delete_from_cache(self)
 
+
+class Client(FlomosaBase):
+    oauth_secret = db.StringProperty()
+    first_name = db.StringProperty()
+    last_name = db.StringProperty()
+    company = db.StringProperty()
+    email_address = db.EmailProperty(required=True)
+    password = db.StringProperty(required=True)
+    created_date = db.DateTimeProperty(auto_now_add=True)
+
+    @property
+    def secret(self):
+        return self.oauth_secret
+
+
 class Process(FlomosaBase):
+    client = db.ReferenceProperty(Client, collection_name='processes',
+        required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
 
@@ -46,8 +64,11 @@ class Process(FlomosaBase):
         return cache.delete_from_cache(self)
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, client, data):
         """Return a new Process instance from a dict object."""
+
+        if not client or not isinstance(client, Client):
+            return None
 
         if not data or not isinstance(data, dict):
             return None
@@ -65,8 +86,13 @@ class Process(FlomosaBase):
             raise ValueError('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
-        process = cls.get_or_insert(process_key, name=name)
-        process.name = name
+        process = cls.get_by_key_name(process_key)
+        if not process:
+            process = cls(key_name=process_key, client=client, name=name)
+        elif process.client.id != client.id:
+            raise ValueError('Permission Denied.')
+        else:
+            process.name = name
 
         if description is not None:
             process.description = description
@@ -261,7 +287,10 @@ class Step(FlomosaBase):
                 task = taskqueue.Task(params={'key': execution.id})
                 queue.add(task)
 
+
 class Team(FlomosaBase):
+    client = db.ReferenceProperty(Client, collection_name='teams',
+        required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     members = db.ListProperty(basestring)
@@ -272,8 +301,11 @@ class Team(FlomosaBase):
         return Step.all().filter('teams', self.key())
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, client, data):
         """Return a new Team instance from a dict object."""
+
+        if not client or not isinstance(client, Client):
+            return None
 
         if not data or not isinstance(data, dict):
             return None
@@ -292,8 +324,13 @@ class Team(FlomosaBase):
             raise ValueError('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
-        team = cls.get_or_insert(team_key, name=name)
-        team.name = name
+        team = cls.get_by_key_name(team_key)
+        if not team:
+            team = cls(key_name=team_key, client=client, name=name)
+        elif team.client.id != client.id:
+            raise ValueError('Permission Denied.')
+        else:
+            team.name = name
 
         if description is not None:
             team.description = description
@@ -313,6 +350,7 @@ class Team(FlomosaBase):
         if self.is_saved():
             data['key'] = self.id
         return data
+
 
 class Action(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='actions',
@@ -400,7 +438,10 @@ class Action(FlomosaBase):
                 data['outgoing'].append(step.id)
         return data
 
+
 class Request(db.Expando):
+    client = db.ReferenceProperty(Client, collection_name='requests',
+        required=True)
     process = db.ReferenceProperty(Process, collection_name='requests',
         required=True)
     requestor = db.EmailProperty(required=True)
@@ -441,6 +482,7 @@ class Request(db.Expando):
             data['key'] = self.id
         return data
 
+
 class Execution(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='executions',
         required=True)
@@ -459,16 +501,3 @@ class Execution(FlomosaBase):
     email_delay = db.IntegerProperty(default=0) # viewed_date-sent_date
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
-
-class Client(FlomosaBase):
-    oauth_secret = db.StringProperty()
-    first_name = db.StringProperty()
-    last_name = db.StringProperty()
-    company = db.StringProperty()
-    email_address = db.EmailProperty(required=True)
-    password = db.StringProperty(required=True)
-    created_date = db.DateTimeProperty(auto_now_add=True)
-
-    @property
-    def secret(self):
-        return self.oauth_secret

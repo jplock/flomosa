@@ -45,7 +45,6 @@ class SecureRequestHandler(webapp.RequestHandler):
             cookie[name]['domain'] = os.environ.get('HTTP_HOST')
         if expires:
             cookie[name]['expires'] = expires
-        cookie[name]['httponly'] = True
 
         re_find_header = re.compile('^Set-Cookie: ')
         new_header = str(re_find_header.sub('', cookie.output(), count=1))

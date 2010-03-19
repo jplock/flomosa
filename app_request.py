@@ -19,6 +19,12 @@ class RequestHandler(oauthapp.OAuthHandler):
     def get(self, request_key=None):
         logging.debug('Begin RequestHandler.get() method')
 
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            logging.error(utils.get_log_message(e, 404))
+            return utils.build_json(self, e, 404)
+
         if not request_key:
             error_msg = 'Missing "request_key" parameter.'
             logging.error(utils.get_log_message(error_msg, 400))
@@ -31,6 +37,11 @@ class RequestHandler(oauthapp.OAuthHandler):
             error_msg = 'Request key "%s" does not exist.' % request_key
             logging.error(utils.get_log_message(error_msg, 404))
             return utils.build_json(self, error_msg, 404)
+
+        if request.client.id != client.id:
+            error_msg = 'Permission denied.'
+            logging.error(utils.get_log_message(error_msg, 401))
+            return utils.build_json(self, error_msg, 401)
 
         utils.build_json(self, request.to_dict())
 
@@ -75,7 +86,9 @@ class RequestHandler(oauthapp.OAuthHandler):
             request = None
 
         if not request:
-            request = models.Request(key_name=request_key, process=process,
+            request = models.Request(key_name=request_key,
+                client=process.client,
+                process=process,
                 requestor=requestor)
 
         for key, value in data.items():
@@ -105,7 +118,18 @@ class RequestHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 404))
             return utils.build_json(self, e, 404)
 
-        cache.delete_from_cache(kind='Request', key=request_key)
+        request = models.Request.get_by_key_name(request_key)
+        if isinstance(request, models.Request):
+            if request.client.id != client.id:
+                error_msg = 'Permission denied.'
+                logging.error(utils.get_log_message(error_msg, 401))
+                return utils.build_json(self, error_msg, 401)
+            else:
+                cache.delete_from_cache(request)
+        else:
+            logging.info('Request "%s" not found in datastore to delete.' % \
+                request_key)
+
         self.error(204)
 
         logging.debug('Finished RequestHandler.delete() method')
