@@ -13,12 +13,12 @@
             {% if current_client %}
                 Welcome {{ current_client.email_address }},
                 <a href="/">Home</a> -
-                <a href="/account/">My Account</a> -
-                <a href="/account/logout/">Logout</a>
+                <a href="https://flomosa.appspot.com/account/">My Account</a> -
+                <a href="https://flomosa.appspot.com/account/logout/">Logout</a>
             {% else %}
                 <a href="/">Home</a> -
-                <a href="/account/login/?next={{ uri|escape }} ">Login</a> -
-                <a href="/account/register/?next={{ uri|escape }} ">Register</a>
+                <a href="https://flomosa.appspot.com/account/login/?next={{ uri|escape }} ">Login</a> -
+                <a href="https://flomosa.appspot.com/account/register/?next={{ uri|escape }} ">Register</a>
             {% endif %}
         </div>
     </div>
