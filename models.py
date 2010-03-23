@@ -513,7 +513,12 @@ class Execution(FlomosaBase):
         query.filter('action !=', None)
         query.order('action')
         query.order('end_date')
-        return query.get()
+
+        try:
+            execution = query.get()
+        except db.NeedIndexError, e:
+            execution = None
+        return execution
 
     def num_passes(self):
         """Return number of times through this step for this request."""

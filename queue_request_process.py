@@ -26,8 +26,6 @@ class TaskHandler(webapp.RequestHandler):
             logging.error('Missing "key" parameter. Exiting.')
             return None
 
-        logging.debug('Looking up Execution "%s" in memcache then datastore.' \
-            % execution_key)
         execution = models.Execution.get(execution_key)
         if execution is None:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \
@@ -127,7 +125,10 @@ class TaskHandler(webapp.RequestHandler):
 
         # Send a reminder email notification
         else:
-            delta = datetime.now() - execution.last_reminder_sent_date
+            if execution.last_reminder_sent_date:
+                delta = datetime.now() - execution.last_reminder_sent_date
+            else:
+                delta = datetime.now() - execution.sent_date
             num_seconds = delta.days * 86400 + delta.seconds
             if num_seconds >= settings._REMINDER_DELAY:
                 logging.info('Queuing reminder email #%s to be sent "%s".' % \
