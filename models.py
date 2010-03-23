@@ -495,9 +495,32 @@ class Execution(FlomosaBase):
     member = db.EmailProperty(required=True)
     start_date = db.DateTimeProperty(auto_now_add=True)
     queued_for_send = db.BooleanProperty(default=False)
+    reminder_count = db.IntegerProperty(default=0)
+    last_reminder_sent_date = db.DateTimeProperty()
     sent_date = db.DateTimeProperty()
     viewed_date = db.DateTimeProperty()
     end_date = db.DateTimeProperty()
     email_delay = db.IntegerProperty(default=0) # viewed_date-sent_date
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
+
+    def is_step_completed(self):
+        """Has this request step been completed by somebody?"""
+
+        query = self.all()
+        query.filter('step =', self.step)
+        query.filter('request =', self.request)
+        query.filter('action !=', None)
+        query.order('action')
+        query.order('end_date')
+        return query.get()
+
+    def num_passes(self):
+        """Return number of times through this step for this request."""
+
+        query = self.all()
+        query.filter('step =', self.step)
+        query.filter('request =', self.request)
+        query.filter('team =', self.team)
+        query.filter('member =', self.member)
+        return query.count(5)

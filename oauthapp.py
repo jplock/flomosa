@@ -1,6 +1,26 @@
-#
-# Copyright 2010 Flomosa, LLC
-#
+"""
+The MIT License
+
+Copyright (c) 2010 Flomosa, LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+"""
 
 import os
 
@@ -15,6 +35,7 @@ class OAuthHandler(webapp.RequestHandler):
     def __init__(self):
         self._server = oauth.Server()
         self._server.add_signature_method(oauth.SignatureMethod_HMAC_SHA1())
+        self._server.add_signature_method(oauth.SignatureMethod_PLAINTEXT())
 
     def get_oauth_request(self):
         """Return an OAuth Request object for the current request."""
@@ -24,8 +45,12 @@ class OAuthHandler(webapp.RequestHandler):
         except:
             method = 'GET'
 
+        postdata = None
+        if method in ('POST', 'PUT'):
+            postdata = self.request.body
+
         return oauth.Request.from_request(method, self.request.uri,
-            self.request.headers)
+            headers=self.request.headers, query_string=postdata)
 
     def get_client(self, request=None):
         """Return the client from the OAuth parameters."""

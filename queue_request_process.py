@@ -1,16 +1,18 @@
-#!/usr/bin/env python
 #
 # Copyright 2010 Flomosa, LLC
 #
 
 import os.path
 import logging
+from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
 import models
+import settings
+
 
 class TaskHandler(webapp.RequestHandler):
     def post(self):
@@ -67,6 +69,10 @@ class TaskHandler(webapp.RequestHandler):
             queue = taskqueue.Queue('mail-request-notify')
             queue.add(task)
 
+            logging.info('Re-queuing Execution "%s".' % execution.id)
+            self.error(500)
+            return None
+
         # If an action has been chosen, queue the next tasks
         if isinstance(execution.action, models.Action):
             logging.info('Action "%s" taken on Execution "%s".' % \
@@ -89,10 +95,53 @@ class TaskHandler(webapp.RequestHandler):
                     step = models.Step.get(step_key)
                     if isinstance(step, models.Step):
                         step.queue_tasks(execution.request)
+
             logging.info('Completed Execution "%s". Exiting.' % execution.id)
+            self.error(200)
+            return None
+
+        # Check that another team member or someone on a different team didn't
+        # already complete this step for this request. Request must not have
+        # gone through this step multiple times.
+        completed_execution = execution.is_step_completed()
+        if completed_execution and execution.num_passes() == 1:
+            logging.info('Step "%s" completed by "%s" on "%s"' % \
+                (execution.step.id, completed_execution.member,
+                completed_execution.end_date))
+
+            execution.end_date = completed_execution.end_date
+
+            try:
+                execution.put()
+            except Exception, e:
+                logging.warning('%s Exiting.' % e)
+                self.error(200)
+                return None
+
+        # Reached reminder limit, cancel this execution
+        elif execution.reminder_count == settings._REMINDER_LIMIT:
+            logging.warning('Reminder limit reached for Execution "%s". ' \
+                'Exiting.' % execution.id)
+            self.error(200)
+            return None
+
+        # Send a reminder email notification
         else:
-            logging.info('Re-queuing Execution "%s".' % execution.id)
-            self.error(500)
+            delta = datetime.now() - execution.last_reminder_sent_date
+            num_seconds = delta.days * 86400 + delta.seconds
+            if num_seconds >= settings._REMINDER_DELAY:
+                logging.info('Queuing reminder email #%s to be sent "%s".' % \
+                    (execution.reminder_count, execution.member))
+                task = taskqueue.Task(params={'key': execution.id})
+                queue = taskqueue.Queue('mail-request-reminder')
+                queue.add(task)
+            else:
+                logging.info('Reminder #%s delay for Execution "%s" has not ' \
+                    'expired (%s >= %s).' % (execution.reminder_count,
+                    execution.id, num_seconds, settings._REMINDER_DELAY))
+
+        logging.info('Re-queuing Execution "%s".' % execution.id)
+        self.error(500)
 
         logging.debug('Finished request-process task handler')
 

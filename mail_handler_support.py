@@ -19,7 +19,7 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
 def main():
     application = webapp.WSGIApplication(
-        [(r'/_ah/mail/support@flomosa.appspotmail.com', MailHandler)],
+        [(r'/_ah/mail/support%40.*flomosa\.appspotmail\.com', MailHandler)],
         debug=False)
     util.run_wsgi_app(application)
 
