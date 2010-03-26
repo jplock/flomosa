@@ -263,6 +263,7 @@ class Step(FlomosaBase):
             return None
 
         queue = taskqueue.Queue('request-process')
+        tasks = []
         for team_key in self.teams:
             team = Team.get(team_key)
             if not team:
@@ -285,7 +286,9 @@ class Step(FlomosaBase):
                     '(process="%s")' % (member, team.name, self.name,
                     self.process.name))
                 task = taskqueue.Task(params={'key': execution.id})
-                queue.add(task)
+                tasks.append(task)
+        if tasks:
+            queue.add(tasks)
 
 
 class Team(FlomosaBase):
