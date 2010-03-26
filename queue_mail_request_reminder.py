@@ -70,7 +70,7 @@ class TaskHandler(webapp.RequestHandler):
             to=execution.member,
             subject='[flomosa] Request #%s (Reminder %s of %s)' % \
                 (execution.request.id, execution.reminder_count,
-                settings._REMINDER_LIMIT),
+                settings.REMINDER_LIMIT),
             body=text_body,
             html=html_body)
 

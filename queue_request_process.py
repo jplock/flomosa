@@ -117,7 +117,7 @@ class TaskHandler(webapp.RequestHandler):
                 return None
 
         # Reached reminder limit, cancel this execution
-        elif execution.reminder_count == settings._REMINDER_LIMIT:
+        elif execution.reminder_count == settings.REMINDER_LIMIT:
             logging.warning('Reminder limit reached for Execution "%s". ' \
                 'Exiting.' % execution.id)
             self.error(200)
@@ -130,7 +130,7 @@ class TaskHandler(webapp.RequestHandler):
             else:
                 delta = datetime.now() - execution.sent_date
             num_seconds = delta.days * 86400 + delta.seconds
-            if num_seconds >= settings._REMINDER_DELAY:
+            if num_seconds >= settings.REMINDER_DELAY:
                 logging.info('Queuing reminder email #%s to be sent "%s".' % \
                     (execution.reminder_count, execution.member))
                 task = taskqueue.Task(params={'key': execution.id})
@@ -139,7 +139,7 @@ class TaskHandler(webapp.RequestHandler):
             else:
                 logging.info('Reminder #%s delay for Execution "%s" has not ' \
                     'expired (%s >= %s).' % (execution.reminder_count,
-                    execution.id, num_seconds, settings._REMINDER_DELAY))
+                    execution.id, num_seconds, settings.REMINDER_DELAY))
 
         logging.info('Re-queuing Execution "%s".' % execution.id)
         self.error(500)
