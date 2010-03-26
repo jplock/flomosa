@@ -17,6 +17,10 @@ class MailHandler(mail_handlers.InboundMailHandler):
         logging.debug('Begin incoming mail handler')
 
         user, hostname = message.to.split('@')
+        if not user.startswith('reply+'):
+            logging.error('Invalid reply user "%s". Exiting.' % user)
+            return None
+
         temp, execution_key = user.split('+')
 
         logging.debug('Looking up Execution "%s" in datastore.' % execution_key)
@@ -108,8 +112,7 @@ class MailHandler(mail_handlers.InboundMailHandler):
         logging.debug('Finished incoming mail handler')
 
 def main():
-    application = webapp.WSGIApplication([(r'/_ah/mail/.+', MailHandler)],
-        debug=False)
+    application = webapp.WSGIApplication([MailHandler.mapping()], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':
