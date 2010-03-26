@@ -61,8 +61,8 @@ handlers:
 - url: /_ah/queue/mail-request-reminder
   script: queue_mail_request_reminder.py
 
-- url: /_ah/mail/support%40.*flomosa\.appspotmail\.com
-  script: mail_handler_support.py
+- url: /_ah/mail/feedback%40.*flomosa\.appspotmail\.com
+  script: mail_handler_feedback.py
 
 - url: /_ah/mail/.+
   script: mail_handler.py
