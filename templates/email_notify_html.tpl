@@ -22,6 +22,21 @@ needs to exactly match as written.</p>
 <p>Below is the request data:</p>
 
 <table border="1" cellpadding="2" cellspacing="0">
+<tr>
+    <td align="right"><strong>Key</strong><td>
+    <td>{{ request_key }}</td>
+</tr>
+<tr>
+    <td align="right"><strong>Requestor</strong></td>
+    <td><a href="mailto:{{ requestor }}">{{ requestor }}</a></td>
+</tr>
+<tr>
+    <td align="right"><strong>Submitted Date</strong></td>
+    <td>{{ submitted_date }}</td>
+</tr>
+</table>
+
+<table border="1" cellpadding="2" cellspacing="0">
 {% for key in request_data.items %}
 <tr>
     <td align="right"><strong>{{ key.0 }}</strong></td>

@@ -17,7 +17,7 @@ def generate_key():
     """Generate a datastore key."""
     return str(uuid.uuid4())
 
-def build_json(webapp, data, code=200):
+def build_json(webapp, data, code=200, return_response=False):
     """Build a JSON error message response."""
 
     if isinstance(data, Exception):
@@ -32,6 +32,9 @@ def build_json(webapp, data, code=200):
     except:
         logging.critical('Error parsing JSON.')
         return None
+
+    if return_response:
+        return json
 
     webapp.error(code)
     webapp.response.headers['Content-Type'] = 'application/json'

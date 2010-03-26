@@ -11,6 +11,8 @@ from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
 import models
+import settings
+
 
 class TaskHandler(webapp.RequestHandler):
     def post(self):
@@ -49,7 +51,10 @@ class TaskHandler(webapp.RequestHandler):
             'templates/email_confirmation_html.tpl')
 
         template_vars = {
-            'request_data': execution.request.to_dict(),
+            'requestor': execution.request.requestor,
+            'request_key': execution.request.id,
+            'submitted_date': execution.request.submitted_date,
+            'request_data': execution.request.get_submitted_data(),
             'step_name': execution.step.name,
             'action_name': execution.action.name
         }
@@ -57,12 +62,12 @@ class TaskHandler(webapp.RequestHandler):
         text_body = template.render(text_template_file, template_vars)
         html_body = template.render(html_template_file, template_vars)
 
-        message = mail.EmailMessage(
-            sender='Flomosa <feedback@flomosa.appspotmail.com>',
-            to=execution.member,
-            subject='[flomosa] Request #%s' % execution.request.id,
-            body=text_body,
-            html=html_body)
+        message = mail.EmailMessage()
+        message.sender = 'Flomosa <%s>' % settings.FEEDBACK_FORWARDER_EMAIL
+        message.to = execution.member
+        message.subject = '[flomosa] Request #%s' % execution.request.id
+        message.body = text_body
+        message.html = html_body
 
         logging.info('Sending confirmation email to "%s".' % execution.member)
         try:

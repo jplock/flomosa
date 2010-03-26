@@ -12,9 +12,10 @@ from google.appengine.ext.webapp import util
 import models
 import utils
 
-_PIXEL_GIF = \
+PIXEL_GIF = \
 """R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==
 """
+
 
 class ViewedHandler(webapp.RequestHandler):
 
@@ -42,11 +43,12 @@ class ViewedHandler(webapp.RequestHandler):
             logging.error('Execution "%s" not found in datastore.' % \
                 execution_key)
 
-        pixel = base64.b64decode(_PIXEL_GIF)
+        pixel = base64.b64decode(PIXEL_GIF)
         self.response.headers['Content-Type'] = 'image/gif'
         self.response.out.write(pixel)
 
         logging.debug('Finished ViewedHandler.get() method')
+
 
 class ActionHandler(webapp.RequestHandler):
 

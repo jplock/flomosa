@@ -12,6 +12,8 @@ from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
 import models
+import settings
+
 
 class TaskHandler(webapp.RequestHandler):
     def post(self):
@@ -51,20 +53,23 @@ class TaskHandler(webapp.RequestHandler):
         template_vars = {
             'execution_key': execution.id,
             'actions': execution.step.actions,
-            'request_data': execution.request.to_dict(),
+            'requestor': execution.request.requestor,
+            'request_key': execution.request.id,
+            'submitted_date': execution.request.submitted_date,
+            'request_data': execution.request.get_submitted_data(),
             'step_name': execution.step.name
         }
 
         text_body = template.render(text_template_file, template_vars)
         html_body = template.render(html_template_file, template_vars)
 
-        message = mail.EmailMessage(
-            sender='Flomosa <reply+%s@flomosa.appspotmail.com>' % \
-                execution.id,
-            to=execution.member,
-            subject='[flomosa] Request #%s' % execution.request.id,
-            body=text_body,
-            html=html_body)
+        message = mail.EmailMessage()
+        message.sender = 'Flomosa <reply+%s@%s>' % (execution.id,
+            settings.EMAIL_DOMAIN)
+        message.to = execution.member
+        message.subject = '[flomosa] Request #%s' % execution.request.id
+        message.body = text_body
+        message.html = html_body
 
         logging.info('Sending email to "%s" for Execution "%s".' % \
             (execution.member, execution.id))

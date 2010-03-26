@@ -10,6 +10,8 @@ from google.appengine.ext.webapp import util, mail_handlers
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
+import settings
+
 
 class MailHandler(mail_handlers.InboundMailHandler):
     def receive(self, inbound_message):
@@ -17,30 +19,44 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
         text_body = []
         for content_type, body in inbound_message.bodies('text/plain'):
-            text_body.append(body)
+            text_body.append(body.decode())
 
         html_body = []
         for content_type, body in inbound_message.bodies('text/html'):
             html_body.append(body.decode())
 
-        recipient = 'feedback@flomosa.com'
+        message = mail.EmailMessage()
+        message.to = settings.FEEDBACK_EMAIL
+        message.sender = 'Feedback Forwarder <%s>' % \
+            settings.FEEDBACK_FORWARDER_EMAIL
 
-        message = mail.EmailMessage(
-            sender=inbound_message.sender,
-            to='Feedback <%s>' % recipient,
-            subject=inbound_message.subject,
-            body="\n".join(text_body),
-            html="\n".join(html_body))
+        realname, sender = email.utils.parseaddr(inbound_message.sender)
 
-        logging.info('Forwarding feedback email to "%s".' % recipient)
+        if realname and sender:
+            subject = '%s (From: "%s" <%s>)' % (inbound_message.subject,
+                realname, sender)
+        elif sender:
+            subject = '%s (From: %s)' % (inbound_message.subject, sender)
+        else:
+            subject = inbound_message.subject
+
+        message.subject = subject
+
+        if text_body:
+            message.body = "\n".join(text_body)
+        if html_body:
+            message.html = "\n".join(html_body)
+
+        logging.info('Forwarding feedback email to "%s".' % \
+            settings.FEEDBACK_EMAIL)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
             logging.error('Over email quota limit to forward feedback email ' \
-                'to "%s".' % recipient)
+                'to "%s".' % settings.FEEDBACK_EMAIL)
         except Exception, e:
             logging.error('Unable to forward feedback email to "%s" (%s). ' % \
-                (recipient, e))
+                (settings.FEEDBACK_EMAIL, e))
 
         logging.debug('Finished feedback@ incoming mail handler')
 

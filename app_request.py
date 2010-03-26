@@ -3,10 +3,12 @@
 #
 
 import logging
+import urllib
 
 from django.utils import simplejson
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
+from google.appengine.api import urlfetch
 
 import models
 import utils
@@ -91,8 +93,13 @@ class RequestHandler(oauthapp.OAuthHandler):
                 process=process,
                 requestor=requestor)
 
+        callback_url = data.get('callback_url', None)
+        response_url = data.get('response_url', None)
+
+        reserved_keys = ['callback_url', 'response_url']
+
         for key, value in data.items():
-            if not hasattr(request, key):
+            if not hasattr(request, key) and key not in reserved_keys:
                 setattr(request, key, value)
 
         try:
@@ -104,8 +111,38 @@ class RequestHandler(oauthapp.OAuthHandler):
         step = process.get_start_step()
         step.queue_tasks(request)
 
-        logging.info('Returning Request "%s" as JSON to client.' % request.id)
-        utils.build_json(self, {'key': request.id}, 201)
+        response_fields = {'key': request.id}
+
+        if callback_url:
+            form_data = urllib.urlencode(response_fields)
+
+            rpc = urlfetch.create_rpc(deadline=2)
+            urlfetch.make_fetch_call(rpc,
+                url=callback_url,
+                payload=form_data,
+                method=urlfetch.POST,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'})
+
+            try:
+                result = rpc.get_result()
+                if result.status_code == 200:
+                    logging.info('Submitted POST request to "%s" for Request ' \
+                        '"%s".' % (callback_url, request.id))
+                else:
+                    logging.warning('Could not submit POST request to "%s" ' \
+                        'for Request "%s".' % (callback_url, request.id))
+            except urlfetch.DownloadError, e:
+                logging.warning('Could not submit POST request to "%s" ' \
+                    'for Request "%s" (%s).' % (callback_url, request.id, e))
+
+        if response_url:
+            logging.info('Permanently redirecting client to "%s".' % \
+                response_url)
+            self.redirect(response_url, permanent=True)
+        else:
+            logging.info('Returning Request "%s" as JSON to client.' % \
+                request.id)
+            utils.build_json(self, response_fields, 201)
 
         logging.debug('Finished RequestHandler.post() method')
 

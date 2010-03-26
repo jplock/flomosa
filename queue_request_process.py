@@ -125,11 +125,14 @@ class TaskHandler(webapp.RequestHandler):
 
         # Send a reminder email notification
         else:
+            delta = None
+            num_seconds = 0
             if execution.last_reminder_sent_date:
                 delta = datetime.now() - execution.last_reminder_sent_date
-            else:
+            elif execution.sent_date:
                 delta = datetime.now() - execution.sent_date
-            num_seconds = delta.days * 86400 + delta.seconds
+            if delta:
+                num_seconds = delta.days * 86400 + delta.seconds
             if num_seconds >= settings.REMINDER_DELAY:
                 logging.info('Queuing reminder email #%s to be sent "%s".' % \
                     (execution.reminder_count, execution.member))

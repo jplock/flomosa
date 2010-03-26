@@ -50,9 +50,7 @@ class MailHandler(mail_handlers.InboundMailHandler):
                 'Exiting.' % execution.id)
             return None
 
-        sender = email.utils.parseaddr(message.sender)
-        if sender[1]:
-            sender = sender[1]
+        realname, sender = email.utils.parseaddr(message.sender)
 
         if execution.member.lower() != sender.lower():
             logging.error('Email sent from "%s", expected "%s". Exiting.' % \

@@ -21,7 +21,7 @@ handlers:
 
 - url: /requests/.*
   script: app_request.py
-  secure: always
+  secure: optional
 
 - url: /processes/.*
   script: app_process.py
@@ -41,25 +41,31 @@ handlers:
 
 - url: /test-client
   script: app_test_client.py
-  secure: never
+  secure: optional
 
 - url: /_ah/queue/request-process
   script: queue_request_process.py
+  login: admin
 
 - url: /_ah/queue/mail-request-notify
   script: queue_mail_request_notify.py
+  login: admin
 
 - url: /_ah/queue/mail-request-confirmation
   script: queue_mail_request_confirmation.py
+  login: admin
 
 - url: /_ah/queue/mail-request-complete
   script: queue_mail_request_complete.py
+  login: admin
 
 - url: /_ah/queue/mail-request-step
   script: queue_mail_request_step.py
+  login: admin
 
 - url: /_ah/queue/mail-request-reminder
   script: queue_mail_request_reminder.py
+  login: admin
 
 - url: /_ah/mail/feedback@.*flomosa\.appspotmail\.com
   script: mail_handler_feedback.py

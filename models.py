@@ -50,7 +50,8 @@ class Client(FlomosaBase):
 
 
 class Process(FlomosaBase):
-    client = db.ReferenceProperty(Client, collection_name='processes',
+    client = db.ReferenceProperty(Client,
+        collection_name='processes',
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
@@ -88,7 +89,9 @@ class Process(FlomosaBase):
 
         process = cls.get_by_key_name(process_key)
         if not process:
-            process = cls(key_name=process_key, client=client, name=name)
+            process = cls(key_name=process_key,
+                client=client,
+                name=name)
         elif process.client.id != client.id:
             raise ValueError('Permission Denied.')
         else:
@@ -173,7 +176,8 @@ class Process(FlomosaBase):
 
 
 class Step(FlomosaBase):
-    process = db.ReferenceProperty(Process, collection_name='steps',
+    process = db.ReferenceProperty(Process,
+        collection_name='steps',
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
@@ -219,7 +223,9 @@ class Step(FlomosaBase):
         if not process:
             raise ValueError('Process key "%s" does not exist.' % process_key)
 
-        step = cls.get_or_insert(step_key, process=process, name=name)
+        step = cls.get_or_insert(step_key,
+            process=process,
+            name=name)
         step.process = process
         step.name = name
 
@@ -273,8 +279,11 @@ class Step(FlomosaBase):
                 execution_key = utils.generate_key()
 
                 execution = Execution(key_name=execution_key,
-                    process=self.process, request=request, step=self,
-                    team=team, member=member)
+                    process=self.process,
+                    request=request,
+                    step=self,
+                    team=team,
+                    member=member)
 
                 try:
                     execution.put()
@@ -292,7 +301,8 @@ class Step(FlomosaBase):
 
 
 class Team(FlomosaBase):
-    client = db.ReferenceProperty(Client, collection_name='teams',
+    client = db.ReferenceProperty(Client,
+        collection_name='teams',
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
@@ -329,7 +339,9 @@ class Team(FlomosaBase):
 
         team = cls.get_by_key_name(team_key)
         if not team:
-            team = cls(key_name=team_key, client=client, name=name)
+            team = cls(key_name=team_key,
+                client=client,
+                name=name)
         elif team.client.id != client.id:
             raise ValueError('Permission Denied.')
         else:
@@ -356,7 +368,8 @@ class Team(FlomosaBase):
 
 
 class Action(FlomosaBase):
-    process = db.ReferenceProperty(Process, collection_name='actions',
+    process = db.ReferenceProperty(Process,
+        collection_name='actions',
         required=True)
     name = db.StringProperty(required=True)
     incoming = db.ListProperty(db.Key)
@@ -443,13 +456,16 @@ class Action(FlomosaBase):
 
 
 class Request(db.Expando):
-    client = db.ReferenceProperty(Client, collection_name='requests',
+    client = db.ReferenceProperty(Client,
+        collection_name='requests',
         required=True)
-    process = db.ReferenceProperty(Process, collection_name='requests',
+    process = db.ReferenceProperty(Process,
+        collection_name='requests',
         required=True)
     requestor = db.EmailProperty(required=True)
     contact = db.EmailProperty()
     is_draft = db.BooleanProperty(default=False)
+    submitted_date = db.DateTimeProperty(auto_now_add=True)
 
     @property
     def id(self):
@@ -469,6 +485,14 @@ class Request(db.Expando):
         """Delete the Request from the datastore and memcache."""
         return cache.delete_from_cache(self)
 
+    def get_submitted_data(self):
+        """Return a dict of the dynamic properties of this request."""
+
+        data = {}
+        for property in self.dynamic_properties():
+            data[property] = str(getattr(self, property))
+        return data
+
     def to_dict(self):
         """Return request as a dict object."""
 
@@ -487,14 +511,19 @@ class Request(db.Expando):
 
 
 class Execution(FlomosaBase):
-    process = db.ReferenceProperty(Process, collection_name='executions',
+    process = db.ReferenceProperty(Process,
+        collection_name='executions',
         required=True)
-    request = db.ReferenceProperty(Request, collection_name='executions',
+    request = db.ReferenceProperty(Request,
+        collection_name='executions',
         required=True)
-    step = db.ReferenceProperty(Step, collection_name='executions',
+    step = db.ReferenceProperty(Step,
+        collection_name='executions',
         required=True)
-    action = db.ReferenceProperty(Action, collection_name='executions')
-    team = db.ReferenceProperty(Team, collection_name='executions')
+    action = db.ReferenceProperty(Action,
+        collection_name='executions')
+    team = db.ReferenceProperty(Team,
+        collection_name='executions')
     member = db.EmailProperty(required=True)
     start_date = db.DateTimeProperty(auto_now_add=True)
     queued_for_send = db.BooleanProperty(default=False)

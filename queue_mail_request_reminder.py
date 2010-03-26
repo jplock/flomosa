@@ -53,7 +53,10 @@ class TaskHandler(webapp.RequestHandler):
         template_vars = {
             'execution_key': execution.id,
             'actions': execution.step.actions,
-            'request_data': execution.request.to_dict(),
+            'requestor': execution.request.requestor,
+            'request_key': execution.request.id,
+            'submitted_date': execution.request.submitted_date,
+            'request_data': execution.request.get_submitted_data(),
             'step_name': execution.step.name
         }
 
@@ -63,15 +66,15 @@ class TaskHandler(webapp.RequestHandler):
         execution.reminder_count = execution.reminder_count + 1
         execution.last_reminder_sent_date = datetime.now()
 
-        message = mail.EmailMessage(
-            sender='Flomosa <reply+%s@flomosa.appspotmail.com>' % \
-                execution.id,
-            to=execution.member,
-            subject='[flomosa] Request #%s (Reminder %s of %s)' % \
-                (execution.request.id, execution.reminder_count,
-                settings.REMINDER_LIMIT),
-            body=text_body,
-            html=html_body)
+        message = mail.EmailMessage()
+        message.sender = 'Flomosa <reply+%s@%s>' % (execution.id,
+            settings.EMAIL_DOMAIN)
+        message.to = execution.member
+        message.subject = '[flomosa] Request #%s (Reminder %s of %s)' % \
+            (execution.request.id, execution.reminder_count,
+            settings.REMINDER_LIMIT)
+        message.body = text_body
+        message.html = html_body
 
         logging.info('Sending reminder email to "%s" for Execution "%s".' % \
             (execution.member, execution.id))
