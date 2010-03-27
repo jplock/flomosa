@@ -11,9 +11,9 @@
 
 <p>Below is the request data for your reference:</p>
 
-<table border="1" cellpadding="2" cellspacing="0">
+<table border="0" cellpadding="2" cellspacing="0">
 <tr>
-    <td align="right"><strong>Key</strong><td>
+    <td align="right"><strong>Key</strong></td>
     <td>{{ request_key }}</td>
 </tr>
 <tr>
@@ -27,6 +27,10 @@
 </table>
 
 <table border="1" cellpadding="2" cellspacing="0">
+<tr>
+    <th><strong>Name</strong></th>
+    <th><strong>Value</strong></th>
+</tr>
 {% for key in request_data.items %}
 <tr>
     <td align="right"><strong>{{ key.0 }}</strong></td>
