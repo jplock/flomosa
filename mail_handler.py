@@ -16,7 +16,12 @@ class MailHandler(mail_handlers.InboundMailHandler):
     def receive(self, message):
         logging.debug('Begin incoming mail handler')
 
-        user, hostname = message.to.split('@')
+        realname, recipient = email.utils.parseaddr(message.to)
+        if not recipient:
+            logging.error('Invalid reply user "%s". Exiting.' % recipient)
+            return None
+
+        user, hostname = recipient.split('@')
         if not user.startswith('reply+'):
             logging.error('Invalid reply user "%s". Exiting.' % user)
             return None
