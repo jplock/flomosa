@@ -2,15 +2,16 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os.path
 import logging
+import os.path
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 
-import models
-import utils
 import authapp
+import models
+import settings
+import utils
 
 
 class AccountHandler(authapp.SecureRequestHandler):
@@ -29,7 +30,7 @@ class AccountHandler(authapp.SecureRequestHandler):
 
         client = self.get_current_client()
         if not client:
-            self.redirect('/account/login/')
+            return self.redirect('/account/login/')
 
         template_vars = {
             'current_client': client,
@@ -79,7 +80,7 @@ class AccountHandler(authapp.SecureRequestHandler):
                 self.response.out.write(self.show_form(template_vars))
 
             if client.is_saved():
-                self.redirect('/')
+                return self.redirect('/')
 
         logging.debug('Finished AccountHandler.post() method')
 
@@ -89,8 +90,8 @@ class AccountHandler(authapp.SecureRequestHandler):
         template_vars = {'url': self.request.uri}
 
         client = self.get_current_client()
-        if not isinstance(client, models.Client):
-            self.redirect('/account/login/')
+        if not client:
+            return self.redirect('/account/login/')
 
         template_vars['current_client'] = client
         template_vars['email_address'] = client.email_address
@@ -166,12 +167,11 @@ class RegisterHandler(authapp.SecureRequestHandler):
                 self.response.out.write(self.show_form(template_vars))
 
             if client.is_saved():
-                self.set_secure_cookie(client_key)
+                self.set_secure_cookie(settings.COOKIE_NAME, client_key)
                 next_url = self.request.get('next')
                 if next_url:
-                    self.redirect(next_url)
-                else:
-                    self.redirect('/')
+                    return self.redirect(next_url)
+                return self.redirect('/')
 
         logging.debug('Finished RegisterHandler.post() method')
 
@@ -180,7 +180,7 @@ class RegisterHandler(authapp.SecureRequestHandler):
 
         client = self.get_current_client()
         if client:
-            self.redirect('/account/')
+            return self.redirect('/account/')
 
         template_vars = {}
         next_url = self.request.get('next')
@@ -223,13 +223,12 @@ class LoginHandler(authapp.SecureRequestHandler):
             query.filter('password =', self.encrypt_string(password))
             client = query.get()
             if isinstance(client, models.Client):
-                self.set_secure_cookie(client.id)
+                self.set_secure_cookie(settings.COOKIE_NAME, client.id)
 
                 next_url = self.request.get('next')
                 if next_url:
-                    self.redirect(next_url)
-                else:
-                    self.redirect('/account/')
+                    return self.redirect(next_url)
+                return self.redirect('/account/')
             else:
                 template_vars['messages'].append('Invalid email address or ' \
                     'password')
@@ -247,7 +246,7 @@ class LoginHandler(authapp.SecureRequestHandler):
 
         client = self.get_current_client()
         if client:
-            self.redirect('/account/')
+            return self.redirect('/account/')
 
         template_vars = {}
         next_url = self.request.get('next')
@@ -264,9 +263,9 @@ class LogoutHandler(authapp.SecureRequestHandler):
 
         client = self.get_current_client()
         if not client:
-            self.redirect('/account/login/')
+            return self.redirect('/account/login/')
 
-        self.delete_secure_cookie()
+        self.clear_cookie(settings.COOKIE_NAME)
 
         template_file = os.path.join(os.path.dirname(__file__),
             'templates/account_logout.tpl')
@@ -281,14 +280,14 @@ class CloseHandler(authapp.SecureRequestHandler):
 
         client = self.get_current_client()
         if not client:
-            self.redirect('/account/login/')
+            return self.redirect('/account/login/')
 
         try:
             client.delete()
         except Exception, e:
             logging.error(e)
 
-        self.delete_secure_cookie()
+        self.clear_cookie(settings.COOKIE_NAME)
 
         self.redirect('/')
 
