@@ -52,7 +52,7 @@ class SecureRequestHandler(webapp.RequestHandler):
             # Don't let us accidentally inject bad stuff
             raise ValueError('Invalid cookie %r: %r' % (name, value))
 
-        new_cookie = Cookie.SimpleCookie()
+        new_cookie = Cookie.BaseCookie()
         new_cookie[name] = value
         if domain:
             new_cookie[name]['domain'] = domain
