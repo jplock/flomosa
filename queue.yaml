@@ -1,6 +1,10 @@
 queue:
 - name: request-process
-  rate: 25/s
+  rate: 24/s
+  bucket_size: 20
+  
+- name: request-statistics
+  rate: 1/s
   bucket_size: 20
   
 - name: mail-request-notify

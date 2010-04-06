@@ -3,6 +3,7 @@
 #
 
 import logging
+from datetime import date
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
@@ -55,14 +56,39 @@ class Process(FlomosaBase):
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
+    collect_stats = db.BooleanProperty(default=False)
+
+    def put(self):
+        """Saves the process to the datastore and memcache.
+
+        If the process is not collecting statistics, delete any stored
+        statistics from the datastore.
+        """
+
+        if not self.collect_stats:
+            self.delete_stats()
+
+        return cache.save_to_cache(self)
 
     def delete(self):
         """Delete the process from the datastore and memcache.
 
-        This also deletes and actions and steps created under this process.
+        Also deletes and actions and steps created under this process and
+        any collected statistics.
         """
+
+        self.delete_stats()
         self.delete_steps_actions()
         return cache.delete_from_cache(self)
+
+    def delete_stats(self):
+        """Delete any statistic objects for this Process."""
+        for stats in self.stats:
+            try:
+                stats.delete()
+            except Exception, e:
+                logging.error('Unable to delete Statistcs object for ' \
+                    'Process "%s" from datastore.' % self.id)
 
     @classmethod
     def from_dict(cls, client, data):
@@ -78,6 +104,7 @@ class Process(FlomosaBase):
         kind = data.get('kind', None)
         name = data.get('name', None)
         description = data.get('description', None)
+        collect_stats = data.get('collect_stats', None)
 
         if not name:
             raise KeyError('Missing "name" parameter.')
@@ -99,6 +126,8 @@ class Process(FlomosaBase):
 
         if description is not None:
             process.description = description
+        if collect_stats is not None:
+            process.collect_stats = collect_stats
         return process
 
     def delete_steps_actions(self):
@@ -166,7 +195,8 @@ class Process(FlomosaBase):
         data = {
             'kind': self.kind(),
             'name': self.name,
-            'description': self.description
+            'description': self.description,
+            'collect_stats': self.collect_stats
         }
         if self.is_saved():
             data['key'] = self.id
@@ -183,6 +213,36 @@ class Step(FlomosaBase):
     description = db.TextProperty()
     is_start = db.BooleanProperty(default=False)
     teams = db.ListProperty(db.Key)
+
+    def put(self):
+        """Saves the step to the datastore and memcache.
+
+        If the process is no longer collecting statistcs, delete any Statistics
+        objects assigned to this Step.
+        """
+
+        if not self.process.collect_stats:
+            self.delete_stats()
+
+        return cache.save_to_cache(self)
+
+    def delete(self):
+        """Delete the step from the datastore and memcache.
+
+        Also any collected statistics.
+        """
+
+        self.delete_stats()
+        return cache.delete_from_cache(self)
+
+    def delete_stats(self):
+        """Delete any statistic objects for this Step."""
+        for stats in self.stats:
+            try:
+                stats.delete()
+            except Exception, e:
+                logging.error('Unable to delete Statistcs object for ' \
+                    'Step "%s" from datastore.' % self.id)
 
     @property
     def actions(self):
@@ -415,7 +475,7 @@ class Action(FlomosaBase):
         step_keys = []
         for step_key in data.get('incoming'):
             step = Step.get(step_key)
-            if isinstance(step, Step) and step.key() not in step_keys:
+            if step and isinstance(step, Step) and step.key() not in step_keys:
                 step_keys.append(step.key())
         if step_keys:
             action.incoming = step_keys
@@ -424,7 +484,7 @@ class Action(FlomosaBase):
         step_keys = []
         for step_key in data.get('outgoing'):
             step = Step.get(step_key)
-            if isinstance(step, Step) and step.key() not in step_keys:
+            if step and isinstance(step, Step) and step.key() not in step_keys:
                 step_keys.append(step.key())
         if step_keys:
             action.outgoing = step_keys
@@ -446,11 +506,13 @@ class Action(FlomosaBase):
             data['key'] = self.id
         for step_key in self.incoming:
             step = Step.get(step_key)
-            if isinstance(step, Step) and step.id not in data['incoming']:
+            if step and isinstance(step, Step) and step.id not in \
+                data['incoming']:
                 data['incoming'].append(step.id)
         for step_key in self.outgoing:
             step = Step.get(step_key)
-            if isinstance(step, Step) and step.id not in data['outgoing']:
+            if step and isinstance(step, Step) and step.id not in \
+                data['outgoing']:
                 data['outgoing'].append(step.id)
         return data
 
@@ -466,6 +528,9 @@ class Request(db.Expando):
     contact = db.EmailProperty()
     is_draft = db.BooleanProperty(default=False)
     submitted_date = db.DateTimeProperty(auto_now_add=True)
+    is_complete = db.BooleanProperty(default=False)
+    completed_date = db.DateTimeProperty()
+    duration = db.IntegerProperty(default=0)
 
     @property
     def id(self):
@@ -492,6 +557,12 @@ class Request(db.Expando):
         for property in self.dynamic_properties():
             data[property] = str(getattr(self, property))
         return data
+
+    def get_executions(self):
+        """Return executions in creation order.
+        # TODO
+        """
+        pass
 
     def to_dict(self):
         """Return request as a dict object."""
@@ -552,7 +623,7 @@ class Execution(FlomosaBase):
             execution = None
         return execution
 
-    def num_passes(self):
+    def num_passes(self, limit=5):
         """Return number of times through this step for this request."""
 
         query = self.all()
@@ -560,4 +631,119 @@ class Execution(FlomosaBase):
         query.filter('request =', self.request)
         query.filter('team =', self.team)
         query.filter('member =', self.member)
-        return query.count(5)
+        return query.count(limit)
+
+
+class Statistic(db.Model):
+    process = db.ReferenceProperty(Process,
+        collection_name='stats')
+    step = db.ReferenceProperty(Step,
+        collection_name='stats')
+    date_key = db.StringProperty(required=True)
+    type = db.StringProperty(required=True)
+    num_requests = db.IntegerProperty(default=0)
+    num_requests_completed = db.IntegerProperty(default=0)
+    min_request_seconds = db.IntegerProperty(default=0) # seconds
+    max_request_seconds = db.IntegerProperty(default=0) # seconds
+    avg_request_seconds = db.FloatProperty(default=0.0) # seconds
+    total_request_seconds = db.IntegerProperty(default=0) # seconds
+
+    @property
+    def id(self):
+        if self.process:
+            return '%s_%s' % (self.process.id, self.date_key)
+        elif self.step:
+            return '%s_%s' % (self.step.id, self.date_key)
+        return None
+
+    def log(self, request):
+        """Store request data in a Statistic object.
+
+        Executed when a request has been completed.
+        """
+
+        if request.duration > 0:
+            if request.duration < self.min_request_seconds:
+                self.min_request_seconds = request.duration
+            if request.duration > self.max_request_seconds:
+                self.max_request_seconds = request.duration
+            self.num_requests_completed += 1
+            self.total_request_seconds += request.duration
+            self.avg_request_seconds = float(self.total_request_seconds /
+                self.num_requests_completed)
+        else:
+            self.num_requests += 1
+
+    @classmethod
+    def get_bucket(cls, obj, type='daily', date_key=None):
+        """Get or create a Statistics object for a Process or a Step."""
+
+        if not obj:
+            return None
+        elif not isinstance(obj, Process) or not isinstance(obj, Step):
+            return None
+
+        valid_types = ('daily', 'weekly', 'monthly', 'yearly')
+        if type not in valid_types:
+            return None
+        if date_key is None:
+            # TODO: based on today's date, return:
+            #    daily -  YYYY
+            #    weekly - YYYY_WW
+            #    monthly -YYYYMM
+            #    yearly - YYYYMMDD
+            # depending on the type given.
+            pass
+
+        stats_key = '%s_%s' % (obj.id, date_key)
+
+        if isinstance(obj, Process):
+            stats = cls.get_or_insert(stats_key,
+                process=obj,
+                date_key=date_key,
+                type=type)
+            stats.process = process
+        elif isinstance(obj, Step):
+            stats = cls.get_or_insert(stats_key,
+                step=obj,
+                date_key=date_key,
+                type=type)
+            stats.step = step
+        else:
+            return None
+        stats.date_key = date_key
+        stats.type = type
+        return stats
+
+    @classmethod
+    def store_stats(cls, request, obj):
+        """Log the Request statistics in a Process or Step.
+
+        This will create daily, weekly, monthly and yearly statistics objects
+        for the given Step or Process and record the request in those buckets.
+        """
+
+        if not isinstance(request, Request):
+            return None
+        if not isinstance(obj, Process) or not isinstance(obj, Step):
+            return None
+
+        daily = cls.get_bucket(obj, 'daily')
+        weekly = cls.get_bucket(obj, 'weekly')
+        monthly = cls.get_bucket(obj, 'monthly')
+        yearly = cls.get_bucket(obj, 'yearly')
+
+        buckets = []
+        buckets.append(daily)
+        buckets.append(weekly)
+        buckets.append(monthly)
+        buckets.append(yearly)
+
+        for bucket in buckets:
+            if bucket:
+                bucket.log(request)
+                try:
+                    bucket.put()
+                except Exception, e:
+                    logging.warning('Unable to save Statistic object "%s".' \
+                        % bucket.id)

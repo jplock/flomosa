@@ -72,11 +72,28 @@ class TaskHandler(webapp.RequestHandler):
             return None
 
         # If an action has been chosen, queue the next tasks
-        if isinstance(execution.action, models.Action):
+        elif isinstance(execution.action, models.Action):
             logging.info('Action "%s" taken on Execution "%s".' % \
                 (execution.action.name, execution.id))
 
             if execution.action.is_complete:
+                request = execution.request
+                request.is_complete = True
+                request.completed_date = datetime.now()
+
+                duration = 0
+                # TODO: this needs to exclude duplicate executions from the total
+                for req_execution in request.executions:
+                    duration += req_execution.duration
+                request.duration = duration
+
+                try:
+                    request.put()
+                except Exception, e:
+                    logging.error('%s Re-queuing.' % e)
+                    self.error(500)
+                    return None
+
                 logging.info('Queuing completed email to be sent to "%s".' % \
                     execution.request.requestor)
                 task = taskqueue.Task(params={'key': execution.id})
@@ -141,7 +158,7 @@ class TaskHandler(webapp.RequestHandler):
                 queue.add(task)
             else:
                 logging.info('Reminder #%s delay for Execution "%s" has not ' \
-                    'expired (%s >= %s).' % (execution.reminder_count,
+                    'expired (%s >= %s).' % (execution.reminder_count+1,
                     execution.id, num_seconds, settings.REMINDER_DELAY))
 
         logging.info('Re-queuing Execution "%s".' % execution.id)
