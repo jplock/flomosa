@@ -53,7 +53,7 @@ class TaskHandler(webapp.RequestHandler):
             return None
 
         try:
-            #db.transaction(models.Statistic.store_stats, request, obj)
+            #db.run_in_transaction(models.Statistic.store_stats, request, obj)
             models.Statistic.store_stats(request, obj)
         except Exception, e:
             logging.error('Storing statistics failed for Request "%s": %s' % \

@@ -14,5 +14,5 @@ indexes:
   properties:
   - name: request
   - name: step
-  - name: action
+  - name: member
   - name: end_date

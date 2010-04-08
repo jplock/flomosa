@@ -26,7 +26,6 @@ class ViewedHandler(webapp.RequestHandler):
             % execution_key)
         execution = models.Execution.get(execution_key)
         if isinstance(execution, models.Execution):
-            logging.debug('Execution "%s" found in datastore.' % execution.id)
             if not execution.viewed_date:
                 logging.info('Execution "%s" has not been viewed, storing.' % \
                     execution.id)

@@ -661,15 +661,16 @@ class Execution(FlomosaBase):
         query = self.all()
         query.filter('step =', self.step)
         query.filter('request =', self.request)
-        query.filter('action !=', None)
-        query.order('action')
+        query.filter('member !=', self.member)
+        query.order('member')
         query.order('end_date')
 
-        try:
-            execution = query.get()
-        except db.NeedIndexError, e:
-            execution = None
-        return execution
+        results = query.fetch(30)
+
+        for execution in results:
+            if execution.action:
+                return execution
+        return None
 
     def num_passes(self, limit=5):
         """Return number of times through this step for this request."""
