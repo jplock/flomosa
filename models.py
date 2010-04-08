@@ -656,7 +656,7 @@ class Execution(FlomosaBase):
         return self.put()
 
     def is_step_completed(self):
-        """Has this request step been completed by somebody?"""
+        """Has this request step been completed by anyone?"""
 
         query = self.all()
         query.filter('step =', self.step)

@@ -60,6 +60,7 @@ class TaskHandler(webapp.RequestHandler):
                 execution.put()
             except Exception, e:
                 logging.warning('%s Exiting.' % e)
+
             self.error(200)
             return None
 
@@ -72,22 +73,54 @@ class TaskHandler(webapp.RequestHandler):
             except Exception, e:
                 logging.error(e)
 
-            logging.info('Queuing notification email to be sent "%s".' % \
-                execution.member)
             task = taskqueue.Task(params={'key': execution.id})
             queue = taskqueue.Queue('mail-request-notify')
             queue.add(task)
 
-            logging.info('Re-queuing Execution "%s".' % execution.id)
+            logging.info('Queued notification email to be sent to "%s" for ' \
+                'Execution "%s". Re-queuing.' % (execution.member,
+                execution.id))
             self.error(500)
             return None
 
-        # If an action has been chosen, queue the next tasks
-        elif isinstance(execution.action, models.Action):
+        # If this task was executed again, and we queued the notification
+        # email to be sent, but it has not yet been sent, re-queue this task
+        # and wait until the notification email has been sent.
+        if not execution.sent_date:
+            logging.warning('Notification email not yet sent for Execution ' \
+                '"%s". Re-queuing.' % execution.id)
+            self.error(500)
+            return None
+
+        # Has this step already been completed by another team member?
+        completed_execution = execution.is_step_completed()
+
+        # Check that another team member didn't already complete this step for
+        # this request. Request must not have gone through this step multiple
+        # times.
+        if completed_execution and execution.num_passes() == 1:
+            execution.end_date = completed_execution.end_date
+
+            try:
+                execution.put()
+            except Exception, e:
+                logging.error(e)
+
+            logging.warning('Step "%s" completed by "%s" on "%s". Exiting.' % \
+                (execution.step.id, completed_execution.member,
+                completed_execution.end_date))
+            self.error(200)
+            return None
+
+        # If an action has been chosen, queue the next steps
+        if execution.action and isinstance(execution.action, models.Action):
             logging.info('Action "%s" taken on Execution "%s".' % \
                 (execution.action.name, execution.id))
 
+            # If the action is a completion action
             if execution.action.is_complete:
+                # If the request has not yet been marked as completed,
+                # compute the request duration
                 if not execution.request.is_completed:
                     try:
                         execution.request.set_completed()
@@ -97,8 +130,8 @@ class TaskHandler(webapp.RequestHandler):
                         return None
 
                 # Record the request in the Process statistics
-                logging.info('Queuing statistics collection for Request "%s"' \
-                    % execution.request.id)
+                logging.info('Queuing statistics collection for Request ' \
+                    '"%s".' % execution.request.id)
                 queue = taskqueue.Queue('request-statistics')
                 task = taskqueue.Task(params={
                     'request_key': execution.request.id,
@@ -106,11 +139,16 @@ class TaskHandler(webapp.RequestHandler):
                 })
                 queue.add(task)
 
-                logging.info('Queuing completed email to be sent to "%s".' % \
-                    execution.request.requestor)
+                logging.info('Queuing completed email to be sent to "%s" for ' \
+                    'Request "%s".' % (execution.request.requestor,
+                    execution.request.id))
                 task = taskqueue.Task(params={'key': execution.id})
                 queue = taskqueue.Queue('mail-request-complete')
                 queue.add(task)
+
+            # If the action didn't complete the process, queue a step
+            # completion email to be sent to the requestor and queue up any
+            # outgoing steps after this action.
             else:
                 logging.info('Queuing step email to be sent to "%s".' % \
                     execution.request.requestor)
@@ -127,26 +165,8 @@ class TaskHandler(webapp.RequestHandler):
             self.error(200)
             return None
 
-        # Check that another team member or someone on a different team didn't
-        # already complete this step for this request. Request must not have
-        # gone through this step multiple times.
-        completed_execution = execution.is_step_completed()
-        if completed_execution and execution.num_passes() == 1:
-            logging.info('Step "%s" completed by "%s" on "%s"' % \
-                (execution.step.id, completed_execution.member,
-                completed_execution.end_date))
-
-            execution.end_date = completed_execution.end_date
-
-            try:
-                execution.put()
-            except Exception, e:
-                logging.warning('%s Exiting.' % e)
-            self.error(200)
-            return None
-
         # Reached reminder limit, cancel this execution
-        elif execution.reminder_count == settings.REMINDER_LIMIT:
+        if execution.reminder_count == settings.REMINDER_LIMIT:
             logging.warning('Reminder limit reached for Execution "%s". ' \
                 'Exiting.' % execution.id)
             self.error(200)
@@ -162,6 +182,9 @@ class TaskHandler(webapp.RequestHandler):
                 delta = datetime.now() - execution.sent_date
             if delta:
                 num_seconds = delta.days * 86400 + delta.seconds
+
+            # If are under the REMINDER_DELAY variable, queue up a reminder
+            # email to be sent to the member.
             if num_seconds >= settings.REMINDER_DELAY:
                 logging.info('Queuing reminder email #%s to be sent "%s".' % \
                     (execution.reminder_count, execution.member))
