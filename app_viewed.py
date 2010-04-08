@@ -28,10 +28,10 @@ class ViewedHandler(webapp.RequestHandler):
         if isinstance(execution, models.Execution):
             logging.debug('Execution "%s" found in datastore.' % execution.id)
             if not execution.viewed_date:
-                logging.info('Execution "%s" not currently viewed, saving.' % \
+                logging.info('Execution "%s" has not been viewed, storing.' % \
                     execution.id)
                 execution.viewed_date = datetime.now()
-                if not execution.email_delay:
+                if execution.sent_date and not execution.email_delay:
                     delta = execution.viewed_date - execution.sent_date
                     execution.email_delay = delta.days * 86400 + delta.seconds
 
@@ -58,7 +58,7 @@ class ActionHandler(webapp.RequestHandler):
         logging.debug('Looking up Execution "%s" in memcache then datastore.' \
             % execution_key)
         execution = models.Execution.get(execution_key)
-        if not execution:
+        if not execution or not isinstance(execution, models.Execution):
             logging.error('Execution "%s" not found. Returning 404 to user.' \
                 % execution_key)
             self.error(404)
@@ -67,23 +67,14 @@ class ActionHandler(webapp.RequestHandler):
         logging.debug('Looking up Action "%s" in memcache then datastore.' \
             % action_key)
         action = models.Action.get(action_key)
-        if not isinstance(action, models.Action):
+        if not action or not isinstance(action, models.Action):
             logging.error('Action "%s" not found. Returning 404 to user.' % \
                 action_key)
             self.error(404)
             return None
 
-        execution.action = action
-        execution.end_date = datetime.now()
-        if execution.viewed_date and not execution.action_delay:
-            delta = execution.end_date - execution.viewed_date
-            execution.action_delay = delta.days * 86400 + delta.seconds
-        if execution.start_date and not execution.duration:
-            delta = execution.end_date - execution.start_date
-            execution.duration = delta.days * 86400 + delta.seconds
-
         try:
-            execution.put()
+            execution.set_completed(action)
         except Exception, e:
             logging.error(e)
 

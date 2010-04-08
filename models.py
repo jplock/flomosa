@@ -3,7 +3,7 @@
 #
 
 import logging
-from datetime import date
+import datetime
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
@@ -48,6 +48,68 @@ class Client(FlomosaBase):
     @property
     def secret(self):
         return self.oauth_secret
+
+
+class Team(FlomosaBase):
+    client = db.ReferenceProperty(Client,
+        collection_name='teams',
+        required=True)
+    name = db.StringProperty(required=True)
+    description = db.TextProperty()
+    members = db.ListProperty(basestring)
+
+    @classmethod
+    def from_dict(cls, client, data):
+        """Return a new Team instance from a dict object."""
+
+        if not client or not isinstance(client, Client):
+            return None
+
+        if not data or not isinstance(data, dict):
+            return None
+
+        team_key = data.get('key', utils.generate_key())
+        kind = data.get('kind', None)
+        name = data.get('name', None)
+        description = data.get('description', None)
+        members = data.get('members', None)
+
+        if not name:
+            raise KeyError('Missing "name" parameter.')
+        if not kind:
+            raise KeyError('Missing "kind" parameter.')
+        if kind != cls.__name__:
+            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
+                (cls.__name__, kind))
+
+        team = cls.get_by_key_name(team_key)
+        if not team:
+            team = cls(key_name=team_key,
+                client=client,
+                name=name)
+        elif team.client.id != client.id:
+            raise ValueError('Permission Denied.')
+        else:
+            team.name = name
+
+        if description is not None:
+            team.description = description
+        if isinstance(members, list):
+            team.members = members
+        return team
+
+    def to_dict(self):
+        """Return process as a dict object."""
+
+        data = {
+            'kind': self.kind(),
+            'name': self.name,
+            'description': self.description,
+            'members': self.members
+        }
+        if self.is_saved():
+            data['key'] = self.id
+        return data
 
 
 class Process(FlomosaBase):
@@ -173,21 +235,15 @@ class Process(FlomosaBase):
         step = self.get_start_step()
         if not step:
             return False
-        if not step.teams:
-            return False
 
-        found_member = False
-        for team_key in step.teams:
-            team = Team.get(team_key)
-            if not team:
-                continue
-            elif not team.members:
-                logging.error('No team members found in team "%s"' % team.id)
-                continue
-            else:
-                found_member = True
-                break
-        return found_member
+        if step.members:
+            return True
+        if step.team and isinstance(step.team, Team):
+            if step.team.members:
+                return True
+
+        logging.error('No team members found in step "%s"' % step.id)
+        return False
 
     def to_dict(self):
         """Return process as a dict object."""
@@ -212,7 +268,9 @@ class Step(FlomosaBase):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     is_start = db.BooleanProperty(default=False)
-    teams = db.ListProperty(db.Key)
+    team = db.ReferenceProperty(Team,
+        collection_name='steps')
+    members = db.ListProperty(basestring)
 
     def put(self):
         """Saves the step to the datastore and memcache.
@@ -267,7 +325,8 @@ class Step(FlomosaBase):
         name = data.get('name', None)
         description = data.get('description', None)
         is_start = data.get('is_start', None)
-        teams = data.get('teams', None)
+        team_key = data.get('team', None)
+        members = data.get('members', None)
 
         if not name:
             raise KeyError('Missing "name" parameter.')
@@ -293,13 +352,12 @@ class Step(FlomosaBase):
             step.description = description
         if is_start is not None:
             step.is_start = bool(is_start)
-        team_keys = []
-        for team_key in teams:
+        if isinstance(members, list):
+            step.members = members
+        if team_key is not None:
             team = Team.get(team_key)
-            if isinstance(team, Team) and team.key() not in team_keys:
-                team_keys.append(team.key())
-        if team_keys:
-            step.teams = team_keys
+            if team and isinstance(team, Team):
+                step.team = team
 
         return step
 
@@ -312,119 +370,71 @@ class Step(FlomosaBase):
             'process': self.process.id,
             'description': self.description,
             'is_start': bool(self.is_start),
-            'teams': []
+            'members': self.members
         }
-        for team_key in self.teams:
-            team = Team.get(team_key)
-            if isinstance(team, Team) and team.id not in data['teams']:
-                data['teams'].append(team.id)
+        if self.team:
+            data['team'] = self.team.id
+        else:
+            data['team'] = None
         if self.is_saved():
             data['key'] = self.id
         return data
+
+    def _create_execution(self, request, member, team=None):
+        """Create an execution object for a given member."""
+
+        execution_key = utils.generate_key()
+
+        execution = Execution(key_name=execution_key,
+            process=self.process,
+            request=request,
+            step=self,
+            member=member)
+        if team and isinstance(team, Team):
+            execution.team = team
+
+        try:
+            execution.put()
+        except Exception, e:
+            logging.error(e)
+            return None
+
+        return execution.id
 
     def queue_tasks(self, request):
         """Queue execution tasks for a given request."""
 
         if not isinstance(request, Request):
             return None
+        if not self.team and not self.members:
+            return None
 
-        queue = taskqueue.Queue('request-process')
         tasks = []
-        for team_key in self.teams:
-            team = Team.get(team_key)
-            if not team:
-                continue
+        if self.team:
+            for member in self.team.members:
+                execution_key = self._create_execution(request, member,
+                    self.team)
 
-            for member in team.members:
-                execution_key = utils.generate_key()
+                if execution_key:
+                    logging.info('Queuing: (member="%s") (team="%s") ' \
+                        '(step="%s") (process="%s")' % (member, self.team.name,
+                        self.name, self.process.name))
+                    task = taskqueue.Task(params={'key': execution_key})
+                    tasks.append(task)
+        if self.members:
+            for member in self.members:
+                execution_key = self._create_execution(request, member)
 
-                execution = Execution(key_name=execution_key,
-                    process=self.process,
-                    request=request,
-                    step=self,
-                    team=team,
-                    member=member)
-
-                try:
-                    execution.put()
-                except Exception, e:
-                    logging.error(e)
-                    continue
-
-                logging.info('Queuing: (member="%s") (team="%s") (step="%s") ' \
-                    '(process="%s")' % (member, team.name, self.name,
-                    self.process.name))
-                task = taskqueue.Task(params={'key': execution.id})
-                tasks.append(task)
+                if execution_key:
+                    logging.info('Queuing: (member="%s") (team=None) ' \
+                        '(step="%s") (process="%s")' % (member, self.name,
+                        self.process.name))
+                    task = taskqueue.Task(params={'key': execution_key})
+                    tasks.append(task)
         if tasks:
+            queue = taskqueue.Queue('request-process')
             queue.add(tasks)
-
-
-class Team(FlomosaBase):
-    client = db.ReferenceProperty(Client,
-        collection_name='teams',
-        required=True)
-    name = db.StringProperty(required=True)
-    description = db.TextProperty()
-    members = db.ListProperty(basestring)
-
-    @property
-    def steps(self):
-        """Return the steps this team belongs to."""
-        return Step.all().filter('teams', self.key())
-
-    @classmethod
-    def from_dict(cls, client, data):
-        """Return a new Team instance from a dict object."""
-
-        if not client or not isinstance(client, Client):
-            return None
-
-        if not data or not isinstance(data, dict):
-            return None
-
-        team_key = data.get('key', utils.generate_key())
-        kind = data.get('kind', None)
-        name = data.get('name', None)
-        description = data.get('description', None)
-        members = data.get('members', None)
-
-        if not name:
-            raise KeyError('Missing "name" parameter.')
-        if not kind:
-            raise KeyError('Missing "kind" parameter.')
-        if kind != cls.__name__:
-            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
-                (cls.__name__, kind))
-
-        team = cls.get_by_key_name(team_key)
-        if not team:
-            team = cls(key_name=team_key,
-                client=client,
-                name=name)
-        elif team.client.id != client.id:
-            raise ValueError('Permission Denied.')
-        else:
-            team.name = name
-
-        if description is not None:
-            team.description = description
-        if isinstance(members, list):
-            team.members = members
-        return team
-
-    def to_dict(self):
-        """Return process as a dict object."""
-
-        data = {
-            'kind': self.kind(),
-            'name': self.name,
-            'description': self.description,
-            'members': self.members
-        }
-        if self.is_saved():
-            data['key'] = self.id
-        return data
+        return None
 
 
 class Action(FlomosaBase):
@@ -528,7 +538,7 @@ class Request(db.Expando):
     contact = db.EmailProperty()
     is_draft = db.BooleanProperty(default=False)
     submitted_date = db.DateTimeProperty(auto_now_add=True)
-    is_complete = db.BooleanProperty(default=False)
+    is_completed = db.BooleanProperty(default=False)
     completed_date = db.DateTimeProperty()
     duration = db.IntegerProperty(default=0)
 
@@ -549,6 +559,25 @@ class Request(db.Expando):
     def delete(self):
         """Delete the Request from the datastore and memcache."""
         return cache.delete_from_cache(self)
+
+    def set_completed(self, completed_date=None):
+        """Set the request has being completed."""
+
+        if self.is_completed:
+            return None
+
+        # If we haven't already marked this request as being
+        # completed, set the is_completed flag and compute
+        # the duration the request was in progress, in seconds.
+
+        self.is_completed = True
+        if not completed_date:
+            completed_date = datetime.datetime.now()
+        self.completed_date = completed_date
+        delta = self.completed_date - self.submitted_date
+        self.duration = delta.days * 86400 + delta.seconds
+
+        return self.put()
 
     def get_submitted_data(self):
         """Return a dict of the dynamic properties of this request."""
@@ -607,6 +636,25 @@ class Execution(FlomosaBase):
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
+    def set_completed(self, action, end_date=None):
+        """Set this execution as being completed."""
+
+        if not action or not isinstance(action, Action):
+            raise Exception('No action specified')
+
+        self.action = action
+        if not end_date:
+            end_date = datetime.datetime.now()
+        self.end_date = end_date
+        if self.viewed_date and not self.action_delay:
+            delta = self.end_date - self.viewed_date
+            self.action_delay = delta.days * 86400 + delta.seconds
+        if self.start_date and not self.duration:
+            delta = self.end_date - self.start_date
+            self.duration = delta.days * 86400 + delta.seconds
+
+        return self.put()
+
     def is_step_completed(self):
         """Has this request step been completed by somebody?"""
 
@@ -629,15 +677,12 @@ class Execution(FlomosaBase):
         query = self.all()
         query.filter('step =', self.step)
         query.filter('request =', self.request)
-        query.filter('team =', self.team)
         query.filter('member =', self.member)
         return query.count(limit)
 
 
 class Statistic(db.Model):
     process = db.ReferenceProperty(Process,
-        collection_name='stats')
-    step = db.ReferenceProperty(Step,
         collection_name='stats')
     date_key = db.StringProperty(required=True)
     type = db.StringProperty(required=True)
@@ -650,11 +695,7 @@ class Statistic(db.Model):
 
     @property
     def id(self):
-        if self.process:
-            return '%s_%s' % (self.process.id, self.date_key)
-        elif self.step:
-            return '%s_%s' % (self.step.id, self.date_key)
-        return None
+        return '%s_%s' % (self.process.id, self.date_key)
 
     def log(self, request):
         """Store request data in a Statistic object.
@@ -663,7 +704,9 @@ class Statistic(db.Model):
         """
 
         if request.duration > 0:
-            if request.duration < self.min_request_seconds:
+            if self.min_request_seconds == 0:
+                self.min_request_seconds = request.duration
+            elif request.duration < self.min_request_seconds:
                 self.min_request_seconds = request.duration
             if request.duration > self.max_request_seconds:
                 self.max_request_seconds = request.duration
@@ -675,63 +718,60 @@ class Statistic(db.Model):
             self.num_requests += 1
 
     @classmethod
-    def get_bucket(cls, obj, type='daily', date_key=None):
-        """Get or create a Statistics object for a Process or a Step."""
+    def get_bucket(cls, process, type='daily', date_key=None):
+        """Get or create a Statistics object for a Process."""
 
-        if not obj:
-            return None
-        elif not isinstance(obj, Process) or not isinstance(obj, Step):
+        if not process and not isinstance(process, Process):
             return None
 
         valid_types = ('daily', 'weekly', 'monthly', 'yearly')
         if type not in valid_types:
             return None
         if date_key is None:
-            # TODO: based on today's date, return:
-            #    daily -  YYYY
-            #    weekly - YYYY_WW
-            #    monthly -YYYYMM
-            #    yearly - YYYYMMDD
-            # depending on the type given.
-            pass
+            today = datetime.date.today()
+            if type == 'daily':
+                date_key = '%d%02d%02d' % (today.year, today.month, today.day)
+            elif type == 'weekly':
+                week_num = today.isocalendar()[1]
+                date_key = '%dW%02d' % (today.year, week_num)
+            elif type == 'monthly':
+                date_key = '%d%02d' % (today.year, today.month)
+            elif type == 'yearly':
+                date_key = today.year
+            else:
+                return None
+            date_key = str(date_key)
 
-        stats_key = '%s_%s' % (obj.id, date_key)
+        stats_key = '%s_%s' % (process.id, date_key)
 
-        if isinstance(obj, Process):
-            stats = cls.get_or_insert(stats_key,
-                process=obj,
-                date_key=date_key,
-                type=type)
-            stats.process = process
-        elif isinstance(obj, Step):
-            stats = cls.get_or_insert(stats_key,
-                step=obj,
-                date_key=date_key,
-                type=type)
-            stats.step = step
-        else:
-            return None
+        stats = cls.get_or_insert(stats_key,
+            process=process,
+            date_key=date_key,
+            type=type)
+        stats.process = process
         stats.date_key = date_key
         stats.type = type
         return stats
 
     @classmethod
-    def store_stats(cls, request, obj):
-        """Log the Request statistics in a Process or Step.
+    def store_stats(cls, request, process):
+        """Log the Request statistics in a Process.
 
         This will create daily, weekly, monthly and yearly statistics objects
-        for the given Step or Process and record the request in those buckets.
+        for the given Process and record the request in those buckets.
         """
 
         if not isinstance(request, Request):
+            logging.error('No Request object found')
             return None
-        if not isinstance(obj, Process) or not isinstance(obj, Step):
+        if not isinstance(process, Process):
+            logging.error('No Process object found')
             return None
 
-        daily = cls.get_bucket(obj, 'daily')
-        weekly = cls.get_bucket(obj, 'weekly')
-        monthly = cls.get_bucket(obj, 'monthly')
-        yearly = cls.get_bucket(obj, 'yearly')
+        daily = cls.get_bucket(process, 'daily')
+        weekly = cls.get_bucket(process, 'weekly')
+        monthly = cls.get_bucket(process, 'monthly')
+        yearly = cls.get_bucket(process, 'yearly')
 
         buckets = []
         buckets.append(daily)
@@ -742,6 +782,7 @@ class Statistic(db.Model):
         for bucket in buckets:
             if bucket:
                 bucket.log(request)
+
                 try:
                     bucket.put()
                 except Exception, e:

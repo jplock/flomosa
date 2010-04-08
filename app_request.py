@@ -4,11 +4,13 @@
 
 import logging
 import urllib
+from datetime import datetime
 
 from django.utils import simplejson
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import urlfetch
+from google.appengine.api.labs import taskqueue
 
 import models
 import utils
@@ -92,6 +94,8 @@ class RequestHandler(oauthapp.OAuthHandler):
                 client=process.client,
                 process=process,
                 requestor=requestor)
+            request.submitted_date = datetime.now()
+
 
         callback_url = data.get('callback_url', None)
         response_url = data.get('response_url', None)
@@ -108,8 +112,18 @@ class RequestHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 500))
             return utils.build_json(self, e, 500)
 
+        # Lookup the start step in the process and create the first batch
+        # of Execution objects to work on the request
         step = process.get_start_step()
         step.queue_tasks(request)
+
+        # Record the request in the Process statistics
+        queue = taskqueue.Queue('request-statistics')
+        task = taskqueue.Task(params={
+            'request_key': request.id,
+            'process_key': process.id
+        })
+        queue.add(task)
 
         response_fields = {'key': request.id}
 

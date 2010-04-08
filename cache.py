@@ -18,6 +18,9 @@ def get_from_cache(cls, key):
 
     if isinstance(key, db.Key):
         key = key.name()
+    if not key:
+        logging.error('No key provided')
+        return None
 
     logging.debug('Looking up %s "%s" in memcache.' % (cls.__name__, key))
     model = memcache.get(key, namespace=cls.__name__)

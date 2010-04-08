@@ -52,6 +52,17 @@ class TaskHandler(webapp.RequestHandler):
                 execution.id)
             return None
 
+        # If the request has been completed, close out this execution
+        if execution.request.is_completed:
+            execution.end_date = execution.request.completed_date
+
+            try:
+                execution.put()
+            except Exception, e:
+                logging.warning('%s Exiting.' % e)
+            self.error(200)
+            return None
+
         # If we have not sent the email notifications
         if not execution.queued_for_send:
             execution.queued_for_send = True
@@ -77,22 +88,23 @@ class TaskHandler(webapp.RequestHandler):
                 (execution.action.name, execution.id))
 
             if execution.action.is_complete:
-                request = execution.request
-                request.is_complete = True
-                request.completed_date = datetime.now()
+                if not execution.request.is_completed:
+                    try:
+                        execution.request.set_completed()
+                    except Exception, e:
+                        logging.error('%s Re-queuing.' % e)
+                        self.error(500)
+                        return None
 
-                duration = 0
-                # TODO: this needs to exclude duplicate executions from the total
-                for req_execution in request.executions:
-                    duration += req_execution.duration
-                request.duration = duration
-
-                try:
-                    request.put()
-                except Exception, e:
-                    logging.error('%s Re-queuing.' % e)
-                    self.error(500)
-                    return None
+                # Record the request in the Process statistics
+                logging.info('Queuing statistics collection for Request "%s"' \
+                    % execution.request.id)
+                queue = taskqueue.Queue('request-statistics')
+                task = taskqueue.Task(params={
+                    'request_key': execution.request.id,
+                    'process_key': execution.process.id
+                })
+                queue.add(task)
 
                 logging.info('Queuing completed email to be sent to "%s".' % \
                     execution.request.requestor)
@@ -108,7 +120,7 @@ class TaskHandler(webapp.RequestHandler):
 
                 for step_key in execution.action.outgoing:
                     step = models.Step.get(step_key)
-                    if isinstance(step, models.Step):
+                    if step and isinstance(step, models.Step):
                         step.queue_tasks(execution.request)
 
             logging.info('Completed Execution "%s". Exiting.' % execution.id)
@@ -130,8 +142,8 @@ class TaskHandler(webapp.RequestHandler):
                 execution.put()
             except Exception, e:
                 logging.warning('%s Exiting.' % e)
-                self.error(200)
-                return None
+            self.error(200)
+            return None
 
         # Reached reminder limit, cancel this execution
         elif execution.reminder_count == settings.REMINDER_LIMIT:

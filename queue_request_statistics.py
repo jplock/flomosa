@@ -44,7 +44,7 @@ class TaskHandler(webapp.RequestHandler):
                     'Exiting.' % process_key)
                 return None
         if step_key:
-            obj = models.Step.get(process_key)
+            obj = models.Step.get(step_key)
             if obj is None:
                 logging.error('Step "%s" not found in datastore. Exiting.' % \
                     step_key)
@@ -52,12 +52,9 @@ class TaskHandler(webapp.RequestHandler):
         if not obj:
             return None
 
-        logging.info('Storing statistics in datastore transaction for ' \
-            'Request "%s".' % request.id)
         try:
-            db.transaction(models.Statistic.store_stats, request, obj)
-            logging.info('Finished storing statistics in datastore for ' \
-                'Request "%s".' % request.id)
+            #db.transaction(models.Statistic.store_stats, request, obj)
+            models.Statistic.store_stats(request, obj)
         except Exception, e:
             logging.error('Storing statistics failed for Request "%s": %s' % \
                 (request.id, e))

@@ -91,17 +91,8 @@ class MailHandler(mail_handlers.InboundMailHandler):
                 reply_text)
             return None
 
-        execution.action = executed_action
-        execution.end_date = datetime.now()
-        if execution.viewed_date and not execution.action_delay:
-            delta = execution.end_date - execution.viewed_date
-            execution.action_delay = delta.days * 86400 + delta.seconds
-        if execution.start_date and not execution.duration:
-            delta = execution.end_date - execution.start_date
-            execution.duration = delta.days * 86400 + delta.seconds
-
         try:
-            execution.put()
+            execution.set_completed(executed_action)
         except Exception, e:
             logging.error('%s Exiting.' % e)
             return None
