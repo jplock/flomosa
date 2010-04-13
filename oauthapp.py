@@ -37,6 +37,9 @@ class OAuthHandler(webapp.RequestHandler):
 
         if not isinstance(request, oauth.Request):
             request = self.get_oauth_request()
+        if not request:
+            raise Exception('OAuth "Authorization" header not found')
+
         client_key = request.get_parameter('oauth_consumer_key')
         if not client_key:
             raise Exception('Missing "oauth_consumer_key" parameter in ' \
