@@ -6,7 +6,6 @@ import logging
 import urllib
 from datetime import datetime
 
-from django.utils import simplejson
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import urlfetch
@@ -14,7 +13,6 @@ from google.appengine.api.labs import taskqueue
 
 import models
 import utils
-import cache
 import oauthapp
 
 
@@ -26,8 +24,8 @@ class RequestHandler(oauthapp.OAuthHandler):
         try:
             client = self.is_valid()
         except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+            logging.error(utils.get_log_message(e, 401))
+            return utils.build_json(self, e, 401)
 
         if not request_key:
             error_msg = 'Missing "request_key" parameter.'
@@ -95,7 +93,6 @@ class RequestHandler(oauthapp.OAuthHandler):
                 process=process,
                 requestor=requestor)
             request.submitted_date = datetime.now()
-
 
         callback_url = data.get('callback_url', None)
         response_url = data.get('response_url', None)
@@ -166,8 +163,8 @@ class RequestHandler(oauthapp.OAuthHandler):
         try:
             client = self.is_valid()
         except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+            logging.error(utils.get_log_message(e, 401))
+            return utils.build_json(self, e, 401)
 
         request = models.Request.get_by_key_name(request_key)
         if isinstance(request, models.Request):
@@ -176,6 +173,7 @@ class RequestHandler(oauthapp.OAuthHandler):
                 logging.error(utils.get_log_message(error_msg, 401))
                 return utils.build_json(self, error_msg, 401)
             else:
+                import cache
                 cache.delete_from_cache(request)
         else:
             logging.info('Request "%s" not found in datastore to delete.' % \

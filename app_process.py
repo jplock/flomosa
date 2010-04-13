@@ -4,7 +4,6 @@
 
 import logging
 
-from django.utils import simplejson
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
@@ -20,8 +19,8 @@ class ProcessHandler(oauthapp.OAuthHandler):
         try:
             client = self.is_valid()
         except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+            logging.error(utils.get_log_message(e, 401))
+            return utils.build_json(self, e, 401)
 
         logging.debug('Looking up Process "%s" in memcache then datastore.' % \
             process_key)
@@ -47,9 +46,10 @@ class ProcessHandler(oauthapp.OAuthHandler):
         try:
             client = self.is_valid()
         except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+            logging.error(utils.get_log_message(e, 401))
+            return utils.build_json(self, e, 401)
 
+        from django.utils import simplejson
         try:
             data = simplejson.loads(self.request.body)
         except:
@@ -127,8 +127,8 @@ class ProcessHandler(oauthapp.OAuthHandler):
         try:
             client = self.is_valid()
         except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+            logging.error(utils.get_log_message(e, 401))
+            return utils.build_json(self, e, 401)
 
         process = models.Process.get_by_key_name(process_key)
         if isinstance(process, models.Process):
