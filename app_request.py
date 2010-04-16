@@ -92,7 +92,6 @@ class RequestHandler(oauthapp.OAuthHandler):
                 client=process.client,
                 process=process,
                 requestor=requestor)
-            request.submitted_date = datetime.now()
 
         callback_url = data.get('callback_url', None)
         response_url = data.get('response_url', None)
