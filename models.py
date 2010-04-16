@@ -6,7 +6,6 @@ import logging
 import datetime
 
 from google.appengine.ext import db
-from google.appengine.api import memcache
 from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
@@ -35,7 +34,11 @@ class FlomosaBase(db.Model):
 
     def put(self):
         """Save the model to the datastore and memcache."""
-        return cache.save_to_cache(self)
+        try:
+            model = cache.save_to_cache(self)
+        except:
+            return None
+        return model.key()
 
     def delete(self):
         """Delete the model from the datastore and memcache."""
@@ -74,8 +77,7 @@ class Client(FlomosaBase):
 
 
 class Team(FlomosaBase):
-    client = db.ReferenceProperty(Client,
-        collection_name='teams',
+    client = db.ReferenceProperty(Client, collection_name='teams',
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
@@ -107,9 +109,7 @@ class Team(FlomosaBase):
 
         team = cls.get_by_key_name(team_key)
         if not team:
-            team = cls(key_name=team_key,
-                client=client,
-                name=name)
+            team = cls(key_name=team_key, client=client, name=name)
         elif team.client.id != client.id:
             raise ValueError('Permission Denied.')
         else:
@@ -136,8 +136,7 @@ class Team(FlomosaBase):
 
 
 class Process(FlomosaBase):
-    client = db.ReferenceProperty(Client,
-        collection_name='processes',
+    client = db.ReferenceProperty(Client, collection_name='processes',
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
@@ -153,7 +152,11 @@ class Process(FlomosaBase):
         if not self.collect_stats:
             self.delete_stats()
 
-        return cache.save_to_cache(self)
+        try:
+            process = cache.save_to_cache(self)
+        except:
+            return None
+        return process.key()
 
     def delete(self):
         """Delete the process from the datastore and memcache.
@@ -166,20 +169,21 @@ class Process(FlomosaBase):
         self.delete_steps_actions()
         return cache.delete_from_cache(self)
 
-    def add_step(self, name, description=None, team=None, members=[],
-            is_start=True, key=None):
+    def add_step(self, name, description=None, team=None, members=None,
+            is_start=True, step_key=None):
         """Add a step to this process."""
 
         for step in self.steps:
             is_start = False
             break
-        if key is None:
-            key = utils.generate_key()
-        step = Step(key_name=key,
-            process=self,
-            name=name)
+        if not members:
+            members = []
+        if not step_key:
+            step_key = utils.generate_key()
+        step = Step(key_name=step_key, process=self, name=name)
         step.is_start = bool(is_start)
-        step.team = team
+        if team and isinstance(team, Team):
+            step.team = team
         step.members = members
         step.description = description
 
@@ -188,6 +192,36 @@ class Process(FlomosaBase):
         except Exception, e:
             raise e
         return step
+
+    def add_action(self, name, incoming=None, outgoing=None, is_complete=False,
+            action_key=None):
+        """Add an action to this process."""
+
+        if not action_key:
+            action_key = utils.generate_key()
+        if not incoming:
+            incoming = []
+        if not outgoing:
+            outgoing = []
+        if is_complete and outgoing:
+            is_complete = False
+        action = Action(key_name=action_key, process=self, name=name)
+        action.is_complete = bool(is_complete)
+
+        for step_key in incoming:
+            step = Step.get(step_key)
+            if step:
+                action.add_incoming_step(step)
+        for step_key in outgoing:
+            step = Step.get(step_key)
+            if step:
+                action.add_outgoing_step(step)
+
+        try:
+            action.put()
+        except Exception, e:
+            raise e
+        return action
 
     def delete_stats(self):
         """Delete any statistic objects for this Process."""
@@ -224,9 +258,7 @@ class Process(FlomosaBase):
 
         process = cls.get_by_key_name(process_key)
         if not process:
-            process = cls(key_name=process_key,
-                client=client,
-                name=name)
+            process = cls(key_name=process_key, client=client, name=name)
         elif process.client.id != client.id:
             raise ValueError('Permission Denied.')
         else:
@@ -245,15 +277,11 @@ class Process(FlomosaBase):
         entity_keys = []
 
         for action in self.actions:
-            logging.debug('Deleting Action "%s" from datastore.' % action.id)
             entities.append(action)
-            logging.debug('Deleting Action "%s" from memcache.' % action.id)
             entity_keys.append(action.id)
 
         for step in self.steps:
-            logging.debug('Deleting Step "%s" from datastore.' % step.id)
             entities.append(step)
-            logging.debug('Deleting Step "%s" from memcache.' % step.id)
             entity_keys.append(step.id)
 
         if entities:
@@ -263,6 +291,7 @@ class Process(FlomosaBase):
                 logging.error('Unable to delete steps and actions from ' \
                     'Process "%s" due to maintenance.' % self.id)
         if entity_keys:
+            from google.appengine.api import memcache
             memcache.delete_multi(entity_keys)
 
     def get_start_step(self):
@@ -308,14 +337,12 @@ class Process(FlomosaBase):
 
 
 class Step(FlomosaBase):
-    process = db.ReferenceProperty(Process,
-        collection_name='steps',
+    process = db.ReferenceProperty(Process, collection_name='steps',
         required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     is_start = db.BooleanProperty(default=False)
-    team = db.ReferenceProperty(Team,
-        collection_name='steps')
+    team = db.ReferenceProperty(Team, collection_name='steps')
     members = db.ListProperty(basestring)
 
     @property
@@ -327,75 +354,6 @@ class Step(FlomosaBase):
     def prior(self):
         """Return the actions that come before this step."""
         return Action.all().filter('outgoing', self.key())
-
-    @classmethod
-    def from_dict(cls, data):
-        """Return a new Step instance from a dict object."""
-
-        if not data or not isinstance(data, dict):
-            return None
-
-        step_key = data.get('key', utils.generate_key())
-        kind = data.get('kind', None)
-        process_key = data.get('process', None)
-        name = data.get('name', None)
-        description = data.get('description', None)
-        is_start = data.get('is_start', None)
-        team_key = data.get('team', None)
-        members = data.get('members', None)
-
-        if not name:
-            raise KeyError('Missing "name" parameter.')
-        if not kind:
-            raise KeyError('Missing "kind" parameter.')
-        if kind != cls.__name__:
-            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
-                (cls.__name__, kind))
-        if not process_key:
-            raise KeyError('Missing "process" parameter.')
-
-        process = Process.get(process_key)
-        if not process:
-            raise ValueError('Process key "%s" does not exist.' % process_key)
-
-        step = cls.get_or_insert(step_key,
-            process=process,
-            name=name)
-        step.process = process
-        step.name = name
-
-        if description is not None:
-            step.description = description
-        if is_start is not None:
-            step.is_start = bool(is_start)
-        if isinstance(members, list):
-            step.members = members
-        if team_key is not None:
-            team = Team.get(team_key)
-            if team and isinstance(team, Team):
-                step.team = team
-
-        return step
-
-    def add_action(self, name, next_step=None, is_complete=False, key=None):
-        """Add an action after this step."""
-
-        if key is None:
-            key = utils.generate_key()
-
-        action = Action(key_name=key,
-            process=self.process,
-            name=name)
-        action.is_complete = is_complete
-        action.add_incoming_step(self)
-        if next_step and isinstance(next_step, Step):
-            action.add_outgoing_step(next_step)
-
-        try:
-            action.put()
-        except Exception, e:
-            raise e
-        return action
 
     def to_dict(self):
         """Return step as a dict object."""
@@ -416,16 +374,14 @@ class Step(FlomosaBase):
             data['key'] = self.id
         return data
 
-    def _create_execution(self, request, member, team=None):
+    def _create_execution(self, request, member, team=None, execution_key=None):
         """Create an execution object for a given member."""
 
-        execution_key = utils.generate_key()
+        if not execution_key:
+            execution_key = utils.generate_key()
 
-        execution = Execution(key_name=execution_key,
-            process=self.process,
-            request=request,
-            step=self,
-            member=member)
+        execution = Execution(key_name=execution_key, process=self.process,
+            request=request, step=self, member=member)
         if team and isinstance(team, Team):
             execution.team = team
 
@@ -474,68 +430,12 @@ class Step(FlomosaBase):
 
 
 class Action(FlomosaBase):
-    process = db.ReferenceProperty(Process,
-        collection_name='actions',
+    process = db.ReferenceProperty(Process, collection_name='actions',
         required=True)
     name = db.StringProperty(required=True)
     incoming = db.ListProperty(db.Key)
     outgoing = db.ListProperty(db.Key)
     is_complete = db.BooleanProperty(default=False)
-
-    @classmethod
-    def from_dict(cls, data):
-        """Return a new Action instance from a dict object."""
-
-        if not data or not isinstance(data, dict):
-            return None
-
-        action_key = data.get('key', utils.generate_key())
-        kind = data.get('kind', None)
-        name = data.get('name', None)
-        is_complete = data.get('is_complete', None)
-
-        if not name:
-            raise KeyError('Missing "name" parameter.')
-        if not kind:
-            raise KeyError('Missing "kind" parameter.')
-        if kind != cls.__name__:
-            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
-                (cls.__name__, kind))
-        try:
-            process_key = data['process']
-        except KeyError:
-            raise KeyError('Missing "process" parameter.')
-
-        process = Process.get(process_key)
-        if not process:
-            raise ValueError('Process key "%s" does not exist.' % process_key)
-
-        action = cls.get_or_insert(action_key, process=process, name=name)
-        action.process = process
-        action.name = name
-
-        if is_complete is not None:
-            action.is_complete = bool(is_complete)
-
-        # Parse incoming step keys
-        step_keys = []
-        for step_key in data.get('incoming'):
-            step = Step.get(step_key)
-            if step and isinstance(step, Step) and step.key() not in step_keys:
-                step_keys.append(step.key())
-        if step_keys:
-            action.incoming = step_keys
-
-        # Parse outgoing step keys
-        step_keys = []
-        for step_key in data.get('outgoing'):
-            step = Step.get(step_key)
-            if step and isinstance(step, Step) and step.key() not in step_keys:
-                step_keys.append(step.key())
-        if step_keys:
-            action.outgoing = step_keys
-
-        return action
 
     def add_incoming_step(self, step):
         """Add an incoming Step to this Action."""
@@ -577,11 +477,9 @@ class Action(FlomosaBase):
 
 
 class Request(db.Expando):
-    client = db.ReferenceProperty(Client,
-        collection_name='requests',
+    client = db.ReferenceProperty(Client, collection_name='requests',
         required=True)
-    process = db.ReferenceProperty(Process,
-        collection_name='requests',
+    process = db.ReferenceProperty(Process, collection_name='requests',
         required=True)
     requestor = db.EmailProperty(required=True)
     contact = db.EmailProperty()
@@ -602,8 +500,36 @@ class Request(db.Expando):
         return cache.get_from_cache(cls, key)
 
     def put(self):
-        """Save the Request to the datastore and memcache."""
-        return cache.save_to_cache(self)
+        """Save the Request to the datastore and memcache.
+
+        Start the request in the process after the first save.
+        """
+
+        start_process = False
+        if not self.is_saved():
+            start_process = True
+
+        try:
+            cache.save_to_cache(self)
+        except:
+            return None
+
+        if start_process:
+            # Lookup the start step in the process and create the first batch
+            # of Execution objects to work on the request
+            step = self.process.get_start_step()
+            if step:
+                step.queue_tasks(request)
+
+                # Record the request in the Process statistics
+                queue = taskqueue.Queue('request-statistics')
+                task = taskqueue.Task(params={
+                    'request_key': request.id,
+                    'process_key': process.id
+                })
+                queue.add(task)
+
+        return self.key()
 
     def delete(self):
         """Delete the Request from the datastore and memcache."""
@@ -661,19 +587,14 @@ class Request(db.Expando):
 
 
 class Execution(FlomosaBase):
-    process = db.ReferenceProperty(Process,
-        collection_name='executions',
+    process = db.ReferenceProperty(Process, collection_name='executions',
         required=True)
-    request = db.ReferenceProperty(Request,
-        collection_name='executions',
+    request = db.ReferenceProperty(Request, collection_name='executions',
         required=True)
-    step = db.ReferenceProperty(Step,
-        collection_name='executions',
+    step = db.ReferenceProperty(Step, collection_name='executions',
         required=True)
-    action = db.ReferenceProperty(Action,
-        collection_name='executions')
-    team = db.ReferenceProperty(Team,
-        collection_name='executions')
+    action = db.ReferenceProperty(Action, collection_name='executions')
+    team = db.ReferenceProperty(Team, collection_name='executions')
     member = db.EmailProperty(required=True)
     start_date = db.DateTimeProperty(auto_now_add=True)
     queued_for_send = db.BooleanProperty(default=False)
@@ -686,10 +607,27 @@ class Execution(FlomosaBase):
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
+    def set_sent(self, sent_date=None):
+        """Set this execution as being sent."""
+
+        # Only set the sent timestamp once
+        if self.sent_date:
+            return None
+
+        if not sent_date:
+            sent_date = datetime.datetime.now()
+        self.sent_date = sent_date
+
+        return self.put()
+
     def set_completed(self, action, end_date=None):
         """Set this execution as being completed."""
 
-        if not action or not isinstance(action, Action):
+        # Only set the action once
+        if self.action:
+            return None
+
+        if not isinstance(action, Action):
             raise Exception('No action specified')
 
         self.action = action
@@ -705,6 +643,22 @@ class Execution(FlomosaBase):
 
         return self.put()
 
+    def set_viewed(self, viewed_date=None):
+        """Set this execution as being viewed."""
+
+        # Only set the viewed timestamp once
+        if self.viewed_date:
+            return None
+
+        if not viewed_date:
+            viewed_date = datetime.datetime.now()
+        self.viewed_date = viewed_date
+        if self.sent_date and not self.email_delay:
+            delta = self.viewed_date - self.sent_date
+            self.email_delay = delta.days * 86400 + delta.seconds
+
+        return self.put()
+
     def is_step_completed(self):
         """Has this request step been completed by anyone?"""
 
@@ -713,7 +667,7 @@ class Execution(FlomosaBase):
         query.filter('request =', self.request)
         query.filter('member !=', self.member)
         query.order('member')
-        query.order('end_date')
+        query.order('-end_date')
 
         results = query.fetch(30)
 
@@ -733,8 +687,7 @@ class Execution(FlomosaBase):
 
 
 class Statistic(db.Model):
-    process = db.ReferenceProperty(Process,
-        collection_name='stats')
+    process = db.ReferenceProperty(Process, collection_name='stats')
     date_key = db.StringProperty(required=True)
     type = db.StringProperty(required=True)
     year = db.IntegerProperty(required=True)
@@ -805,11 +758,8 @@ class Statistic(db.Model):
 
         stats_key = '%s_%s' % (process.id, date_key)
 
-        stats = cls.get_or_insert(stats_key,
-            process=process,
-            date_key=date_key,
-            type=type,
-            year=today.year)
+        stats = cls.get_or_insert(stats_key, process=process, date_key=date_key,
+            type=type, year=today.year)
         stats.process = process
         stats.date_key = date_key
         stats.type = type

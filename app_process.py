@@ -22,10 +22,8 @@ class ProcessHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 401))
             return utils.build_json(self, e, 401)
 
-        logging.debug('Looking up Process "%s" in memcache then datastore.' % \
-            process_key)
         process = models.Process.get(process_key)
-        if not isinstance(process, models.Process):
+        if not process:
             error_msg = 'Process key "%s" does not exist.' % process_key
             logging.error(utils.get_log_message(error_msg, 404))
             return utils.build_json(self, error_msg, 404)
@@ -89,32 +87,31 @@ class ProcessHandler(oauthapp.OAuthHandler):
         process.delete_steps_actions()
 
         # Load any steps on this process
+        logging.info('Loading steps for Process "%s".' % process.id)
         for step_data in data.get('steps', list):
             try:
-                step = models.Step.from_dict(step_data)
+                step = process.add_step(step_data.get('name'),
+                    description=step_data.get('description'),
+                    team=step_data.get('team'),
+                    members=step_data.get('members'),
+                    is_start=step_data.get('is_start'),
+                    step_key=step_data.get('key'))
             except Exception, e:
                 logging.error('%s. Continuing.' % e)
                 continue
-
-            try:
-                step.put()
-            except Exception, e:
-                logging.error(utils.get_log_message(e, 500))
-                return utils.build_json(self, e, 500)
 
         # Load any actions on this process
+        logging.info('Loading actions for Process "%s".' % process.id)
         for action_data in data.get('actions', list):
             try:
-                action = models.Action.from_dict(action_data)
+                action = process.add_action(action_data.get('name'),
+                    incoming=action_data.get('incoming'),
+                    outgoing=action_data.get('outgoing'),
+                    is_complete=action_data.get('is_complete'),
+                    action_key=action_data.get('key'))
             except Exception, e:
                 logging.error('%s. Continuing.' % e)
                 continue
-
-            try:
-                action.put()
-            except Exception, e:
-                logging.error(utils.get_log_message(e, 500))
-                return utils.build_json(self, e, 500)
 
         logging.info('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, {'key': process.id}, 201)

@@ -28,7 +28,6 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
         temp, execution_key = user.split('+')
 
-        logging.debug('Looking up Execution "%s" in datastore.' % execution_key)
         execution = models.Execution.get(execution_key)
         if not execution:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \

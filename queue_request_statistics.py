@@ -4,7 +4,7 @@
 
 import logging
 
-from google.appengine.ext import db, webapp
+from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
 import models
@@ -31,30 +31,18 @@ class TaskHandler(webapp.RequestHandler):
                 request_key)
             return None
 
-        if not process_key and not step_key:
-            logging.error('Missing "process_key" and "step_key" parameters. ' \
-                'Exiting.')
+        if not process_key:
+            logging.error('Missing "process_key" parameters. Exiting.')
             return None
 
-        obj = None
-        if process_key:
-            obj = models.Process.get(process_key)
-            if obj is None and not step_key:
-                logging.error('Process "%s" not found in datastore. ' \
-                    'Exiting.' % process_key)
-                return None
-        if step_key:
-            obj = models.Step.get(step_key)
-            if obj is None:
-                logging.error('Step "%s" not found in datastore. Exiting.' % \
-                    step_key)
-                return None
-        if not obj:
+        process = models.Process.get(process_key)
+        if not process:
+            logging.error('Process "%s" not found in datastore. Exiting.' % \
+                process_key)
             return None
 
         try:
-            #db.run_in_transaction(models.Statistic.store_stats, request, obj)
-            models.Statistic.store_stats(request, obj)
+            models.Statistic.store_stats(request, process)
         except Exception, e:
             logging.error('Storing statistics failed for Request "%s": %s' % \
                 (request.id, e))

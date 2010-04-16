@@ -26,7 +26,7 @@ class TaskHandler(webapp.RequestHandler):
             return None
 
         execution = models.Execution.get(execution_key)
-        if execution is None:
+        if not execution:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \
                 execution_key)
             return None
@@ -120,13 +120,12 @@ class TaskHandler(webapp.RequestHandler):
             if execution.action.is_complete:
                 # If the request has not yet been marked as completed,
                 # compute the request duration
-                if not execution.request.is_completed:
-                    try:
-                        execution.request.set_completed()
-                    except Exception, e:
-                        logging.error('%s Re-queuing.' % e)
-                        self.error(500)
-                        return None
+                try:
+                    execution.request.set_completed()
+                except Exception, e:
+                    logging.error('%s Re-queuing.' % e)
+                    self.error(500)
+                    return None
 
                 # Record the request in the Process statistics
                 logging.info('Queuing statistics collection for Request ' \

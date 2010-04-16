@@ -86,10 +86,8 @@ class TaskHandler(webapp.RequestHandler):
             self.error(500)
             return None
 
-        execution.sent_date = datetime.now()
-
         try:
-            execution.put()
+            execution.set_sent()
         except Exception, e:
             logging.error(e)
             self.error(500)

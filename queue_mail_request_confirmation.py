@@ -26,7 +26,6 @@ class TaskHandler(webapp.RequestHandler):
             logging.error('Missing "key" parameter. Exiting.')
             return None
 
-        logging.info('Looking up Execution "%s" in datastore.' % execution_key)
         execution = models.Execution.get(execution_key)
         if not execution:
             logging.error('Execution "%s" not found in datastore. Exiting.' % \

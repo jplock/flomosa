@@ -10,6 +10,7 @@ from google.appengine.ext.webapp import template, util
 
 import authapp
 
+
 class MainHandler(authapp.SecureRequestHandler):
     def get(self):
         logging.debug('Begin MainHandler.get() method')

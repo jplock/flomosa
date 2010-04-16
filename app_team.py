@@ -4,13 +4,11 @@
 
 import logging
 
-from django.utils import simplejson
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
 import models
 import utils
-import cache
 import oauthapp
 
 
@@ -25,8 +23,6 @@ class TeamHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 404))
             return utils.build_json(self, e, 404)
 
-        logging.debug('Looking up Team "%s" in memcache then datastore.' % \
-            team_key)
         team = models.Team.get(team_key)
         if not team:
             error_msg = 'Team key "%s" not found.' % team_key
@@ -52,6 +48,7 @@ class TeamHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 404))
             return utils.build_json(self, e, 404)
 
+        from django.utils import simplejson
         try:
             data = simplejson.loads(self.request.body)
         except:
@@ -97,7 +94,7 @@ class TeamHandler(oauthapp.OAuthHandler):
                 logging.error(utils.get_log_message(error_msg, 401))
                 return utils.build_json(self, error_msg, 401)
             else:
-                cache.delete_from_cache(team)
+                team.delete()
         else:
             logging.info('Team "%s" not found in datastore to delete.' % \
                 team_key)

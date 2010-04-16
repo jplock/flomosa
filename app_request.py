@@ -3,13 +3,9 @@
 #
 
 import logging
-import urllib
-from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
-from google.appengine.api import urlfetch
-from google.appengine.api.labs import taskqueue
 
 import models
 import utils
@@ -32,8 +28,6 @@ class RequestHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(error_msg, 400))
             return utils.build_json(self, error_msg, 400)
 
-        logging.debug('Looking up Request key "%s" in memcache then datastore.' \
-            % request_key)
         request = models.Request.get(request_key)
         if not request:
             error_msg = 'Request key "%s" does not exist.' % request_key
@@ -89,9 +83,7 @@ class RequestHandler(oauthapp.OAuthHandler):
 
         if not request:
             request = models.Request(key_name=request_key,
-                client=process.client,
-                process=process,
-                requestor=requestor)
+                client=process.client, process=process, requestor=requestor)
 
         callback_url = data.get('callback_url', None)
         response_url = data.get('response_url', None)
@@ -108,28 +100,16 @@ class RequestHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 500))
             return utils.build_json(self, e, 500)
 
-        # Lookup the start step in the process and create the first batch
-        # of Execution objects to work on the request
-        step = process.get_start_step()
-        step.queue_tasks(request)
-
-        # Record the request in the Process statistics
-        queue = taskqueue.Queue('request-statistics')
-        task = taskqueue.Task(params={
-            'request_key': request.id,
-            'process_key': process.id
-        })
-        queue.add(task)
-
         response_fields = {'key': request.id}
 
         if callback_url:
+            import urllib
+            from google.appengine.api import urlfetch
+
             form_data = urllib.urlencode(response_fields)
 
             rpc = urlfetch.create_rpc(deadline=2)
-            urlfetch.make_fetch_call(rpc,
-                url=callback_url,
-                payload=form_data,
+            urlfetch.make_fetch_call(rpc, url=callback_url, payload=form_data,
                 method=urlfetch.POST,
                 headers={'Content-Type': 'application/x-www-form-urlencoded'})
 
@@ -172,8 +152,7 @@ class RequestHandler(oauthapp.OAuthHandler):
                 logging.error(utils.get_log_message(error_msg, 401))
                 return utils.build_json(self, error_msg, 401)
             else:
-                import cache
-                cache.delete_from_cache(request)
+                request.delete()
         else:
             logging.info('Request "%s" not found in datastore to delete.' % \
                 request_key)
