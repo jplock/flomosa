@@ -16,3 +16,11 @@ indexes:
   - name: step
   - name: member
   - name: end_date
+
+- kind: Statistic
+  properties:
+  - name: process
+  - name: type
+    direction: desc
+  - name: date_key
+    direction: desc

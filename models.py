@@ -22,6 +22,12 @@ class FlomosaBase(db.Model):
         """Return the unique ID for this model."""
         return self.key().id_or_name()
 
+    def __unicode__(self):
+        return self.id
+
+    def __str__(self):
+        return self.__unicode__()
+
     @classmethod
     def get(cls, key):
         """Lookup the model in memcache and then the datastore."""
@@ -48,6 +54,23 @@ class Client(FlomosaBase):
     @property
     def secret(self):
         return self.oauth_secret
+
+    def to_dict(self):
+        """Return client as a dict object."""
+
+        data = {
+            'kind': self.kind(),
+            'oauth_secret': self.oauth_secret,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'company': self.company,
+            'email_address': self.email_address,
+            'password': self.password,
+            'created_date': self.created_date
+        }
+        if self.is_saved():
+            data['key'] = self.id
+        return data
 
 
 class Team(FlomosaBase):
@@ -99,7 +122,7 @@ class Team(FlomosaBase):
         return team
 
     def to_dict(self):
-        """Return process as a dict object."""
+        """Return team as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -142,6 +165,29 @@ class Process(FlomosaBase):
         self.delete_stats()
         self.delete_steps_actions()
         return cache.delete_from_cache(self)
+
+    def add_step(self, name, description=None, team=None, members=[],
+            is_start=True, key=None):
+        """Add a step to this process."""
+
+        for step in self.steps:
+            is_start = False
+            break
+        if key is None:
+            key = utils.generate_key()
+        step = Step(key_name=key,
+            process=self,
+            name=name)
+        step.is_start = bool(is_start)
+        step.team = team
+        step.members = members
+        step.description = description
+
+        try:
+            step.put()
+        except Exception, e:
+            raise e
+        return step
 
     def delete_stats(self):
         """Delete any statistic objects for this Process."""
@@ -272,36 +318,6 @@ class Step(FlomosaBase):
         collection_name='steps')
     members = db.ListProperty(basestring)
 
-    def put(self):
-        """Saves the step to the datastore and memcache.
-
-        If the process is no longer collecting statistcs, delete any Statistics
-        objects assigned to this Step.
-        """
-
-        if not self.process.collect_stats:
-            self.delete_stats()
-
-        return cache.save_to_cache(self)
-
-    def delete(self):
-        """Delete the step from the datastore and memcache.
-
-        Also any collected statistics.
-        """
-
-        self.delete_stats()
-        return cache.delete_from_cache(self)
-
-    def delete_stats(self):
-        """Delete any statistic objects for this Step."""
-        for stats in self.stats:
-            try:
-                stats.delete()
-            except Exception, e:
-                logging.error('Unable to delete Statistcs object for ' \
-                    'Step "%s" from datastore.' % self.id)
-
     @property
     def actions(self):
         """Return the actions that come after this step."""
@@ -360,6 +376,26 @@ class Step(FlomosaBase):
                 step.team = team
 
         return step
+
+    def add_action(self, name, next_step=None, is_complete=False, key=None):
+        """Add an action after this step."""
+
+        if key is None:
+            key = utils.generate_key()
+
+        action = Action(key_name=key,
+            process=self.process,
+            name=name)
+        action.is_complete = is_complete
+        action.add_incoming_step(self)
+        if next_step and isinstance(next_step, Step):
+            action.add_outgoing_step(next_step)
+
+        try:
+            action.put()
+        except Exception, e:
+            raise e
+        return action
 
     def to_dict(self):
         """Return step as a dict object."""
@@ -501,6 +537,19 @@ class Action(FlomosaBase):
 
         return action
 
+    def add_incoming_step(self, step):
+        """Add an incoming Step to this Action."""
+        if not isinstance(step, Step):
+            raise ValueError('Must be a valid Step instance.')
+        self.incoming.append(step.key())
+
+    def add_outgoing_step(self, step):
+        """Add an outgoing Step to this Action."""
+        if not isinstance(step, Step):
+            raise ValueError('Must be a valid Step instance.')
+        self.is_complete = False
+        self.outgoing.append(step.key())
+
     def to_dict(self):
         """Return action as a dict object."""
 
@@ -574,8 +623,9 @@ class Request(db.Expando):
         if not completed_date:
             completed_date = datetime.datetime.now()
         self.completed_date = completed_date
-        delta = self.completed_date - self.submitted_date
-        self.duration = delta.days * 86400 + delta.seconds
+        if self.submitted_date:
+            delta = self.completed_date - self.submitted_date
+            self.duration = delta.days * 86400 + delta.seconds
 
         return self.put()
 
@@ -687,6 +737,9 @@ class Statistic(db.Model):
         collection_name='stats')
     date_key = db.StringProperty(required=True)
     type = db.StringProperty(required=True)
+    year = db.IntegerProperty(required=True)
+    month = db.IntegerProperty()
+    week_num = db.IntegerProperty()
     num_requests = db.IntegerProperty(default=0)
     num_requests_completed = db.IntegerProperty(default=0)
     min_request_seconds = db.IntegerProperty(default=0) # seconds
@@ -728,17 +781,24 @@ class Statistic(db.Model):
         valid_types = ('daily', 'weekly', 'monthly', 'yearly')
         if type not in valid_types:
             return None
+
+        today = datetime.date.today()
+        month = None
+        week_num = None
         if date_key is None:
-            today = datetime.date.today()
             if type == 'daily':
                 date_key = '%d%02d%02d' % (today.year, today.month, today.day)
+                month = today.month
+                week_num = today.isocalendar()[1]
             elif type == 'weekly':
                 week_num = today.isocalendar()[1]
                 date_key = '%dW%02d' % (today.year, week_num)
             elif type == 'monthly':
                 date_key = '%d%02d' % (today.year, today.month)
+                month = today.month
             elif type == 'yearly':
                 date_key = today.year
+                week_num = None
             else:
                 return None
             date_key = str(date_key)
@@ -748,10 +808,14 @@ class Statistic(db.Model):
         stats = cls.get_or_insert(stats_key,
             process=process,
             date_key=date_key,
-            type=type)
+            type=type,
+            year=today.year)
         stats.process = process
         stats.date_key = date_key
         stats.type = type
+        stats.year = today.year
+        stats.month = month
+        stats.week_num = week_num
         return stats
 
     @classmethod
@@ -789,3 +853,22 @@ class Statistic(db.Model):
                 except Exception, e:
                     logging.warning('Unable to save Statistic object "%s".' \
                         % bucket.id)
+
+    def to_dict(self):
+        """Return statistics as a dict object."""
+
+        data = {
+            'kind': self.kind(),
+            'process': self.process.id,
+            'date_key': self.date_key,
+            'type': self.type,
+            'num_requests': self.num_requests,
+            'num_requests_completed': self.num_requests_completed,
+            'min_request_seconds': self.min_request_seconds,
+            'max_request_seconds': self.max_request_seconds,
+            'avg_request_seconds': self.avg_request_seconds,
+            'total_request_seconds': self.total_request_seconds
+        }
+        if self.is_saved():
+            data['key'] = self.id
+        return data

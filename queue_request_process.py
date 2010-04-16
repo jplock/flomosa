@@ -2,7 +2,6 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os.path
 import logging
 from datetime import datetime
 
