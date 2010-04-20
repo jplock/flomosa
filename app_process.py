@@ -17,21 +17,10 @@ class ProcessHandler(oauthapp.OAuthHandler):
         logging.debug('Begin ProcessHandler.get() method')
 
         try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 401))
-            return utils.build_json(self, e, 401)
-
-        process = models.Process.get(process_key)
-        if not process:
-            error_msg = 'Process key "%s" does not exist.' % process_key
-            logging.error(utils.get_log_message(error_msg, 404))
-            return utils.build_json(self, error_msg, 404)
-
-        if process.client.id != client.id:
-            error_msg = 'Permission denied.'
-            logging.error(utils.get_log_message(error_msg, 401))
-            return utils.build_json(self, error_msg, 401)
+            process = self.is_client_allowed(process_key)
+        except utils.FlomosaException, e:
+            logging.error(utils.get_log_message(e, e['code']))
+            return utils.build_json(self, e, e['code'])
 
         logging.debug('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, process.to_dict())
@@ -122,22 +111,12 @@ class ProcessHandler(oauthapp.OAuthHandler):
         logging.debug('Begin ProcessHandler.delete() method')
 
         try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 401))
-            return utils.build_json(self, e, 401)
+            process = self.is_client_allowed(process_key)
+        except utils.FlomosaException, e:
+            logging.error(utils.get_log_message(e, e['code']))
+            return utils.build_json(self, e, e['code'])
 
-        process = models.Process.get_by_key_name(process_key)
-        if isinstance(process, models.Process):
-            if process.client.id != client.id:
-                error_msg = 'Permission denied.'
-                logging.error(utils.get_log_message(error_msg, 401))
-                return utils.build_json(self, error_msg, 401)
-            else:
-                process.delete()
-        else:
-            logging.info('Process "%s" not found in datastore to delete.' % \
-                process_key)
+        process.delete()
 
         self.error(204)
 

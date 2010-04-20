@@ -31,44 +31,51 @@ def list_to_dict(keys, default_value=0):
     return new_dict
 
 
-class YearHandler(oauthapp.OAuthHandler):
+class StatHandler(oauthapp.OAuthHandler):
+    def get_param(self, name, cast=int):
+        """Get a request parameter, raising an exception if not valid.
+
+        If we are getting the 'filter' parameter, split the values by a comma
+        and return the valid list of filters. If no filters found, return the
+        entire list of statistic keys.
+
+        Parameters:
+          name - request parameter name
+        """
+
+        value = self.request.get(name)
+        if name == 'filter':
+            return_stats = []
+            if value:
+                filter_list = value.split(',')
+                for key in filter_list:
+                    if key in _STAT_TUPLE:
+                        return_stats.append(key)
+            if not return_stats:
+                return_stats = _STAT_TUPLE
+            value = return_stats
+            cast = None
+        elif not value:
+            error_msg = 'Missing "%s" parameter.' % name
+            raise utils.FlomosaException(400, error_msg)
+        if cast is not None:
+            value = cast(value)
+        return value
+
+
+class YearHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin YearHandler.get() method')
 
         try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 401))
-            return utils.build_json(self, e, 401)
+            process = self.is_client_allowed(process_key)
 
-        process = models.Process.get(process_key)
-        if not process:
-            error_msg = 'Process key "%s" does not exist.' % process_key
-            logging.error(utils.get_log_message(error_msg, 404))
-            return utils.build_json(self, error_msg, 404)
+            year = self.get_param('year')
+        except utils.FlomosaException, e:
+            logging.error(utils.get_log_message(e, e['code']))
+            return utils.build_json(self, e, e['code'])
 
-        if process.client.id != client.id:
-            error_msg = 'Permission denied.'
-            logging.error(utils.get_log_message(error_msg, 401))
-            return utils.build_json(self, error_msg, 401)
-
-        year = self.request.get('year')
-        if not year:
-            error_msg = 'Missing "year" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            year = int(year)
-
-        return_stats = []
-        filter = self.request.get('filter')
-        if filter:
-            filter_list = filter.split(',')
-            for key in filter_list:
-                if key in _STAT_TUPLE:
-                    return_stats.append(key)
-        if not return_stats:
-            return_stats = _STAT_TUPLE
+        return_stats = self.get_param('filter')
 
         stats = {}
         keys = list_to_dict(return_stats)
@@ -100,52 +107,20 @@ class YearHandler(oauthapp.OAuthHandler):
         logging.debug('Finished YearHandler.get() method')
 
 
-class MonthHandler(oauthapp.OAuthHandler):
+class MonthHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin MonthHandler.get() method')
 
         try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 401))
-            return utils.build_json(self, e, 401)
+            process = self.is_client_allowed(process_key)
 
-        process = models.Process.get(process_key)
-        if not process:
-            error_msg = 'Process key "%s" does not exist.' % process_key
-            logging.error(utils.get_log_message(error_msg, 404))
-            return utils.build_json(self, error_msg, 404)
+            year = self.get_param('year')
+            month = self.get_param('month')
+        except utils.FlomosaException, e:
+            logging.error(utils.get_log_message(e, e['code']))
+            return utils.build_json(self, e, e['code'])
 
-        if process.client.id != client.id:
-            error_msg = 'Permission denied.'
-            logging.error(utils.get_log_message(error_msg, 401))
-            return utils.build_json(self, error_msg, 401)
-
-        year = self.request.get('year')
-        if not year:
-            error_msg = 'Missing "year" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            year = int(year)
-
-        month = self.request.get('month')
-        if not month:
-            error_msg = 'Missing "month" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            month = int(month)
-
-        return_stats = []
-        filter = self.request.get('filter')
-        if filter:
-            filter_list = filter.split(',')
-            for key in filter_list:
-                if key in _STAT_TUPLE:
-                    return_stats.append(key)
-        if not return_stats:
-            return_stats = _STAT_TUPLE
+        return_stats = self.get_param('filter')
 
         stats = {}
         keys = list_to_dict(return_stats)
@@ -180,52 +155,20 @@ class MonthHandler(oauthapp.OAuthHandler):
         logging.debug('Finished MonthHandler.get() method')
 
 
-class WeekHandler(oauthapp.OAuthHandler):
+class WeekHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin WeekHandler.get() method')
 
         try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 401))
-            return utils.build_json(self, e, 401)
+            process = self.is_client_allowed(process_key)
 
-        process = models.Process.get(process_key)
-        if not process:
-            error_msg = 'Process key "%s" does not exist.' % process_key
-            logging.error(utils.get_log_message(error_msg, 404))
-            return utils.build_json(self, error_msg, 404)
+            year = self.get_param('year')
+            week_num = self.get_param('week_num')
+        except utils.FlomosaException, e:
+            logging.error(utils.get_log_message(e, e['code']))
+            return utils.build_json(self, e, e['code'])
 
-        if process.client.id != client.id:
-            error_msg = 'Permission denied.'
-            logging.error(utils.get_log_message(error_msg, 401))
-            return utils.build_json(self, error_msg, 401)
-
-        year = self.request.get('year')
-        if not year:
-            error_msg = 'Missing "year" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            year = int(year)
-
-        week_num = self.request.get('week_num')
-        if not week_num:
-            error_msg = 'Missing "week_num" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            week_num = int(week_num)
-
-        return_stats = []
-        filter = self.request.get('filter')
-        if filter:
-            filter_list = filter.split(',')
-            for key in filter_list:
-                if key in _STAT_TUPLE:
-                    return_stats.append(key)
-        if not return_stats:
-            return_stats = _STAT_TUPLE
+        return_stats = self.get_param('filter')
 
         stats = {}
         keys = list_to_dict(return_stats)
@@ -259,60 +202,21 @@ class WeekHandler(oauthapp.OAuthHandler):
         logging.debug('Finished WeekHandler.get() method')
 
 
-class DayHandler(oauthapp.OAuthHandler):
+class DayHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin DayHandler.get() method')
 
         try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 401))
-            return utils.build_json(self, e, 401)
+            process = self.is_client_allowed(process_key)
 
-        process = models.Process.get(process_key)
-        if not process:
-            error_msg = 'Process key "%s" does not exist.' % process_key
-            logging.error(utils.get_log_message(error_msg, 404))
-            return utils.build_json(self, error_msg, 404)
+            year = self.get_param('year')
+            month = self.get_param('month')
+            day = self.get_param('day')
+        except utils.FlomosaException, e:
+            logging.error(utils.get_log_message(e, e['code']))
+            return utils.build_json(self, e, e['code'])
 
-        if process.client.id != client.id:
-            error_msg = 'Permission denied.'
-            logging.error(utils.get_log_message(error_msg, 401))
-            return utils.build_json(self, error_msg, 401)
-
-        year = self.request.get('year')
-        if not year:
-            error_msg = 'Missing "year" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            year = int(year)
-
-        month = self.request.get('month')
-        if not month:
-            error_msg = 'Missing "month" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            month = int(month)
-
-        day = self.request.get('day')
-        if not day:
-            error_msg = 'Missing "day" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
-        else:
-            day = int(day)
-
-        return_stats = []
-        filter = self.request.get('filter')
-        if filter:
-            filter_list = filter.split(',')
-            for key in filter_list:
-                if key in _STAT_TUPLE:
-                    return_stats.append(key)
-        if not return_stats:
-            return_stats = _STAT_TUPLE
+        return_stats = self.get_param('filter')
 
         stats = {}
         keys = list_to_dict(return_stats)

@@ -62,3 +62,25 @@ class OAuthHandler(webapp.RequestHandler):
             raise e
 
         return client
+
+    def is_client_allowed(self, process_key):
+        """Checks that the client is valid and created the given process.
+
+        Parameters:
+          process_key - process to lookup and validate against client
+        """
+
+        try:
+            client = self.is_valid()
+        except Exception, e:
+            raise utils.FlomosaException(401, e)
+
+        process = models.Process.get(process_key)
+        if not process:
+            error_msg = 'Process key "%s" does not exist.' % process_key
+            raise utils.FlomosaException(404, error_msg)
+
+        if process.client.id != client.id:
+            error_msg = 'Permission denied.'
+            raise utils.FlomosaException(401, 'Permission denied.')
+        return process

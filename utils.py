@@ -2,8 +2,8 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import uuid
 import logging
+import uuid
 
 from django.utils import simplejson
 
@@ -53,3 +53,28 @@ def build_json(webapp, data, code=200, return_response=False):
     webapp.response.headers['Content-Type'] = 'application/json'
     webapp.response.out.write(json)
     return None
+
+
+class FlomosaException(Exception):
+    """Base exception for all exceptions."""
+
+    def __init__(self, code, message, headers=None):
+        self._code = code
+        self._message = str(message)
+        self._headers = headers or {}
+        Exception.__init__(self, message)
+
+    def __getitem__(self, key):
+        if key == 'code':
+            return self._code
+
+        try:
+            return self._headers[key]
+        except KeyError:
+            return None
+
+    def __str__(self):
+        return self.__unicode__()
+
+    def __unicode__(self):
+        return '%s (#%s)' % (self._message, self._code)
