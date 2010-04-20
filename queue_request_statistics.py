@@ -4,7 +4,7 @@
 
 import logging
 
-from google.appengine.ext import webapp
+from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 
 import models
@@ -19,7 +19,6 @@ class TaskHandler(webapp.RequestHandler):
 
         request_key = self.request.get('request_key')
         process_key = self.request.get('process_key')
-        step_key = self.request.get('step_key')
 
         if not request_key:
             logging.error('Missing "request_key" parameter. Exiting.')
@@ -42,10 +41,13 @@ class TaskHandler(webapp.RequestHandler):
             return None
 
         try:
-            models.Statistic.store_stats(request, process)
-        except Exception, e:
-            logging.error('Storing statistics failed for Request "%s": %s' % \
-                (request.id, e))
+            db.run_in_transaction(models.Statistic.store_stats, request,
+                process)
+        except db.TransactionFailedError, e:
+            logging.critical('Storing statistics failed for Request "%s". ' \
+                'Re-queuing.' % request.id)
+            self.error(500)
+            return None
 
         logging.debug('Finished request-statistics task handler')
 

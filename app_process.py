@@ -92,7 +92,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
             try:
                 step = process.add_step(step_data.get('name'),
                     description=step_data.get('description'),
-                    team=step_data.get('team'),
+                    team_key=step_data.get('team'),
                     members=step_data.get('members'),
                     is_start=step_data.get('is_start'),
                     step_key=step_data.get('key'))

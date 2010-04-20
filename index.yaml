@@ -16,11 +16,36 @@ indexes:
   - name: step
   - name: member
   - name: end_date
+    direction: desc
+
+- kind: Statistic
+  properties:
+  - name: day
+  - name: month
+  - name: process
+  - name: type
+  - name: year
+  - name: hour
+
+- kind: Statistic
+  properties:
+  - name: month
+  - name: process
+  - name: type
+  - name: year
+  - name: day
 
 - kind: Statistic
   properties:
   - name: process
   - name: type
-    direction: desc
-  - name: date_key
-    direction: desc
+  - name: week_num
+  - name: year
+  - name: week_day
+
+- kind: Statistic
+  properties:
+  - name: process
+  - name: type
+  - name: year
+  - name: month

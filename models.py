@@ -169,21 +169,25 @@ class Process(FlomosaBase):
         self.delete_steps_actions()
         return cache.delete_from_cache(self)
 
-    def add_step(self, name, description=None, team=None, members=None,
-            is_start=True, step_key=None):
+    def add_step(self, name, description=None, team_key=None, members=None,
+            is_start=None, step_key=None):
         """Add a step to this process."""
 
-        for step in self.steps:
-            is_start = False
-            break
+        if is_start is None:
+            is_start = True
+            for step in self.steps:
+                is_start = False
+                break
         if not members:
             members = []
         if not step_key:
             step_key = utils.generate_key()
         step = Step(key_name=step_key, process=self, name=name)
         step.is_start = bool(is_start)
-        if team and isinstance(team, Team):
-            step.team = team
+        if team_key:
+            team = Team.get(team_key)
+            if team:
+                step.team = team
         step.members = members
         step.description = description
 
@@ -519,13 +523,13 @@ class Request(db.Expando):
             # of Execution objects to work on the request
             step = self.process.get_start_step()
             if step:
-                step.queue_tasks(request)
+                step.queue_tasks(self)
 
                 # Record the request in the Process statistics
                 queue = taskqueue.Queue('request-statistics')
                 task = taskqueue.Task(params={
-                    'request_key': request.id,
-                    'process_key': process.id
+                    'request_key': self.id,
+                    'process_key': self.process.id
                 })
                 queue.add(task)
 
@@ -608,7 +612,11 @@ class Execution(FlomosaBase):
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
     def set_sent(self, sent_date=None):
-        """Set this execution as being sent."""
+        """Set this execution as being sent.
+
+        Parameters:
+          sent_date - optional sent date, defaults to now
+        """
 
         # Only set the sent timestamp once
         if self.sent_date:
@@ -621,7 +629,12 @@ class Execution(FlomosaBase):
         return self.put()
 
     def set_completed(self, action, end_date=None):
-        """Set this execution as being completed."""
+        """Set this execution as being completed.
+
+        Parameters:
+          action - Action to set for completion
+          end_date - optional end date, defaults to now
+        """
 
         # Only set the action once
         if self.action:
@@ -644,7 +657,11 @@ class Execution(FlomosaBase):
         return self.put()
 
     def set_viewed(self, viewed_date=None):
-        """Set this execution as being viewed."""
+        """Set this execution as being viewed.
+
+        Parameters:
+          viewed_date - optional viewed date, defaults to now
+        """
 
         # Only set the viewed timestamp once
         if self.viewed_date:
@@ -687,11 +704,14 @@ class Execution(FlomosaBase):
 
 
 class Statistic(db.Model):
-    process = db.ReferenceProperty(Process, collection_name='stats')
-    date_key = db.StringProperty(required=True)
+    process = db.ReferenceProperty(Process, collection_name='stats',
+        required=True)
     type = db.StringProperty(required=True)
     year = db.IntegerProperty(required=True)
     month = db.IntegerProperty()
+    day = db.IntegerProperty()
+    hour = db.IntegerProperty()
+    week_day = db.IntegerProperty() # ISO format 1 = Monday, 7 = Sunday
     week_num = db.IntegerProperty()
     num_requests = db.IntegerProperty(default=0)
     num_requests_completed = db.IntegerProperty(default=0)
@@ -707,7 +727,8 @@ class Statistic(db.Model):
     def log(self, request):
         """Store request data in a Statistic object.
 
-        Executed when a request has been completed.
+        Parameters:
+          request - Request data to count
         """
 
         if request.duration > 0:
@@ -725,84 +746,80 @@ class Statistic(db.Model):
             self.num_requests += 1
 
     @classmethod
-    def get_bucket(cls, process, type='daily', date_key=None):
-        """Get or create a Statistics object for a Process."""
+    def store_stat(cls, request, process, type='daily', parent=None,
+            date_key=None):
+        """Store a Statistic object
 
-        if not process and not isinstance(process, Process):
+        Parameters:
+          request - Request object to count
+          process - Process object for the statistics
+          type - daily, weekly, monthly or yearly
+          parent - optional parent object
+          date_key - optional date key
+        """
+
+        if not isinstance(process, Process):
+            return None
+        if not isinstance(request, Request):
             return None
 
-        valid_types = ('daily', 'weekly', 'monthly', 'yearly')
+        valid_types = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
         if type not in valid_types:
             return None
 
-        today = datetime.date.today()
+        today = datetime.datetime.now()
         month = None
+        day = None
         week_num = None
+        week_day = None
+        hour = None
         if date_key is None:
             if type == 'daily':
                 date_key = '%d%02d%02d' % (today.year, today.month, today.day)
                 month = today.month
-                week_num = today.isocalendar()[1]
+                day = today.day
+                temp, week_num, week_day = today.isocalendar()
             elif type == 'weekly':
-                week_num = today.isocalendar()[1]
+                temp, week_num, week_day = today.isocalendar()
                 date_key = '%dW%02d' % (today.year, week_num)
             elif type == 'monthly':
                 date_key = '%d%02d' % (today.year, today.month)
                 month = today.month
             elif type == 'yearly':
                 date_key = today.year
-                week_num = None
+            elif type == 'hourly':
+                date_key = '%d%02d%02d%02d' % (today.year, today.month,
+                    today.day, today.hour)
+                month = today.month
+                day = today.day
+                hour = today.hour
+                temp, week_num, week_day = today.isocalendar()
             else:
                 return None
             date_key = str(date_key)
 
-        stats_key = '%s_%s' % (process.id, date_key)
+        stat_key = '%s_%s' % (process.id, date_key)
 
-        stats = cls.get_or_insert(stats_key, process=process, date_key=date_key,
-            type=type, year=today.year)
-        stats.process = process
-        stats.date_key = date_key
-        stats.type = type
-        stats.year = today.year
-        stats.month = month
-        stats.week_num = week_num
-        return stats
+        stat = cls.get_by_key_name(stat_key, parent=parent)
+        if not stat:
+            stat = cls(key_name=stat_key, parent=parent, process=process,
+                type=type, year=today.year)
+            stat.month = month
+            stat.day = day
+            stat.week_day = week_day
+            stat.week_num = week_num
+            stat.hour = hour
+        stat.log(request)
+        stat.put()
+        return stat
 
     @classmethod
     def store_stats(cls, request, process):
-        """Log the Request statistics in a Process.
-
-        This will create daily, weekly, monthly and yearly statistics objects
-        for the given Process and record the request in those buckets.
-        """
-
-        if not isinstance(request, Request):
-            logging.error('No Request object found')
-            return None
-        if not isinstance(process, Process):
-            logging.error('No Process object found')
-            return None
-
-        daily = cls.get_bucket(process, 'daily')
-        weekly = cls.get_bucket(process, 'weekly')
-        monthly = cls.get_bucket(process, 'monthly')
-        yearly = cls.get_bucket(process, 'yearly')
-
-        buckets = []
-        buckets.append(daily)
-        buckets.append(weekly)
-        buckets.append(monthly)
-        buckets.append(yearly)
-
-        for bucket in buckets:
-            if bucket:
-                bucket.log(request)
-
-                try:
-                    bucket.put()
-                except Exception, e:
-                    logging.warning('Unable to save Statistic object "%s".' \
-                        % bucket.id)
+        yearly = cls.store_stat(request, process, 'yearly')
+        monthly = cls.store_stat(request, process, 'monthly', parent=yearly)
+        weekly = cls.store_stat(request, process, 'weekly', parent=yearly)
+        daily = cls.store_stat(request, process, 'daily', parent=weekly)
+        hourly = cls.store_stat(request, process, 'hourly', parent=daily)
 
     def to_dict(self):
         """Return statistics as a dict object."""
@@ -810,8 +827,12 @@ class Statistic(db.Model):
         data = {
             'kind': self.kind(),
             'process': self.process.id,
-            'date_key': self.date_key,
             'type': self.type,
+            'year': self.year,
+            'month': self.month,
+            'week_num': self.week_num,
+            'day': self.day,
+            'hour': self.hour,
             'num_requests': self.num_requests,
             'num_requests_completed': self.num_requests_completed,
             'min_request_seconds': self.min_request_seconds,

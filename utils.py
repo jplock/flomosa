@@ -10,7 +10,13 @@ from django.utils import simplejson
 _CLIENT_ERROR_FORMAT = 'CLIENT ERROR [%s]: %s'
 
 def get_log_message(message, code=0, format=_CLIENT_ERROR_FORMAT):
-    """Return a formatted error log message."""
+    """Return a formatted error log message.
+
+    Parameters:
+      message - message to format
+      code - error code
+      format - format string
+    """
     return format % (code, message)
 
 def generate_key():
@@ -18,7 +24,14 @@ def generate_key():
     return str(uuid.uuid4())
 
 def build_json(webapp, data, code=200, return_response=False):
-    """Build a JSON error message response."""
+    """Build a JSON error message response.
+
+    Parameters:
+      webapp - The webapp instance
+      data - Exception, dict or string to convert to JSON
+      code - error code
+      return_response - return the JSON message or not
+    """
 
     if isinstance(data, Exception):
         data = dict(message=str(data))
