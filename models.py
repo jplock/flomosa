@@ -406,6 +406,7 @@ class Step(FlomosaBase):
             return None
 
         tasks = []
+        queued_members = []
         if self.team:
             for member in self.team.members:
                 execution_key = self._create_execution(request, member,
@@ -417,8 +418,12 @@ class Step(FlomosaBase):
                         self.name, self.process.name))
                     task = taskqueue.Task(params={'key': execution_key})
                     tasks.append(task)
+                    queued_members.append(member)
         if self.members:
             for member in self.members:
+                # Skip member if an execution has already been queued
+                if member in queued_members:
+                    continue
                 execution_key = self._create_execution(request, member)
 
                 if execution_key:
