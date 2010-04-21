@@ -576,20 +576,29 @@ class Request(db.Expando):
         """Return executions in creation order.
         # TODO
         """
-        pass
+
+        query = Execution.all()
+        query.filter('request =', self)
+        query.order('start_date')
+
+        executions = query.fetch(100)
+        return executions
 
     def to_dict(self):
         """Return request as a dict object."""
 
         data = {
-            'kind': self.kind(),
             'process': self.process.id,
             'requestor': self.requestor,
             'contact': self.contact,
-            'is_draft': self.is_draft
+            'is_draft': self.is_draft,
+            'executions': []
         }
         for property in self.dynamic_properties():
             data[property] = getattr(self, property)
+        for execution in self.get_executions():
+            data['executions'].append(execution.to_dict())
+
         if self.is_saved():
             data['key'] = self.id
         return data
@@ -615,6 +624,38 @@ class Execution(FlomosaBase):
     email_delay = db.IntegerProperty(default=0) # viewed_date-sent_date
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
+
+    def to_dict(self):
+        """Return execution as a dict object."""
+
+        data = {
+            'step': self.step.name,
+            'member': self.member,
+            'start_date': str(self.start_date),
+            'reminder_count': self.reminder_count,
+            'email_delay': self.email_delay,
+            'action_delay': self.action_delay,
+            'duration': self.duration,
+            'last_reminder_sent_date': None,
+            'sent_date': None,
+            'viewed_date': None,
+            'end_date': None,
+            'action': None,
+            'team': None
+        }
+        if self.last_reminder_sent_date:
+            data['last_reminder_sent_date'] = str(self.last_reminder_sent_date)
+        if self.sent_date:
+            data['sent_date'] = str(self.sent_date)
+        if self.viewed_date:
+            data['viewed_date'] = str(self.viewed_date)
+        if self.end_date:
+            data['end_date'] = str(self.end_date)
+        if self.action:
+            data['action'] = self.action.name
+        if self.team:
+            data['team'] = self.team.name
+        return data
 
     def set_sent(self, sent_date=None):
         """Set this execution as being sent.

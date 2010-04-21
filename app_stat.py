@@ -32,7 +32,7 @@ def list_to_dict(keys, default_value=0):
 
 
 class StatHandler(oauthapp.OAuthHandler):
-    def get_param(self, name, cast=int):
+    def get_param(self, name):
         """Get a request parameter, raising an exception if not valid.
 
         If we are getting the 'filter' parameter, split the values by a comma
@@ -53,13 +53,11 @@ class StatHandler(oauthapp.OAuthHandler):
                         return_stats.append(key)
             if not return_stats:
                 return_stats = _STAT_TUPLE
-            value = return_stats
-            cast = None
+            return return_stats
         elif not value:
             error_msg = 'Missing "%s" parameter.' % name
             raise utils.FlomosaException(400, error_msg)
-        if cast is not None:
-            value = cast(value)
+        value = int(value)
         return value
 
 
@@ -127,6 +125,8 @@ class MonthHandler(StatHandler):
 
         cal = calendar.Calendar()
         for day in cal.itermonthdays(year, month):
+            if day < 1:
+                continue
             if len(keys) == 1:
                 stats[day] = 0
             else:

@@ -42,8 +42,8 @@ def build_json(webapp, data, code=200, return_response=False):
 
     try:
         json = simplejson.dumps(data)
-    except:
-        logging.critical('Error parsing JSON.')
+    except Exception, e:
+        logging.critical('Error parsing JSON: %s.' % e)
         return None
 
     if return_response:

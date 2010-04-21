@@ -51,9 +51,20 @@ class TaskHandler(webapp.RequestHandler):
                 execution.id)
             return None
 
+        # Always fetch the latest version of the request from the datastore
+        request_key = execution.request.id
+        request = models.Request.get_by_key_name(request_key)
+        if not request:
+            logging.info('Request "%s" not found in datastore. Exiting.' % \
+                request_key)
+            return None
+        execution.request = request
+
         # If the request has been completed, close out this execution
-        if execution.request.is_completed:
-            execution.end_date = execution.request.completed_date
+        if request.is_completed:
+            logging.info('Request "%s" already completed. Exiting.' % \
+                request.id)
+            execution.end_date = request.completed_date
 
             try:
                 execution.put()
@@ -121,7 +132,7 @@ class TaskHandler(webapp.RequestHandler):
                 # If the request has not yet been marked as completed,
                 # compute the request duration
                 try:
-                    execution.request.set_completed()
+                    request.set_completed()
                 except Exception, e:
                     logging.error('%s Re-queuing.' % e)
                     self.error(500)
@@ -132,7 +143,7 @@ class TaskHandler(webapp.RequestHandler):
                     '"%s".' % execution.request.id)
                 queue = taskqueue.Queue('request-statistics')
                 task = taskqueue.Task(params={
-                    'request_key': execution.request.id,
+                    'request_key': request.id,
                     'process_key': execution.process.id
                 })
                 queue.add(task)
@@ -149,7 +160,7 @@ class TaskHandler(webapp.RequestHandler):
             # outgoing steps after this action.
             else:
                 logging.info('Queuing step email to be sent to "%s".' % \
-                    execution.request.requestor)
+                    request.requestor)
                 task = taskqueue.Task(params={'key': execution.id})
                 queue = taskqueue.Queue('mail-request-step')
                 queue.add(task)
