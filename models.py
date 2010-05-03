@@ -410,7 +410,7 @@ class Step(FlomosaBase):
         if self.team:
             for member in self.team.members:
                 execution_key = self._create_execution(request, member,
-                    self.team)
+                    team=self.team)
 
                 if execution_key:
                     logging.info('Queuing: (member="%s") (team="%s") ' \
@@ -432,6 +432,7 @@ class Step(FlomosaBase):
                         self.process.name))
                     task = taskqueue.Task(params={'key': execution_key})
                     tasks.append(task)
+                    queued_members.append(member)
         if tasks:
             queue = taskqueue.Queue('request-process')
             queue.add(tasks)
@@ -474,13 +475,11 @@ class Action(FlomosaBase):
             data['key'] = self.id
         for step_key in self.incoming:
             step = Step.get(step_key)
-            if step and isinstance(step, Step) and step.id not in \
-                data['incoming']:
+            if step and step.id not in data['incoming']:
                 data['incoming'].append(step.id)
         for step_key in self.outgoing:
             step = Step.get(step_key)
-            if step and isinstance(step, Step) and step.id not in \
-                data['outgoing']:
+            if step and step.id not in data['outgoing']:
                 data['outgoing'].append(step.id)
         return data
 
@@ -573,9 +572,7 @@ class Request(db.Expando):
         return data
 
     def get_executions(self):
-        """Return executions in creation order.
-        # TODO
-        """
+        """Return executions in creation order."""
 
         query = Execution.all()
         query.filter('request =', self)
@@ -683,7 +680,7 @@ class Execution(FlomosaBase):
         """
 
         # Only set the action once
-        if self.action:
+        if self.action or self.end_date:
             return None
 
         if not isinstance(action, Action):
@@ -722,7 +719,7 @@ class Execution(FlomosaBase):
 
         return self.put()
 
-    def is_step_completed(self):
+    def is_step_completed(self, limit=30):
         """Has this request step been completed by anyone?"""
 
         query = self.all()
@@ -732,7 +729,7 @@ class Execution(FlomosaBase):
         query.order('member')
         query.order('-end_date')
 
-        results = query.fetch(30)
+        results = query.fetch(limit)
 
         for execution in results:
             if execution.action:

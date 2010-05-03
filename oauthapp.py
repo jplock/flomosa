@@ -8,6 +8,7 @@ from google.appengine.ext import webapp
 import oauth2 as oauth
 
 import models
+import utils
 
 
 class OAuthHandler(webapp.RequestHandler):
