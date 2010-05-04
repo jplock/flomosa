@@ -3,6 +3,7 @@
 #
 
 import logging
+from datetime import datetime
 
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
@@ -19,6 +20,7 @@ class TaskHandler(webapp.RequestHandler):
 
         request_key = self.request.get('request_key')
         process_key = self.request.get('process_key')
+        timestamp = self.request.get('timestamp') # POSIX UTC timestamp
 
         if not request_key:
             logging.error('Missing "request_key" parameter. Exiting.')
@@ -31,7 +33,7 @@ class TaskHandler(webapp.RequestHandler):
             return None
 
         if not process_key:
-            logging.error('Missing "process_key" parameters. Exiting.')
+            logging.error('Missing "process_key" parameter. Exiting.')
             return None
 
         process = models.Process.get(process_key)
@@ -40,9 +42,20 @@ class TaskHandler(webapp.RequestHandler):
                 process_key)
             return None
 
+        if not timestamp:
+            logging.error('Missing "timestamp" parameter. Exiting.')
+            return None
+
+        try:
+            stat_time = datetime.utcfromtimestamp(timestamp)
+        except ValueError, e:
+            logging.error('Could not convert timestamp "%s": %s' % \
+                (timestamp, e))
+            return None
+
         try:
             db.run_in_transaction(models.Statistic.store_stats, request,
-                process)
+                process, timestamp=stat_time)
         except db.TransactionFailedError, e:
             logging.critical('Storing statistics failed for Request "%s". ' \
                 'Re-queuing.' % request.id)

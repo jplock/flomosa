@@ -2,8 +2,9 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import logging
 import datetime
+import logging
+import time
 
 from google.appengine.ext import db
 from google.appengine.api.labs import taskqueue
@@ -533,7 +534,8 @@ class Request(db.Expando):
                 queue = taskqueue.Queue('request-statistics')
                 task = taskqueue.Task(params={
                     'request_key': self.id,
-                    'process_key': self.process.id
+                    'process_key': self.process.id,
+                    'timestamp': time.time()
                 })
                 queue.add(task)
 
@@ -789,14 +791,15 @@ class Statistic(db.Model):
             self.num_requests += 1
 
     @classmethod
-    def store_stat(cls, request, process, type='daily', parent=None,
-            date_key=None):
+    def store_stat(cls, request, process, type='daily', timestamp=None,
+            parent=None, date_key=None):
         """Store a Statistic object
 
         Parameters:
           request - Request object to count
           process - Process object for the statistics
-          type - daily, weekly, monthly or yearly
+          type - hourly, daily, weekly, monthly or yearly
+          timestamp - timestamp to record statistics for
           parent - optional parent object
           date_key - optional date key
         """
@@ -810,7 +813,9 @@ class Statistic(db.Model):
         if type not in valid_types:
             return None
 
-        today = datetime.datetime.now()
+        if timestamp is None:
+            return None
+
         month = None
         day = None
         week_num = None
@@ -818,25 +823,26 @@ class Statistic(db.Model):
         hour = None
         if date_key is None:
             if type == 'daily':
-                date_key = '%d%02d%02d' % (today.year, today.month, today.day)
-                month = today.month
-                day = today.day
-                temp, week_num, week_day = today.isocalendar()
+                date_key = '%d%02d%02d' % (timestamp.year, timestamp.month,
+                    timestamp.day)
+                month = timestamp.month
+                day = timestamp.day
+                temp, week_num, week_day = timestamp.isocalendar()
             elif type == 'weekly':
-                temp, week_num, week_day = today.isocalendar()
-                date_key = '%dW%02d' % (today.year, week_num)
+                temp, week_num, week_day = timestamp.isocalendar()
+                date_key = '%dW%02d' % (timestamp.year, week_num)
             elif type == 'monthly':
-                date_key = '%d%02d' % (today.year, today.month)
-                month = today.month
+                date_key = '%d%02d' % (timestamp.year, timestamp.month)
+                month = timestamp.month
             elif type == 'yearly':
-                date_key = today.year
+                date_key = timestamp.year
             elif type == 'hourly':
-                date_key = '%d%02d%02d%02d' % (today.year, today.month,
-                    today.day, today.hour)
-                month = today.month
-                day = today.day
-                hour = today.hour
-                temp, week_num, week_day = today.isocalendar()
+                date_key = '%d%02d%02d%02d' % (timestamp.year, timestamp.month,
+                    timestamp.day, timestamp.hour)
+                month = timestamp.month
+                day = timestamp.day
+                hour = timestamp.hour
+                temp, week_num, week_day = timestamp.isocalendar()
             else:
                 return None
             date_key = str(date_key)
@@ -846,7 +852,7 @@ class Statistic(db.Model):
         stat = cls.get_by_key_name(stat_key, parent=parent)
         if not stat:
             stat = cls(key_name=stat_key, parent=parent, process=process,
-                type=type, year=today.year)
+                type=type, year=timestamp.year)
             stat.month = month
             stat.day = day
             stat.week_day = week_day
@@ -857,12 +863,27 @@ class Statistic(db.Model):
         return stat
 
     @classmethod
-    def store_stats(cls, request, process):
-        yearly = cls.store_stat(request, process, 'yearly')
-        monthly = cls.store_stat(request, process, 'monthly', parent=yearly)
-        weekly = cls.store_stat(request, process, 'weekly', parent=yearly)
-        daily = cls.store_stat(request, process, 'daily', parent=weekly)
-        hourly = cls.store_stat(request, process, 'hourly', parent=daily)
+    def store_stats(cls, request, process, timestamp=None):
+        """Store hourly, daily, weekly, monthly and yearly statstics.
+
+        Parameters:
+          request - request to log
+          process - process to log
+          timestamp - timestamp to use for date calculations
+        """
+
+        if timestamp is None:
+            timestamp = datetime.datetime.now()
+        yearly = cls.store_stat(request, process, type='yearly',
+            timestamp=timestamp)
+        monthly = cls.store_stat(request, process, type='monthly',
+            timestamp=timestamp, parent=yearly)
+        weekly = cls.store_stat(request, process, type='weekly',
+            timestamp=timestamp, parent=yearly)
+        daily = cls.store_stat(request, process, type='daily',
+            timestamp=timestamp, parent=weekly)
+        hourly = cls.store_stat(request, process, type='hourly',
+            timestamp=timestamp, parent=daily)
 
     def to_dict(self):
         """Return statistics as a dict object."""

@@ -2,8 +2,9 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import logging
 from datetime import datetime
+import logging
+import time
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
@@ -144,7 +145,8 @@ class TaskHandler(webapp.RequestHandler):
                 queue = taskqueue.Queue('request-statistics')
                 task = taskqueue.Task(params={
                     'request_key': request.id,
-                    'process_key': execution.process.id
+                    'process_key': execution.process.id,
+                    'timestamp': time.time()
                 })
                 queue.add(task)
 
