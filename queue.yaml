@@ -1,28 +1,28 @@
 queue:
 - name: request-process
-  rate: 24/s
+  rate: 50/s
   bucket_size: 20
   
 - name: request-statistics
-  rate: 1/s
+  rate: 50/s
   bucket_size: 20
   
 - name: mail-request-notify
-  rate: 5/s
+  rate: 50/s
   bucket_size: 20
   
 - name: mail-request-reminder
-  rate: 5/s
+  rate: 50/s
   bucket_size: 20
   
 - name: mail-request-confirmation
-  rate: 5/s
+  rate: 50/s
   bucket_size: 20
   
 - name: mail-request-complete
-  rate: 5/s
+  rate: 50/s
   bucket_size: 20
   
 - name: mail-request-step
-  rate: 5/s
+  rate: 50/s
   bucket_size: 20
