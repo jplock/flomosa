@@ -2,7 +2,11 @@ queue:
 - name: request-process
   rate: 50/s
   bucket_size: 20
-  
+
+- name: request-callback
+  rate: 50/s
+  bucket_size: 20
+
 - name: request-statistics
   rate: 50/s
   bucket_size: 20

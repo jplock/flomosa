@@ -6,6 +6,7 @@ import logging
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
+from google.appengine.api.labs import taskqueue
 
 import models
 import utils
@@ -100,30 +101,14 @@ class RequestHandler(oauthapp.OAuthHandler):
             logging.error(utils.get_log_message(e, 500))
             return utils.build_json(self, e, 500)
 
-        response_fields = {'key': request.id}
-
         if callback_url:
-            import urllib
-            from google.appengine.api import urlfetch
-
-            form_data = urllib.urlencode(response_fields)
-
-            rpc = urlfetch.create_rpc(deadline=2)
-            urlfetch.make_fetch_call(rpc, url=callback_url, payload=form_data,
-                method=urlfetch.POST,
-                headers={'Content-Type': 'application/x-www-form-urlencoded'})
-
-            try:
-                result = rpc.get_result()
-                if result.status_code == 200:
-                    logging.info('Submitted POST request to "%s" for Request ' \
-                        '"%s".' % (callback_url, request.id))
-                else:
-                    logging.warning('Could not submit POST request to "%s" ' \
-                        'for Request "%s".' % (callback_url, request.id))
-            except urlfetch.DownloadError, e:
-                logging.warning('Could not submit POST request to "%s" ' \
-                    'for Request "%s" (%s).' % (callback_url, request.id, e))
+            # Queue task to submit the callback response
+            queue = taskqueue.Queue('request-callback')
+            task = taskqueue.Task(params={
+                'request_key': request.id,
+                'callback_url': callback_url
+            })
+            queue.add(task)
 
         if response_url:
             logging.info('Permanently redirecting client to "%s".' % \
@@ -132,7 +117,7 @@ class RequestHandler(oauthapp.OAuthHandler):
         else:
             logging.info('Returning Request "%s" as JSON to client.' % \
                 request.id)
-            utils.build_json(self, response_fields, 201)
+            utils.build_json(self, {'key': request.id}, 201)
 
         logging.debug('Finished RequestHandler.post() method')
 

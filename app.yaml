@@ -6,6 +6,9 @@ api_version: 1
 inbound_services:
 - mail
 
+derived_file_type:
+- python_precompiled
+
 handlers:
 - url: /
   script: app_index.py
@@ -39,37 +42,41 @@ handlers:
   script: app_search.py
   secure: optional
 
-- url: /test-client
-  script: app_test_client.py
+- url: /tests/.*
+  script: app_test.py
   secure: optional
 
 - url: /_ah/queue/request-process
   script: queue_request_process.py
-  login: admin
+  #login: admin
+
+- url: /_ah/queue/request-callback
+  script: queue_request_callback.py
+  #login: admin
 
 - url: /_ah/queue/request-statistics
   script: queue_request_statistics.py
-  login: admin
+  #login: admin
 
 - url: /_ah/queue/mail-request-notify
   script: queue_mail_request_notify.py
-  login: admin
+  #login: admin
 
 - url: /_ah/queue/mail-request-confirmation
   script: queue_mail_request_confirmation.py
-  login: admin
+  #login: admin
 
 - url: /_ah/queue/mail-request-complete
   script: queue_mail_request_complete.py
-  login: admin
+  #login: admin
 
 - url: /_ah/queue/mail-request-step
   script: queue_mail_request_step.py
-  login: admin
+  #login: admin
 
 - url: /_ah/queue/mail-request-reminder
   script: queue_mail_request_reminder.py
-  login: admin
+  #login: admin
 
 - url: /_ah/mail/feedback@.*flomosa\.appspotmail\.com
   script: mail_handler_feedback.py
