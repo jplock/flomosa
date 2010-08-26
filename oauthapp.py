@@ -7,8 +7,8 @@ import os
 from google.appengine.ext import webapp
 import oauth2 as oauth
 
+from exceptions import UnauthenticatedException, UnauthorizedException
 import models
-import utils
 
 
 class OAuthHandler(webapp.RequestHandler):
@@ -19,7 +19,7 @@ class OAuthHandler(webapp.RequestHandler):
         self._server.add_signature_method(oauth.SignatureMethod_PLAINTEXT())
 
     def get_oauth_request(self):
-        """Return an OAuth Request object for the current request."""
+        "Return an OAuth Request object for the current request."
 
         try:
             method = os.environ['REQUEST_METHOD']
@@ -34,54 +34,38 @@ class OAuthHandler(webapp.RequestHandler):
             headers=self.request.headers, query_string=postdata)
 
     def get_client(self, request=None):
-        """Return the client from the OAuth parameters."""
+        "Return the client from the OAuth parameters."
 
         if not isinstance(request, oauth.Request):
             request = self.get_oauth_request()
         if not request:
-            raise Exception('OAuth "Authorization" header not found')
+            raise UnauthenticatedException('OAuth "Authorization" header not ' \
+                'found')
 
         client_key = request.get_parameter('oauth_consumer_key')
         if not client_key:
-            raise Exception('Missing "oauth_consumer_key" parameter in ' \
-                'OAuth "Authorization" header')
+            raise UnauthenticatedException('Missing "oauth_consumer_key" ' \
+                'parameter in OAuth "Authorization" header')
 
         client = models.Client.get(client_key)
-        if not client:
-            raise Exception('Client "%s" not found.' % client_key)
-
         return client
 
     def is_valid(self):
-        """Returns a Client object if this is a valid OAuth request."""
+        "Returns a Client object if this is a valid OAuth request."
 
-        try:
-            request = self.get_oauth_request()
-            client = self.get_client(request)
-            params = self._server.verify_request(request, client, None)
-        except Exception, e:
-            raise e
+        request = self.get_oauth_request()
+        client = self.get_client(request)
+        params = self._server.verify_request(request, client, None)
 
         return client
 
     def is_client_allowed(self, process_key):
-        """Checks that the client is valid and created the given process.
+        "Checks that the client is valid and created the given process."
 
-        Parameters:
-          process_key - process to lookup and validate against client
-        """
-
-        try:
-            client = self.is_valid()
-        except Exception, e:
-            raise utils.FlomosaException(401, e)
-
+        client = self.is_valid()
         process = models.Process.get(process_key)
-        if not process:
-            error_msg = 'Process key "%s" does not exist.' % process_key
-            raise utils.FlomosaException(404, error_msg)
 
         if process.client.id != client.id:
-            error_msg = 'Permission denied.'
-            raise utils.FlomosaException(401, 'Permission denied.')
+            raise UnauthorizedException('Client "%s" is not authorized to ' \
+                'access Process "%s".' % (client.id, process.id))
         return process

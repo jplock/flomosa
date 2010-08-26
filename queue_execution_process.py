@@ -66,11 +66,7 @@ class TaskHandler(webapp.RequestHandler):
             logging.info('Request "%s" already completed. Exiting.' % \
                 request.id)
             execution.end_date = request.completed_date
-
-            try:
-                execution.put()
-            except Exception, e:
-                logging.warning('%s Exiting.' % e)
+            execution.put()
 
             self.error(200)
             return None
@@ -78,11 +74,7 @@ class TaskHandler(webapp.RequestHandler):
         # If we have not sent the email notifications
         if not execution.queued_for_send:
             execution.queued_for_send = True
-
-            try:
-                execution.put()
-            except Exception, e:
-                logging.error(e)
+            execution.put()
 
             task = taskqueue.Task(params={'key': execution.id})
             queue = taskqueue.Queue('mail-request-notify')
@@ -111,11 +103,7 @@ class TaskHandler(webapp.RequestHandler):
         # times.
         if completed_execution and execution.num_passes() == 1:
             execution.end_date = completed_execution.end_date
-
-            try:
-                execution.put()
-            except Exception, e:
-                logging.error(e)
+            execution.put()
 
             logging.warning('Step "%s" completed by "%s" on "%s". Exiting.' % \
                 (execution.step.id, completed_execution.member,
@@ -132,12 +120,7 @@ class TaskHandler(webapp.RequestHandler):
             if execution.action.is_complete:
                 # If the request has not yet been marked as completed,
                 # compute the request duration
-                try:
-                    request.set_completed()
-                except Exception, e:
-                    logging.error('%s Re-queuing.' % e)
-                    self.error(500)
-                    return None
+                request.set_completed()
 
                 # Record the request in the Process statistics
                 logging.info('Queuing statistics collection for Request ' \

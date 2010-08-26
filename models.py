@@ -302,15 +302,7 @@ class Process(FlomosaBase):
         step = self.get_start_step()
         if not step:
             return False
-
-        if step.members:
-            return True
-        if step.team and isinstance(step.team, Team):
-            if step.team.members:
-                return True
-
-        logging.error('No team members found in step "%s"' % step.id)
-        return False
+        return step.is_valid()
 
     def to_dict(self):
         "Return process as a dict object."
@@ -500,9 +492,9 @@ class Request(db.Expando):
                 step.queue_tasks(self)
 
                 # Record the request in the Process statistics
-                queue = taskqueue.Queue('request-statistics')
                 task = taskqueue.Task(params={'request_key': self.id,
                     'process_key': self.process.id, 'timestamp': time.time()})
+                queue = taskqueue.Queue('request-statistics')
                 queue.add(task)
 
         return self.key()
@@ -738,8 +730,8 @@ class Statistic(db.Model):
             self.num_requests += 1
 
     @classmethod
-    def store_stat(cls, request, process, type='daily', timestamp=None,
-            parent=None, date_key=None):
+    def store_stat(cls, request, process, timestamp, type='daily', parent=None,
+            date_key=None):
         "Store a Statistic object"
 
         if not isinstance(process, Process):
@@ -751,8 +743,8 @@ class Statistic(db.Model):
         if type not in valid_types:
             raise Exception('"%s" is an invalid type.' % type)
 
-        if timestamp is None:
-            raise Exception('No timestamp specified.')
+        if not isinstance(timestamp, datetime.datetime):
+            raise Exception('Timestamp is not a valid datetime object.')
 
         month = None
         day = None
@@ -781,8 +773,6 @@ class Statistic(db.Model):
                 day = timestamp.day
                 hour = timestamp.hour
                 temp, week_num, week_day = timestamp.isocalendar()
-            else:
-                raise Exception('"%s" is an invalid type.' % type)
             date_key = str(date_key)
 
         stat_key = '%s_%s' % (process.id, date_key)
@@ -806,16 +796,15 @@ class Statistic(db.Model):
 
         if timestamp is None:
             timestamp = datetime.datetime.now()
-        yearly = cls.store_stat(request, process, type='yearly',
-            timestamp=timestamp)
-        monthly = cls.store_stat(request, process, type='monthly',
-            timestamp=timestamp, parent=yearly)
-        weekly = cls.store_stat(request, process, type='weekly',
-            timestamp=timestamp, parent=yearly)
-        daily = cls.store_stat(request, process, type='daily',
-            timestamp=timestamp, parent=weekly)
-        hourly = cls.store_stat(request, process, type='hourly',
-            timestamp=timestamp, parent=daily)
+        yearly = cls.store_stat(request, process, timestamp, type='yearly')
+        monthly = cls.store_stat(request, process, timestamp, type='monthly',
+            parent=yearly)
+        weekly = cls.store_stat(request, process, timestamp, type='weekly',
+            parent=yearly)
+        daily = cls.store_stat(request, process, timestamp, type='daily',
+            parent=weekly)
+        hourly = cls.store_stat(request, process, timestamp, type='hourly',
+            parent=daily)
 
     def to_dict(self):
         "Return statistics as a dict object."

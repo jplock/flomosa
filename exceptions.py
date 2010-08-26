@@ -36,25 +36,25 @@ class UnauthenticatedException(HTTPException):
         super(UnauthenticatedException, self).__init__(401, body=body)
 
 
-class NotFoundException(HttpException):
+class NotFoundException(HTTPException):
     type = 'notfound'
     def __init__(self, body=''):
         super(NotFoundException, self).__init__(404, body=body)
 
 
-class MaintenanceException(HttpException):
+class MaintenanceException(HTTPException):
     type = 'maintenance'
     def __init__(self, body=''):
         super(MaintenanceException, self).__init__(503, body=body)
 
 
-class InternalException(HttpException):
+class InternalException(HTTPException):
     type = 'error'
     def __init__(self, body=''):
         super(InternalException, self).__init__(500, body=body)
 
 
-class MissingException(HttpException):
+class MissingException(HTTPException):
     type = 'missing'
     def __init__(self, body=''):
         super(MissingException, self).__init__(400, body=body)
