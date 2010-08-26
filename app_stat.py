@@ -34,7 +34,8 @@ def list_to_dict(keys, default_value=0):
 
 
 class StatHandler(oauthapp.OAuthHandler):
-    def get_param(self, name):
+
+    def get_param(self, name, required=True):
         """Get a request parameter, raising an exception if not valid.
 
         If we are getting the 'filter' parameter, split the values by a comma
@@ -43,7 +44,7 @@ class StatHandler(oauthapp.OAuthHandler):
 
         """
 
-        value = self.request.get(name)
+        value = self.request.get(name, None)
         if name == 'filter':
             return_stats = []
             if value:
@@ -54,13 +55,16 @@ class StatHandler(oauthapp.OAuthHandler):
             if not return_stats:
                 return_stats = _STAT_TUPLE
             return return_stats
-        elif not value:
-            raise MissingException('Missing "%s" parameter.' % name)
-        value = int(value)
-        return value
+        if not value:
+            if required:
+                raise MissingException('Missing "%s" parameter.' % name)
+        else:
+            value = int(value)
+            return value
 
 
 class YearHandler(StatHandler):
+
     def get(self, process_key):
         logging.debug('Begin YearHandler.get() method')
 
@@ -100,6 +104,7 @@ class YearHandler(StatHandler):
 
 
 class MonthHandler(StatHandler):
+
     def get(self, process_key):
         logging.debug('Begin MonthHandler.get() method')
 
@@ -145,6 +150,7 @@ class MonthHandler(StatHandler):
 
 
 class WeekHandler(StatHandler):
+
     def get(self, process_key):
         logging.debug('Begin WeekHandler.get() method')
 
@@ -187,6 +193,7 @@ class WeekHandler(StatHandler):
 
 
 class DayHandler(StatHandler):
+
     def get(self, process_key):
         logging.debug('Begin DayHandler.get() method')
 

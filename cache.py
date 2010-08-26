@@ -3,6 +3,7 @@
 #
 
 import logging
+import thread
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
@@ -57,22 +58,27 @@ def save_to_cache(model):
     """
 
     attempts = 0
-    success = False
-    while (not success and attempts <= DATASTORE_RETRY_ATTEMPTS):
-        logging.debug('Storing %s "%s" in datastore (%d/%d).' % (model.kind(),
-            model.id, (attempts+1), DATASTORE_RETRY_ATTEMPTS))
-        try:
-            db.Model.put(model)
-            success = True
-        except apiproxy_errors.CapabilityDisabledError:
-            raise MaintenanceException('Unable to save %s "%s" to the ' \
-                'datastore due to maintenance.' % (model.kind(), model.id))
-        except db.Timeout:
-            logging.warning('Datastore put() request timed out, retrying.')
-            attempts += 1
-        except db.Error, ex:
-            raise InternalException('Unable to save %s "%s" to the ' \
-                'datastore: %s' % (model.kind(), model.id, ex))
+    try:
+        while attempts <= DATASTORE_RETRY_ATTEMPTS:
+            timeout_ms = 100
+            logging.debug('Storing %s "%s" in datastore (%d/%d).' % (
+                model.kind(), model.id, (attempts+1), DATASTORE_RETRY_ATTEMPTS))
+            try:
+                db.Model.put(model)
+                break
+            except apiproxy_errors.CapabilityDisabledError:
+                raise MaintenanceException('Unable to save %s "%s" to the ' \
+                    'datastore due to maintenance.' % (model.kind(), model.id))
+            except db.Timeout:
+                thread.sleep(timeout_ms)
+                timeout_ms *= 2
+                attempts += 1
+            except db.Error, ex:
+                raise InternalException('Unable to save %s "%s" to the ' \
+                    'datastore: %s' % (model.kind(), model.id, ex))
+    except apiproxy_errors.DeadlineExceededError, ex:
+        raise InternalException('Unable to save %s "%s" to the ' \
+            'datastore: %s' % (model.kind(), model.id, ex))
 
     memcache.delete(model.id)
     if model.is_saved():

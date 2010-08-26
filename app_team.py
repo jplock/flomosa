@@ -7,10 +7,9 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from exceptions import UnauthorizedException
 import models
-import utils
 import oauthapp
+import utils
 
 
 class TeamHandler(oauthapp.OAuthHandler):
@@ -19,12 +18,7 @@ class TeamHandler(oauthapp.OAuthHandler):
         logging.debug('Begin TeamHandler.get() method')
 
         client = self.is_valid()
-
-        team = models.Team.get(team_key)
-        if team.client.id != client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access Team "%s".' % (client.id, team.id))
-            error_msg = 'Permission denied.'
+        team = models.Team.get(team_key, client)
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
         utils.build_json(self, team.to_dict())
@@ -40,9 +34,6 @@ class TeamHandler(oauthapp.OAuthHandler):
         data = simplejson.loads(self.request.body)
 
         team = models.Team.from_dict(client, data)
-        if not isinstance(team, models.Team):
-            raise Exception('Unable to create Team "%s".' % team_key)
-
         team.put()
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
@@ -54,17 +45,8 @@ class TeamHandler(oauthapp.OAuthHandler):
         logging.debug('Begin TeamHandler.delete() method')
 
         client = self.is_valid()
-
-        team = models.Team.get_by_key_name(team_key)
-        if isinstance(team, models.Team):
-            if team.client.id != client.id:
-                raise UnauthorizedException('Client "%s" is not authorized to ' \
-                    'access Team "%s".' % (client.id, team.id))
-            else:
-                team.delete()
-        else:
-            logging.info('Team "%s" not found in datastore to delete.' % \
-                team_key)
+        team = models.Team.get(team_key, client)
+        team.delete()
 
         self.error(204)
 

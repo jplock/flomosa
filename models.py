@@ -31,9 +31,13 @@ class FlomosaBase(db.Model):
         return self.__unicode__()
 
     @classmethod
-    def get(cls, key):
+    def get(cls, key, client=None):
         "Lookup the model in memcache and then the datastore."
-        return cache.get_from_cache(cls, key)
+        model = cache.get_from_cache(cls, key)
+        if client and client.id != model.client.id:
+            raise UnauthorizedException('Client "%s" is not authorized to ' \
+                'access %s "%s".' % (client.id, model.kind(), model.id))
+        return model
 
     def put(self):
         "Save the model to the datastore and memcache."
@@ -111,13 +115,8 @@ class Team(FlomosaBase):
         members = data.get('members', None)
 
         if team_key:
-            team = cls.get_by_key_name(team_key)
-            if team:
-                if team.client.id != client.id:
-                    raise UnauthorizedException('Client "%s" is not ' \
-                        'authorized to access Team "%s".' % (client.id,
-                        team.id))
-                team.name = name
+            team = cls.get(team_key, client)
+            team.name = name
         else:
             team_key = utils.generate_key()
             team = cls(key_name=team_key, client=client, name=name)
@@ -272,15 +271,8 @@ class Process(FlomosaBase):
         collect_stats = data.get('collect_stats', None)
 
         if process_key:
-            process = cls.get_by_key_name(process_key)
-            if process:
-                if process.client.id != client.id:
-                    raise UnauthorizedException('Client "%s" is not ' \
-                        'authorized to access Process "%s".' % (client.id,
-                        process.id))
-                process.name = name
-            else:
-                raise NotFoundException('Process "%s" not found.' % process_key)
+            process = cls.get(process_key, client)
+            process.name = name
         else:
             process_key = utils.generate_key()
             process = cls(key_name=process_key, client=client, name=name)
@@ -497,9 +489,13 @@ class Request(db.Expando):
         return self.key().id_or_name()
 
     @classmethod
-    def get(cls, key):
+    def get(cls, key, client=None):
         "Lookup the request key in memcache and then the datastore."
-        return cache.get_from_cache(cls, key)
+        request = cache.get_from_cache(cls, key)
+        if client and client.id != request.client.id:
+            raise UnauthorizedException('Client "%s" is not authorized to ' \
+                'access Request "%s".' % (client.id, request.id))
+        return request
 
     def put(self):
         """Save the Request to the datastore and memcache.

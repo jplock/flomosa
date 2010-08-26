@@ -71,9 +71,5 @@ class OAuthHandler(webapp.RequestHandler):
         "Checks that the client is valid and created the given process."
 
         client = self.is_valid()
-        process = models.Process.get(process_key)
-
-        if process.client.id != client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access Process "%s".' % (client.id, process.id))
+        process = models.Process.get(process_key, client)
         return process

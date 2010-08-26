@@ -7,7 +7,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from exceptions import MissingException, UnauthorizedException
+from exceptions import MissingException
 import models
 import oauthapp
 import utils
@@ -33,7 +33,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
         from django.utils import simplejson
         data = simplejson.loads(self.request.body)
 
-        if not data.get('name'):
+        if 'name' not in data:
             raise MissingException('Missing "name" parameter.')
 
         if data.get('kind') != 'Process':

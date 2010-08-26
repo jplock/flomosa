@@ -24,11 +24,7 @@ class RequestHandler(oauthapp.OAuthHandler):
         if not request_key:
             raise MissingException('Missing "request_key" parameter.')
 
-        request = models.Request.get(request_key)
-
-        if request.client.id != client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access Request "%s".' % (client.id, request.id))
+        request = models.Request.get(request_key, client)
 
         utils.build_json(self, request.to_dict())
 
@@ -60,11 +56,8 @@ class RequestHandler(oauthapp.OAuthHandler):
                     request_key)
         else:
             request_key = utils.generate_key()
-            request = None
-
-        if not request:
-            request = models.Request(key_name=request_key,
-                client=process.client, process=process, requestor=requestor)
+            request = models.Request(key_name=request_key, process=process,
+                client=process.client, requestor=requestor)
 
         callback_url = data.get('callback_url', None)
         response_url = data.get('response_url', None)
@@ -80,10 +73,8 @@ class RequestHandler(oauthapp.OAuthHandler):
         if callback_url:
             # Queue task to submit the callback response
             queue = taskqueue.Queue('request-callback')
-            task = taskqueue.Task(params={
-                'request_key': request.id,
-                'callback_url': callback_url
-            })
+            task = taskqueue.Task(params={'request_key': request.id,
+                'callback_url': callback_url})
             queue.add(task)
 
         if response_url:
@@ -101,17 +92,8 @@ class RequestHandler(oauthapp.OAuthHandler):
         logging.debug('Begin RequestHandler.delete() method')
 
         client = self.is_valid()
-
-        request = models.Request.get_by_key_name(request_key)
-        if isinstance(request, models.Request):
-            if request.client.id != client.id:
-                raise UnauthorizedException('Client "%s" is not authorized ' \
-                    'to delete Request "%s".' % (client.id, request.id))
-            else:
-                request.delete()
-        else:
-            logging.info('Request "%s" not found in datastore to delete.' % \
-                request_key)
+        request = models.Request.get(request_key, client)
+        request.delete()
 
         self.error(204)
 
