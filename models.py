@@ -12,7 +12,7 @@ from google.appengine.runtime import apiproxy_errors
 
 import cache
 from exceptions import (UnauthorizedException, MaintenanceException,
-    MissingException)
+    MissingException, NotFoundException)
 import utils
 
 
@@ -95,11 +95,8 @@ class Team(FlomosaBase):
         if not (data or isinstance(data, dict)):
             raise MissingException('No data found')
 
-        team_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
         name = data.get('name', None)
-        description = data.get('description', None)
-        members = data.get('members', None)
 
         if not name:
             raise MissingException('Missing "name" parameter.')
@@ -109,16 +106,24 @@ class Team(FlomosaBase):
             raise MissingException('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
-        team = cls.get_by_key_name(team_key)
-        if not team:
-            team = cls(key_name=team_key, client=client, name=name)
-        elif team.client.id != client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access Team "%s".' % (client.id, team.id))
+        team_key = data.get('key', None)
+        description = data.get('description', None)
+        members = data.get('members', None)
 
-        team.name = name
+        if team_key:
+            team = cls.get_by_key_name(team_key)
+            if team:
+                if team.client.id != client.id:
+                    raise UnauthorizedException('Client "%s" is not ' \
+                        'authorized to access Team "%s".' % (client.id,
+                        team.id))
+                team.name = name
+        else:
+            team_key = utils.generate_key()
+            team = cls(key_name=team_key, client=client, name=name)
+
         team.description = description
-        team.members = members
+        team.members = members or []
         return team
 
     def to_dict(self):
@@ -169,6 +174,7 @@ class Process(FlomosaBase):
         return cache.delete_from_cache(self)
 
     def add_steps(self, steps):
+        "Add multiple steps to this process."
         for data in steps:
             kwargs = {'name': data.get('name'), 'members': data.get('members'),
                 'description': data.get('description'),
@@ -201,6 +207,7 @@ class Process(FlomosaBase):
         return step
 
     def add_actions(self, actions):
+        "Add multiple actions to this process."
         for data in actions:
             kwargs = {'name': data.get('name'), 'incoming': data.get('incoming'),
                 'outgoing': data.get('outgoing'), 'action_key': data.get('key'),
@@ -249,11 +256,8 @@ class Process(FlomosaBase):
         if not (data or isinstance(data, dict)):
             raise MissingException('No data found')
 
-        process_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
         name = data.get('name', None)
-        description = data.get('description', None)
-        collect_stats = data.get('collect_stats', None)
 
         if not name:
             raise MissingException('Missing "name" parameter.')
@@ -263,18 +267,27 @@ class Process(FlomosaBase):
             raise MissingException('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
-        process = cls.get_by_key_name(process_key)
-        if not process:
-            process = cls(key_name=process_key, client=client, name=name)
-        elif process.client.id != client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access Process "%s".' % (client.id, process.id))
+        process_key = data.get('key', None)
+        description = data.get('description', None)
+        collect_stats = data.get('collect_stats', None)
+
+        if process_key:
+            process = cls.get_by_key_name(process_key)
+            if process:
+                if process.client.id != client.id:
+                    raise UnauthorizedException('Client "%s" is not ' \
+                        'authorized to access Process "%s".' % (client.id,
+                        process.id))
+                process.name = name
+            else:
+                raise NotFoundException('Process "%s" not found.' % process_key)
         else:
-            process.name = name
+            process_key = utils.generate_key()
+            process = cls(key_name=process_key, client=client, name=name)
 
         process.description = description
         if collect_stats is not None:
-            process.collect_stats = collect_stats
+            process.collect_stats = bool(collect_stats)
         return process
 
     def delete_steps_actions(self):
@@ -386,9 +399,11 @@ class Step(FlomosaBase):
         "Queue execution tasks for a given request."
 
         if not isinstance(request, Request):
-            raise Exception('"%s" is not a valid Request model.' % request)
+            raise InternalException('"%s" is not a valid Request model.' % \
+                request)
         if not self.is_valid():
-            raise Exception('Step is not valid: no team or members found.')
+            raise InternalException('Step is not valid: no team or members ' \
+                'found.')
 
         params = {'step_key': self.id, 'request_key': request.id}
         tasks = []
@@ -428,17 +443,16 @@ class Action(FlomosaBase):
 
     def add_incoming_step(self, step):
         "Add an incoming Step to this Action."
-        if not isinstance(step, Step):
-            raise ValueError('Must be a valid Step instance.')
-        self.incoming.append(step.key())
+        if step.key() not in self.incoming:
+            self.incoming.append(step.key())
+            self.put()
 
     def add_outgoing_step(self, step):
         "Add an outgoing Step to this Action."
-        if not isinstance(step, Step):
-            raise ValueError('Must be a valid Step instance.')
-        self.outgoing.append(step.key())
-        self.is_complete = False
-        self.save()
+        if step.key() not in self.outgoing:
+            self.outgoing.append(step.key())
+            self.is_complete = False
+            self.put()
 
     def to_dict(self):
         "Return action as a dict object."

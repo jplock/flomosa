@@ -17,11 +17,6 @@ class ProcessHandler(oauthapp.OAuthHandler):
         logging.debug('Begin ProcessHandler.get() method')
 
         process = models.Process.get(process_key)
-        if not process:
-            self.error(404)
-            return None
-
-
 
         logging.debug('Finished ProcessHandler.get() method')
 
@@ -32,12 +27,7 @@ class StepHandler(oauthapp.OAuthHandler):
         logging.debug('Begin StepHandler.get() method')
 
         step = models.Step.get(step_key)
-        if not step:
-            self.error(404)
-            return None
-
-
-
+        
         logging.debug('Finished StepHandler.get() method')
 
 

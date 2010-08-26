@@ -9,8 +9,9 @@ from google.appengine.ext.webapp import util
 
 from exceptions import MissingException, UnauthorizedException
 import models
-import utils
 import oauthapp
+import utils
+
 
 class ProcessHandler(oauthapp.OAuthHandler):
 
@@ -41,11 +42,6 @@ class ProcessHandler(oauthapp.OAuthHandler):
 
         # Load the process data
         process = models.Process.from_dict(client, data)
-
-        if not isinstance(process, models.Process):
-            raise InternalException('Unable to create Process "%s".' % \
-                process_key)
-
         process.put()
 
         # Clear out any old steps and actions

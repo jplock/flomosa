@@ -18,7 +18,7 @@ class AccountHandler(authapp.SecureRequestHandler):
     def show_form(self, template_vars=None):
         if not template_vars:
             template_vars = {'uri': self.request.uri}
-        if not template_vars.get('uri', None):
+        if 'uri' not in template_vars:
             template_vars['uri'] = self.request.uri
 
         template_file = os.path.join(os.path.dirname(__file__),
@@ -109,7 +109,7 @@ class RegisterHandler(authapp.SecureRequestHandler):
     def show_form(self, template_vars=None):
         if not template_vars:
             template_vars = {'uri': self.request.uri}
-        elif not template_vars.get('uri', None):
+        elif 'uri' not in template_vars:
             template_vars['uri'] = self.request.uri
 
         template_file = os.path.join(os.path.dirname(__file__),
@@ -195,7 +195,7 @@ class LoginHandler(authapp.SecureRequestHandler):
     def show_form(self, template_vars=None):
         if not template_vars:
             template_vars = {'uri': self.request.uri}
-        elif not template_vars.get('uri', None):
+        elif 'uri' not in template_vars:
             template_vars['uri'] = self.request.uri
 
         template_file = os.path.join(os.path.dirname(__file__),
@@ -292,7 +292,7 @@ class CloseHandler(authapp.SecureRequestHandler):
         self.redirect('/')
 
         logging.debug('Finished CloseHandler.get() method')
-        
+
 def main():
     application = webapp.WSGIApplication(
         [(r'/account/login/', LoginHandler),
