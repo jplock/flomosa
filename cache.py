@@ -34,8 +34,8 @@ def get_from_cache(cls, key):
             (cls.__name__, key))
         model = cls.get_by_key_name(key)
         if not isinstance(model, cls):
-            raise NotFoundException('%s key "%s" does not exist in the ' \
-                'datastore.' % (cls.__name__, key))
+            raise NotFoundException('%s "%s" does not exist.' % (cls.__name__,
+                key))
         elif model.id == key:
             logging.info('%s "%s" found in datastore. Writing to memcache.' % \
                 (cls.__name__, key))

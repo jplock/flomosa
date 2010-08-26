@@ -10,9 +10,11 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
+from exceptions import MissingException
 import models
 import oauthapp
 import utils
+
 
 _STAT_TUPLE = (
     'num_requests',
@@ -39,8 +41,6 @@ class StatHandler(oauthapp.OAuthHandler):
         and return the valid list of filters. If no filters found, return the
         entire list of statistic keys.
 
-        Parameters:
-          name - request parameter name
         """
 
         value = self.request.get(name)
@@ -55,8 +55,7 @@ class StatHandler(oauthapp.OAuthHandler):
                 return_stats = _STAT_TUPLE
             return return_stats
         elif not value:
-            error_msg = 'Missing "%s" parameter.' % name
-            raise utils.FlomosaException(400, error_msg)
+            raise MissingException('Missing "%s" parameter.' % name)
         value = int(value)
         return value
 
@@ -65,14 +64,9 @@ class YearHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin YearHandler.get() method')
 
-        try:
-            process = self.is_client_allowed(process_key)
+        process = self.is_client_allowed(process_key)
 
-            year = self.get_param('year')
-        except utils.FlomosaException, e:
-            logging.error(utils.get_log_message(e, e['code']))
-            return utils.build_json(self, e, e['code'])
-
+        year = self.get_param('year')
         return_stats = self.get_param('filter')
 
         stats = {}
@@ -100,7 +94,7 @@ class YearHandler(StatHandler):
                     stats[month][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats, 200)
+        utils.build_json(self, stats)
 
         logging.debug('Finished YearHandler.get() method')
 
@@ -109,15 +103,10 @@ class MonthHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin MonthHandler.get() method')
 
-        try:
-            process = self.is_client_allowed(process_key)
+        process = self.is_client_allowed(process_key)
 
-            year = self.get_param('year')
-            month = self.get_param('month')
-        except utils.FlomosaException, e:
-            logging.error(utils.get_log_message(e, e['code']))
-            return utils.build_json(self, e, e['code'])
-
+        year = self.get_param('year')
+        month = self.get_param('month')
         return_stats = self.get_param('filter')
 
         stats = {}
@@ -150,7 +139,7 @@ class MonthHandler(StatHandler):
                     stats[day][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats, 200)
+        utils.build_json(self, stats)
 
         logging.debug('Finished MonthHandler.get() method')
 
@@ -159,15 +148,10 @@ class WeekHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin WeekHandler.get() method')
 
-        try:
-            process = self.is_client_allowed(process_key)
+        process = self.is_client_allowed(process_key)
 
-            year = self.get_param('year')
-            week_num = self.get_param('week_num')
-        except utils.FlomosaException, e:
-            logging.error(utils.get_log_message(e, e['code']))
-            return utils.build_json(self, e, e['code'])
-
+        year = self.get_param('year')
+        week_num = self.get_param('week_num')
         return_stats = self.get_param('filter')
 
         stats = {}
@@ -197,7 +181,7 @@ class WeekHandler(StatHandler):
                     stats[week_day][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats, 200)
+        utils.build_json(self, stats)
 
         logging.debug('Finished WeekHandler.get() method')
 
@@ -206,16 +190,11 @@ class DayHandler(StatHandler):
     def get(self, process_key):
         logging.debug('Begin DayHandler.get() method')
 
-        try:
-            process = self.is_client_allowed(process_key)
+        process = self.is_client_allowed(process_key)
 
-            year = self.get_param('year')
-            month = self.get_param('month')
-            day = self.get_param('day')
-        except utils.FlomosaException, e:
-            logging.error(utils.get_log_message(e, e['code']))
-            return utils.build_json(self, e, e['code'])
-
+        year = self.get_param('year')
+        month = self.get_param('month')
+        day = self.get_param('day')
         return_stats = self.get_param('filter')
 
         stats = {}
@@ -246,7 +225,7 @@ class DayHandler(StatHandler):
                     stats[hour][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats, 200)
+        utils.build_json(self, stats)
 
         logging.debug('Finished DayHandler.get() method')
 

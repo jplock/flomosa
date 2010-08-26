@@ -18,53 +18,42 @@ PIXEL_GIF = \
 
 class ViewedHandler(webapp.RequestHandler):
 
+    def output_pixel(self):
+        "Output a transparent pixel GIF image to the user"
+        pixel = base64.b64decode(PIXEL_GIF)
+        self.error(200)
+        self.response.headers['Content-Type'] = 'image/gif'
+        self.response.out.write(pixel)
+        return None
+
+    def handle_exception(self, exception, debug_mode):
+        logging.error(exception)
+        self.output_pixel()
+
     def get(self, execution_key):
         logging.debug('Begin ViewedHandler.get() method')
 
         execution = models.Execution.get(execution_key)
-        if execution:
-            if not execution.viewed_date:
-                logging.info('Execution "%s" has not been viewed, storing.' % \
-                    execution.id)
+        execution.set_viewed()
 
-                try:
-                    execution.set_viewed()
-                except Exception, e:
-                    logging.error(e)
-        else:
-            logging.error('Execution "%s" not found in datastore.' % \
-                execution_key)
-
-        pixel = base64.b64decode(PIXEL_GIF)
-        self.response.headers['Content-Type'] = 'image/gif'
-        self.response.out.write(pixel)
+        self.output_pixel()
 
         logging.debug('Finished ViewedHandler.get() method')
 
 
 class ActionHandler(webapp.RequestHandler):
 
+    def handle_exception(self, exception, debug_mode):
+        logging.error(exception)
+        self.error(404)
+        return None
+
     def get(self, execution_key, action_key):
         logging.debug('Begin ActionHandler.get() method')
 
         execution = models.Execution.get(execution_key)
-        if not execution:
-            logging.error('Execution "%s" not found. Returning 404 to user.' \
-                % execution_key)
-            self.error(404)
-            return None
-
         action = models.Action.get(action_key)
-        if not action:
-            logging.error('Action "%s" not found. Returning 404 to user.' % \
-                action_key)
-            self.error(404)
-            return None
-
-        try:
-            execution.set_completed(action)
-        except Exception, e:
-            logging.error(e)
+        execution.set_completed(action)
 
         self.response.out.write('Thank you. You can close this window.')
 

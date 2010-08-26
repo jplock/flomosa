@@ -22,13 +22,12 @@ import settings
 class SecureRequestHandler(webapp.RequestHandler):
 
     def get_current_client(self, default=None):
-        "Return the currently logged in Client, or None."
+        "Return the currently logged in Client."
         client_key = self.get_secure_cookie(settings.COOKIE_NAME)
-        if client_key:
-            client = models.Client.get(client_key)
-            if client and isinstance(client, models.Client):
-                return client
-        return default
+        try:
+            return models.Client.get(client_key)
+        except:
+            return default
 
     def _cookie_signature(self, *parts):
         hash = hmac.new(settings.COOKIE_SECRET, digestmod=hashlib.sha1)
