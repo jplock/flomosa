@@ -58,3 +58,9 @@ class MissingException(HTTPException):
     type = 'missing'
     def __init__(self, body=''):
         super(MissingException, self).__init__(400, body=body)
+
+
+class ValidationException(HTTPException):
+    type = 'validation'
+    def __init__(self, body=''):
+        super(ValidationException, self).__init__(500, body=body)

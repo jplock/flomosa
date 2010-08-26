@@ -168,6 +168,14 @@ class Process(FlomosaBase):
         self.delete_steps_actions()
         return cache.delete_from_cache(self)
 
+    def add_steps(self, steps):
+        for data in steps:
+            params = {'name': data.get('name'), 'members': data.get('members'),
+                'description': data.get('description'),
+                'team_key': data.get('team'), 'step_key': data.get('key'),
+                'is_start': data.get('is_start')}
+            self.add_step(**params)
+
     def add_step(self, name, description=None, team_key=None, members=None,
             is_start=None, step_key=None):
         "Add a step to this process."
@@ -191,6 +199,13 @@ class Process(FlomosaBase):
         step.description = description
         step.put()
         return step
+
+    def add_actions(self, actions):
+        for data in actions:
+            params = {'name': data.get('name'), 'incoming': data.get('incoming'),
+                'outgoing': data.get('outgoing'), 'action_key': data.get('key'),
+                'is_complete': data.get('is_complete')}
+            self.add_action(**params)
 
     def add_action(self, name, incoming=None, outgoing=None, is_complete=False,
             action_key=None):

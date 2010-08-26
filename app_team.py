@@ -7,6 +7,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
+from exceptions import UnauthorizedException
 import models
 import utils
 import oauthapp
@@ -17,22 +18,13 @@ class TeamHandler(oauthapp.OAuthHandler):
     def get(self, team_key):
         logging.debug('Begin TeamHandler.get() method')
 
-        try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+        client = self.is_valid()
 
         team = models.Team.get(team_key)
-        if not team:
-            error_msg = 'Team key "%s" not found.' % team_key
-            logging.error(utils.get_log_message(error_msg, 404))
-            return utils.build_json(self, error_msg, 404)
-
         if team.client.id != client.id:
+            raise UnauthorizedException('Client "%s" is not authorized to ' \
+                'access Team "%s".' % (client.id, team.id))
             error_msg = 'Permission denied.'
-            logging.error(utils.get_log_message(error_msg, 401))
-            return utils.build_json(self, error_msg, 401)
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
         utils.build_json(self, team.to_dict())
@@ -42,36 +34,16 @@ class TeamHandler(oauthapp.OAuthHandler):
     def put(self, team_key):
         logging.debug('Begin TeamHandler.put() method')
 
-        try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+        client = self.is_valid()
 
         from django.utils import simplejson
-        try:
-            data = simplejson.loads(self.request.body)
-        except:
-            error_msg = 'Error parsing JSON request.'
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, 500)
+        data = simplejson.loads(self.request.body)
 
-        try:
-            team = models.Team.from_dict(client, data)
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 400))
-            return utils.build_json(self, e, 400)
-
+        team = models.Team.from_dict(client, data)
         if not isinstance(team, models.Team):
-            error_msg = 'Unable to create Team "%s".' % team_key
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, 500)
+            raise Exception('Unable to create Team "%s".' % team_key)
 
-        try:
-            team.put()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 500))
-            return utils.build_json(self, e, code=500)
+        team.put()
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
         utils.build_json(self, team.to_dict(), 201)
@@ -81,18 +53,13 @@ class TeamHandler(oauthapp.OAuthHandler):
     def delete(self, team_key):
         logging.debug('Begin TeamHandler.delete() method')
 
-        try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 404))
-            return utils.build_json(self, e, 404)
+        client = self.is_valid()
 
         team = models.Team.get_by_key_name(team_key)
         if isinstance(team, models.Team):
             if team.client.id != client.id:
-                error_msg = 'Permission denied.'
-                logging.error(utils.get_log_message(error_msg, 401))
-                return utils.build_json(self, error_msg, 401)
+                raise UnauthorizedException('Client "%s" is not authorized to ' \
+                    'access Team "%s".' % (client.id, team.id))
             else:
                 team.delete()
         else:

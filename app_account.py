@@ -292,7 +292,7 @@ class CloseHandler(authapp.SecureRequestHandler):
         self.redirect('/')
 
         logging.debug('Finished CloseHandler.get() method')
-
+        
 def main():
     application = webapp.WSGIApplication(
         [(r'/account/login/', LoginHandler),

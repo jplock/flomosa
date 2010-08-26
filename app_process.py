@@ -7,6 +7,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
+from exceptions import MissingException, UnauthorizedException
 import models
 import utils
 import oauthapp
@@ -16,11 +17,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() method')
 
-        try:
-            process = self.is_client_allowed(process_key)
-        except utils.FlomosaException, e:
-            logging.error(utils.get_log_message(e, e['code']))
-            return utils.build_json(self, e, e['code'])
+        process = self.is_client_allowed(process_key)
 
         logging.debug('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, process.to_dict())
@@ -30,77 +27,47 @@ class ProcessHandler(oauthapp.OAuthHandler):
     def put(self, process_key):
         logging.debug('Begin ProcessHandler.put() method')
 
-        try:
-            client = self.is_valid()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 401))
-            return utils.build_json(self, e, 401)
+        client = self.is_valid()
 
         from django.utils import simplejson
-        try:
-            data = simplejson.loads(self.request.body)
-        except:
-            error_msg = 'Error parsing JSON request.'
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, 500)
+        data = simplejson.loads(self.request.body)
 
         if not data.get('name'):
-            error_msg = 'Missing "name" parameter.'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
+            raise MissingException('Missing "name" parameter.')
 
         if data.get('kind') != 'Process':
-            error_msg = 'Invalid "kind" parameter; expected "kind=Process".'
-            logging.error(utils.get_log_message(error_msg, 400))
-            return utils.build_json(self, error_msg, 400)
+            raise MissingException('Invalid "kind" parameter; expected ' \
+                '"kind=Process".')
 
         # Load the process data
-        try:
-            process = models.Process.from_dict(client, data)
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 400))
-            return utils.build_json(self, e, 400)
+        process = models.Process.from_dict(client, data)
 
         if not isinstance(process, models.Process):
-            error_msg = 'Unable to create Process "%s".' % process_key
-            logging.error(utils.get_log_message(error_msg, 500))
-            return utils.build_json(self, error_msg, 500)
+            raise InternalException('Unable to create Process "%s".' % \
+                process_key)
 
-        try:
-            process.put()
-        except Exception, e:
-            logging.error(utils.get_log_message(e, 500))
-            return utils.build_json(self, e, 500)
+        process.put()
 
         # Clear out any old steps and actions
         process.delete_steps_actions()
 
         # Load any steps on this process
         logging.info('Loading steps for Process "%s".' % process.id)
-        for step_data in data.get('steps', list):
+        steps = data.get('steps', None)
+        if steps:
             try:
-                step = process.add_step(step_data.get('name'),
-                    description=step_data.get('description'),
-                    team_key=step_data.get('team'),
-                    members=step_data.get('members'),
-                    is_start=step_data.get('is_start'),
-                    step_key=step_data.get('key'))
-            except Exception, e:
-                logging.error('%s. Continuing.' % e)
-                continue
+                db.run_in_transaction(process.add_steps, steps)
+            except db.TransactionFailedError:
+                raise InternalException('Failed to save steps')
 
         # Load any actions on this process
         logging.info('Loading actions for Process "%s".' % process.id)
-        for action_data in data.get('actions', list):
+        actions = data.get('actions', None)
+        if actions:
             try:
-                action = process.add_action(action_data.get('name'),
-                    incoming=action_data.get('incoming'),
-                    outgoing=action_data.get('outgoing'),
-                    is_complete=action_data.get('is_complete'),
-                    action_key=action_data.get('key'))
-            except Exception, e:
-                logging.error('%s. Continuing.' % e)
-                continue
+                db.run_in_transaction(process.add_actions, actions)
+            except db.TransactionFailedError:
+                raise InternalException('Failed to save actions')
 
         logging.info('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, {'key': process.id}, 201)
@@ -110,12 +77,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
     def delete(self, process_key):
         logging.debug('Begin ProcessHandler.delete() method')
 
-        try:
-            process = self.is_client_allowed(process_key)
-        except utils.FlomosaException, e:
-            logging.error(utils.get_log_message(e, e['code']))
-            return utils.build_json(self, e, e['code'])
-
+        process = self.is_client_allowed(process_key)
         process.delete()
 
         self.error(204)

@@ -9,6 +9,7 @@ import oauth2 as oauth
 
 from exceptions import UnauthenticatedException, UnauthorizedException
 import models
+import utils
 
 
 class OAuthHandler(webapp.RequestHandler):
@@ -17,6 +18,10 @@ class OAuthHandler(webapp.RequestHandler):
         self._server = oauth.Server()
         self._server.add_signature_method(oauth.SignatureMethod_HMAC_SHA1())
         self._server.add_signature_method(oauth.SignatureMethod_PLAINTEXT())
+
+    def handle_exception(self, exception, debug_mode):
+        logging.error(exception)
+        return utils.build_json(self, exception)
 
     def get_oauth_request(self):
         "Return an OAuth Request object for the current request."
@@ -39,8 +44,8 @@ class OAuthHandler(webapp.RequestHandler):
         if not isinstance(request, oauth.Request):
             request = self.get_oauth_request()
         if not request:
-            raise UnauthenticatedException('OAuth "Authorization" header not ' \
-                'found')
+            raise UnauthenticatedException('OAuth "Authorization" header '
+                'not found')
 
         client_key = request.get_parameter('oauth_consumer_key')
         if not client_key:
