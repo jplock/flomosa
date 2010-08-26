@@ -46,8 +46,12 @@ handlers:
   script: app_test.py
   secure: optional
 
-- url: /_ah/queue/request-process
-  script: queue_request_process.py
+- url: /_ah/queue/execution-creation
+  script: queue_execution_creation.py
+  #login: admin
+
+- url: /_ah/queue/execution-process
+  script: queue_execution_process.py
   #login: admin
 
 - url: /_ah/queue/request-callback

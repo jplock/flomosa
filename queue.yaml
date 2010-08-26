@@ -1,5 +1,9 @@
 queue:
-- name: request-process
+- name: execution-creation
+  rate: 50/s
+  bucket_size: 20
+
+- name: execution-process
   rate: 50/s
   bucket_size: 20
 

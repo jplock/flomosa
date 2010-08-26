@@ -10,16 +10,18 @@ from google.appengine.ext import db
 from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
-import utils
 import cache
+from exceptions import (UnauthorizedException, MaintenanceException,
+    MissingException)
+import utils
 
 
 class FlomosaBase(db.Model):
-    """Base model inherited by other models."""
+    "Base model inherited by other models."
 
     @property
     def id(self):
-        """Return the unique ID for this model."""
+        "Return the unique ID for this model."
         return self.key().id_or_name()
 
     def __unicode__(self):
@@ -30,19 +32,18 @@ class FlomosaBase(db.Model):
 
     @classmethod
     def get(cls, key):
-        """Lookup the model in memcache and then the datastore."""
+        "Lookup the model in memcache and then the datastore."
         return cache.get_from_cache(cls, key)
 
     def put(self):
-        """Save the model to the datastore and memcache."""
-        try:
-            model = cache.save_to_cache(self)
-        except:
-            return None
-        return model.key()
+        "Save the model to the datastore and memcache."
+        model = cache.save_to_cache(self)
+        if model:
+            return model.key()
+        return None
 
     def delete(self):
-        """Delete the model from the datastore and memcache."""
+        "Delete the model from the datastore and memcache."
         return cache.delete_from_cache(self)
 
 
@@ -60,7 +61,7 @@ class Client(FlomosaBase):
         return self.oauth_secret
 
     def to_dict(self):
-        """Return client as a dict object."""
+        "Return client as a dict object."
 
         data = {
             'kind': self.kind(),
@@ -86,13 +87,13 @@ class Team(FlomosaBase):
 
     @classmethod
     def from_dict(cls, client, data):
-        """Return a new Team instance from a dict object."""
+        "Return a new Team instance from a dict object."
 
-        if not client or not isinstance(client, Client):
-            return None
+        if not (client or isinstance(client, Client)):
+            raise MissingException('No client found')
 
-        if not data or not isinstance(data, dict):
-            return None
+        if not (data or isinstance(data, dict)):
+            raise MissingException('No data found')
 
         team_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
@@ -101,29 +102,27 @@ class Team(FlomosaBase):
         members = data.get('members', None)
 
         if not name:
-            raise KeyError('Missing "name" parameter.')
+            raise MissingException('Missing "name" parameter.')
         if not kind:
-            raise KeyError('Missing "kind" parameter.')
+            raise MissingException('Missing "kind" parameter.')
         if kind != cls.__name__:
-            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
+            raise MissingException('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
         team = cls.get_by_key_name(team_key)
         if not team:
             team = cls(key_name=team_key, client=client, name=name)
         elif team.client.id != client.id:
-            raise ValueError('Permission Denied.')
-        else:
-            team.name = name
+            raise UnauthorizedException('Client "%s" is not authorized to ' \
+                'access Team "%s".' % (client.id, team.id))
 
-        if description is not None:
-            team.description = description
-        if isinstance(members, list):
-            team.members = members
+        team.name = name
+        team.description = description
+        team.members = members
         return team
 
     def to_dict(self):
-        """Return team as a dict object."""
+        "Return team as a dict object."
 
         data = {
             'kind': self.kind(),
@@ -153,11 +152,10 @@ class Process(FlomosaBase):
         if not self.collect_stats:
             self.delete_stats()
 
-        try:
-            process = cache.save_to_cache(self)
-        except:
-            return None
-        return process.key()
+        process = cache.save_to_cache(self)
+        if process:
+            return process.key()
+        return None
 
     def delete(self):
         """Delete the process from the datastore and memcache.
@@ -172,7 +170,7 @@ class Process(FlomosaBase):
 
     def add_step(self, name, description=None, team_key=None, members=None,
             is_start=None, step_key=None):
-        """Add a step to this process."""
+        "Add a step to this process."
 
         if is_start is None:
             is_start = True
@@ -191,16 +189,12 @@ class Process(FlomosaBase):
                 step.team = team
         step.members = members
         step.description = description
-
-        try:
-            step.put()
-        except Exception, e:
-            raise e
+        step.put()
         return step
 
     def add_action(self, name, incoming=None, outgoing=None, is_complete=False,
             action_key=None):
-        """Add an action to this process."""
+        "Add an action to this process."
 
         if not action_key:
             action_key = utils.generate_key()
@@ -222,30 +216,23 @@ class Process(FlomosaBase):
             if step:
                 action.add_outgoing_step(step)
 
-        try:
-            action.put()
-        except Exception, e:
-            raise e
+        action.put()
         return action
 
     def delete_stats(self):
-        """Delete any statistic objects for this Process."""
+        "Delete any statistic objects for this Process."
         for stats in self.stats:
-            try:
-                stats.delete()
-            except Exception, e:
-                logging.error('Unable to delete Statistcs object for ' \
-                    'Process "%s" from datastore.' % self.id)
+            stats.delete()
 
     @classmethod
     def from_dict(cls, client, data):
-        """Return a new Process instance from a dict object."""
+        "Return a new Process instance from a dict object."
 
-        if not client or not isinstance(client, Client):
-            return None
+        if not (client or isinstance(client, Client)):
+            raise MissingException('No client found')
 
-        if not data or not isinstance(data, dict):
-            return None
+        if not (data or isinstance(data, dict)):
+            raise MissingException('No data found')
 
         process_key = data.get('key', utils.generate_key())
         kind = data.get('kind', None)
@@ -254,29 +241,29 @@ class Process(FlomosaBase):
         collect_stats = data.get('collect_stats', None)
 
         if not name:
-            raise KeyError('Missing "name" parameter.')
+            raise MissingException('Missing "name" parameter.')
         if not kind:
-            raise KeyError('Missing "kind" parameter.')
+            raise MissingException('Missing "kind" parameter.')
         if kind != cls.__name__:
-            raise ValueError('Expected "kind=%s", found "kind=%s".' % \
+            raise MissingException('Expected "kind=%s", found "kind=%s".' % \
                 (cls.__name__, kind))
 
         process = cls.get_by_key_name(process_key)
         if not process:
             process = cls(key_name=process_key, client=client, name=name)
         elif process.client.id != client.id:
-            raise ValueError('Permission Denied.')
+            raise UnauthorizedException('Client "%s" is not authorized to ' \
+                'access Process "%s".' % (client.id, process.id))
         else:
             process.name = name
 
-        if description is not None:
-            process.description = description
+        process.description = description
         if collect_stats is not None:
             process.collect_stats = collect_stats
         return process
 
     def delete_steps_actions(self):
-        """Delete this process' steps and actions."""
+        "Delete this process' steps and actions."
 
         entities = []
         entity_keys = []
@@ -293,14 +280,14 @@ class Process(FlomosaBase):
             try:
                 db.delete(entities)
             except apiproxy_errors.CapabilityDisabledError:
-                logging.error('Unable to delete steps and actions from ' \
-                    'Process "%s" due to maintenance.' % self.id)
+                raise MaintenanceException('Unable to delete steps and ' \
+                    'actions from Process "%s" due to maintenance.' % self.id)
         if entity_keys:
             from google.appengine.api import memcache
             memcache.delete_multi(entity_keys)
 
     def get_start_step(self):
-        """Get start step in this process."""
+        "Get start step in this process."
 
         query = Step.all().filter('is_start', True)
         return query.get()
@@ -326,7 +313,7 @@ class Process(FlomosaBase):
         return False
 
     def to_dict(self):
-        """Return process as a dict object."""
+        "Return process as a dict object."
 
         data = {
             'kind': self.kind(),
@@ -352,16 +339,16 @@ class Step(FlomosaBase):
 
     @property
     def actions(self):
-        """Return the actions that come after this step."""
+        "Return the actions that come after this step."
         return Action.all().filter('incoming', self.key())
 
     @property
     def prior(self):
-        """Return the actions that come before this step."""
+        "Return the actions that come before this step."
         return Action.all().filter('outgoing', self.key())
 
     def to_dict(self):
-        """Return step as a dict object."""
+        "Return step as a dict object."
 
         data = {
             'kind': self.kind(),
@@ -379,65 +366,49 @@ class Step(FlomosaBase):
             data['key'] = self.id
         return data
 
-    def _create_execution(self, request, member, team=None, execution_key=None):
-        """Create an execution object for a given member."""
-
-        if not execution_key:
-            execution_key = utils.generate_key()
-
-        execution = Execution(key_name=execution_key, process=self.process,
-            request=request, step=self, member=member)
-        if team and isinstance(team, Team):
-            execution.team = team
-
-        try:
-            execution.put()
-        except Exception, e:
-            logging.error(e)
-            return None
-
-        return execution.id
+    def is_valid(self):
+        """A step is valid if it has at least one direct member or a team with
+        members defined."""
+        if self.members:
+            return True
+        elif self.team and self.team.members:
+            return True
+        return False
 
     def queue_tasks(self, request):
-        """Queue execution tasks for a given request."""
+        "Queue execution tasks for a given request."
 
         if not isinstance(request, Request):
-            return None
-        if not self.team and not self.members:
-            return None
+            raise Exception('"%s" is not a valid Request model.' % request)
+        if not self.is_valid():
+            raise Exception('Step is not valid: no team or members found.')
 
+        params = {'step_key': self.id, 'request_key': request.id}
         tasks = []
         queued_members = []
         if self.team:
+            params['team_key'] = self.team.id
             for member in self.team.members:
-                execution_key = self._create_execution(request, member,
-                    team=self.team)
+                params['member'] = member
 
-                if execution_key:
-                    logging.info('Queuing: (member="%s") (team="%s") ' \
-                        '(step="%s") (process="%s")' % (member, self.team.name,
-                        self.name, self.process.name))
-                    task = taskqueue.Task(params={'key': execution_key})
-                    tasks.append(task)
-                    queued_members.append(member)
+                task = taskqueue.Task(params=params)
+                tasks.append(task)
+                queued_members.append(member)
+        params['team_key'] = None
         if self.members:
             for member in self.members:
                 # Skip member if an execution has already been queued
                 if member in queued_members:
                     continue
-                execution_key = self._create_execution(request, member)
+                params['member'] = member
 
-                if execution_key:
-                    logging.info('Queuing: (member="%s") (team=None) ' \
-                        '(step="%s") (process="%s")' % (member, self.name,
-                        self.process.name))
-                    task = taskqueue.Task(params={'key': execution_key})
-                    tasks.append(task)
-                    queued_members.append(member)
+                task = taskqueue.Task(params=params)
+                tasks.append(task)
+                queued_members.append(member)
         if tasks:
-            queue = taskqueue.Queue('request-process')
+            queue = taskqueue.Queue('execution-creation')
             queue.add(tasks)
-        return None
+        return True
 
 
 class Action(FlomosaBase):
@@ -449,20 +420,21 @@ class Action(FlomosaBase):
     is_complete = db.BooleanProperty(default=False)
 
     def add_incoming_step(self, step):
-        """Add an incoming Step to this Action."""
+        "Add an incoming Step to this Action."
         if not isinstance(step, Step):
             raise ValueError('Must be a valid Step instance.')
         self.incoming.append(step.key())
 
     def add_outgoing_step(self, step):
-        """Add an outgoing Step to this Action."""
+        "Add an outgoing Step to this Action."
         if not isinstance(step, Step):
             raise ValueError('Must be a valid Step instance.')
-        self.is_complete = False
         self.outgoing.append(step.key())
+        self.is_complete = False
+        self.save()
 
     def to_dict(self):
-        """Return action as a dict object."""
+        "Return action as a dict object."
 
         data = {
             'kind': self.kind(),
@@ -500,12 +472,12 @@ class Request(db.Expando):
 
     @property
     def id(self):
-        """Return the unique ID for this request."""
+        "Return the unique ID for this request."
         return self.key().id_or_name()
 
     @classmethod
     def get(cls, key):
-        """Lookup the request key in memcache and then the datastore."""
+        "Lookup the request key in memcache and then the datastore."
         return cache.get_from_cache(cls, key)
 
     def put(self):
@@ -518,10 +490,7 @@ class Request(db.Expando):
         if not self.is_saved():
             start_process = True
 
-        try:
-            cache.save_to_cache(self)
-        except:
-            return None
+        cache.save_to_cache(self)
 
         if start_process:
             # Lookup the start step in the process and create the first batch
@@ -532,21 +501,18 @@ class Request(db.Expando):
 
                 # Record the request in the Process statistics
                 queue = taskqueue.Queue('request-statistics')
-                task = taskqueue.Task(params={
-                    'request_key': self.id,
-                    'process_key': self.process.id,
-                    'timestamp': time.time()
-                })
+                task = taskqueue.Task(params={'request_key': self.id,
+                    'process_key': self.process.id, 'timestamp': time.time()})
                 queue.add(task)
 
         return self.key()
 
     def delete(self):
-        """Delete the Request from the datastore and memcache."""
+        "Delete the Request from the datastore and memcache."
         return cache.delete_from_cache(self)
 
     def set_completed(self, completed_date=None):
-        """Set the request has being completed."""
+        "Set the request has being completed."
 
         if self.is_completed:
             return None
@@ -566,7 +532,7 @@ class Request(db.Expando):
         return self.put()
 
     def get_submitted_data(self):
-        """Return a dict of the dynamic properties of this request."""
+        "Return a dict of the dynamic properties of this request."
 
         data = {}
         for property in self.dynamic_properties():
@@ -574,7 +540,7 @@ class Request(db.Expando):
         return data
 
     def get_executions(self):
-        """Return executions in creation order."""
+        "Return executions in creation order."
 
         query = Execution.all()
         query.filter('request =', self)
@@ -584,7 +550,7 @@ class Request(db.Expando):
         return executions
 
     def to_dict(self):
-        """Return request as a dict object."""
+        "Return request as a dict object."
 
         data = {
             'process': self.process.id,
@@ -625,7 +591,7 @@ class Execution(FlomosaBase):
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
     def to_dict(self):
-        """Return execution as a dict object."""
+        "Return execution as a dict object."
 
         data = {
             'step': self.step.name,
@@ -657,11 +623,7 @@ class Execution(FlomosaBase):
         return data
 
     def set_sent(self, sent_date=None):
-        """Set this execution as being sent.
-
-        Parameters:
-          sent_date - optional sent date, defaults to now
-        """
+        "Set this execution as being sent."
 
         # Only set the sent timestamp once
         if self.sent_date:
@@ -674,19 +636,14 @@ class Execution(FlomosaBase):
         return self.put()
 
     def set_completed(self, action, end_date=None):
-        """Set this execution as being completed.
-
-        Parameters:
-          action - Action to set for completion
-          end_date - optional end date, defaults to now
-        """
+        "Set this execution as being completed."
 
         # Only set the action once
         if self.action or self.end_date:
             return None
 
         if not isinstance(action, Action):
-            raise Exception('No action specified')
+            raise Exception('"%s" is not a valid Action model.' % action)
 
         self.action = action
         if not end_date:
@@ -702,11 +659,7 @@ class Execution(FlomosaBase):
         return self.put()
 
     def set_viewed(self, viewed_date=None):
-        """Set this execution as being viewed.
-
-        Parameters:
-          viewed_date - optional viewed date, defaults to now
-        """
+        "Set this execution as being viewed."
 
         # Only set the viewed timestamp once
         if self.viewed_date:
@@ -722,7 +675,7 @@ class Execution(FlomosaBase):
         return self.put()
 
     def is_step_completed(self, limit=30):
-        """Has this request step been completed by anyone?"""
+        "Has this request step been completed by anyone?"
 
         query = self.all()
         query.filter('step =', self.step)
@@ -731,15 +684,13 @@ class Execution(FlomosaBase):
         query.order('member')
         query.order('-end_date')
 
-        results = query.fetch(limit)
-
-        for execution in results:
+        for execution in query.fetch(limit):
             if execution.action:
                 return execution
-        return None
+        return False
 
     def num_passes(self, limit=5):
-        """Return number of times through this step for this request."""
+        "Return number of times through this step for this request."
 
         query = self.all()
         query.filter('step =', self.step)
@@ -770,11 +721,7 @@ class Statistic(db.Model):
         return '%s_%s' % (self.process.id, self.date_key)
 
     def log(self, request):
-        """Store request data in a Statistic object.
-
-        Parameters:
-          request - Request data to count
-        """
+        "Store request data in a Statistic object."
 
         if request.duration > 0:
             if self.min_request_seconds == 0:
@@ -793,28 +740,19 @@ class Statistic(db.Model):
     @classmethod
     def store_stat(cls, request, process, type='daily', timestamp=None,
             parent=None, date_key=None):
-        """Store a Statistic object
-
-        Parameters:
-          request - Request object to count
-          process - Process object for the statistics
-          type - hourly, daily, weekly, monthly or yearly
-          timestamp - timestamp to record statistics for
-          parent - optional parent object
-          date_key - optional date key
-        """
+        "Store a Statistic object"
 
         if not isinstance(process, Process):
-            return None
+            raise Exception('"%s" is not a Process model.' % process)
         if not isinstance(request, Request):
-            return None
+            raise Exception('"%s" is not a Request model.' % request)
 
         valid_types = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
         if type not in valid_types:
-            return None
+            raise Exception('"%s" is an invalid type.' % type)
 
         if timestamp is None:
-            return None
+            raise Exception('No timestamp specified.')
 
         month = None
         day = None
@@ -844,7 +782,7 @@ class Statistic(db.Model):
                 hour = timestamp.hour
                 temp, week_num, week_day = timestamp.isocalendar()
             else:
-                return None
+                raise Exception('"%s" is an invalid type.' % type)
             date_key = str(date_key)
 
         stat_key = '%s_%s' % (process.id, date_key)
@@ -864,13 +802,7 @@ class Statistic(db.Model):
 
     @classmethod
     def store_stats(cls, request, process, timestamp=None):
-        """Store hourly, daily, weekly, monthly and yearly statstics.
-
-        Parameters:
-          request - request to log
-          process - process to log
-          timestamp - timestamp to use for date calculations
-        """
+        "Store hourly, daily, weekly, monthly and yearly statstics."
 
         if timestamp is None:
             timestamp = datetime.datetime.now()
@@ -886,7 +818,7 @@ class Statistic(db.Model):
             timestamp=timestamp, parent=daily)
 
     def to_dict(self):
-        """Return statistics as a dict object."""
+        "Return statistics as a dict object."
 
         data = {
             'kind': self.kind(),
