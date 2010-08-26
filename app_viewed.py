@@ -27,8 +27,11 @@ class ViewedHandler(webapp.RequestHandler):
         return None
 
     def handle_exception(self, exception, debug_mode):
-        logging.error(exception)
-        self.output_pixel()
+        if debug_mode:
+            super(ViewedHandler, self).handle_exception(exception, debug_mode)
+        else:
+            logging.error(exception)
+            self.output_pixel()
 
     def get(self, execution_key):
         logging.debug('Begin ViewedHandler.get() method')
@@ -44,9 +47,12 @@ class ViewedHandler(webapp.RequestHandler):
 class ActionHandler(webapp.RequestHandler):
 
     def handle_exception(self, exception, debug_mode):
-        logging.error(exception)
-        self.error(404)
-        return None
+        if debug_mode:
+            super(ActionHandler, self).handle_exception(exception, debug_mode)
+        else:
+            logging.error(exception)
+            self.error(404)
+            return None
 
     def get(self, execution_key, action_key):
         logging.debug('Begin ActionHandler.get() method')

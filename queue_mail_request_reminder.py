@@ -2,20 +2,23 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os.path
-import logging
 from datetime import datetime
+import logging
+import os.path
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
+from exceptions import MissingException, QuotaException, InternalException
 import models
 import settings
+import queueapp
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
         logging.debug('Begin mail-request-reminder task handler')
 
@@ -24,24 +27,19 @@ class TaskHandler(webapp.RequestHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            logging.error('Missing "key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
-        if not execution:
-            logging.error('Execution "%s" not found in datastore. Exiting.' % \
-                execution_key)
-            return None
-
         if not execution.member:
-            logging.error('Execution "%s" has no email address. Exiting.' % \
+            raise InternalException('Execution "%s" has no email address.' % \
                 execution.id)
-            return None
 
         if isinstance(execution.action, models.Action):
             logging.warning('Action already taken on Execution "%s". ' \
                 'Exiting.' % execution.id)
             return None
+
+        request = execution.request
 
         directory = os.path.dirname(__file__)
         text_template_file = os.path.join(directory,
@@ -52,10 +50,10 @@ class TaskHandler(webapp.RequestHandler):
         template_vars = {
             'execution_key': execution.id,
             'actions': execution.step.actions,
-            'requestor': execution.request.requestor,
-            'request_key': execution.request.id,
-            'submitted_date': execution.request.submitted_date,
-            'request_data': execution.request.get_submitted_data(),
+            'requestor': request.requestor,
+            'request_key': request.id,
+            'submitted_date': request.submitted_date,
+            'request_data': request.get_submitted_data(),
             'step_name': execution.step.name
         }
 
@@ -70,8 +68,7 @@ class TaskHandler(webapp.RequestHandler):
             settings.EMAIL_DOMAIN)
         message.to = execution.member
         message.subject = '[flomosa] Request #%s (Reminder %s of %s)' % \
-            (execution.request.id, execution.reminder_count,
-            settings.REMINDER_LIMIT)
+            (request.id, execution.reminder_count, settings.REMINDER_LIMIT)
         message.body = text_body
         message.html = html_body
 
@@ -80,21 +77,13 @@ class TaskHandler(webapp.RequestHandler):
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            logging.error('Over email quota limit to send reminder email to ' \
-                '"%s". Re-queuing.' % execution.member)
-            self.error(500)
-            return None
-        except Exception, e:
-            logging.error('Unable to send reminder email to "%s" (%s). ' \
-                'Re-queuing.' % (execution.member, e))
-            self.error(500)
-            return None
+            raise QuotaException('Over email quota limit to send reminder ' \
+                'email to "%s".' % execution.member)
+        except:
+            raise InternalException('Unable to send reminder email to "%s".' \
+                % execution.member)
 
-        try:
-            execution.put()
-        except Exception, e:
-            logging.error(e)
-            self.error(500)
+        execution.put()
 
         logging.debug('Finished mail-request-reminder task handler')
 

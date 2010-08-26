@@ -8,11 +8,14 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
+from exceptions import MissingException
 import models
+import queueapp
 import utils
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
         logging.debug('Begin execution-creation task handler')
 
@@ -21,35 +24,26 @@ class TaskHandler(webapp.RequestHandler):
 
         step_key = self.request.get('step_key')
         if not step_key:
-            logging.error('Missing "step_key" parameter. Exiting.')
-            return None
-
-        step = models.Step.get(step_key)
-        if not execution:
-            logging.error('Step "%s" not found in datastore. Exiting.' % \
-                step_key)
-            return None
+            raise MissingException('Missing "step_key" parameter.')
 
         request_key = self.request.get('request_key')
         if not request_key:
-            logging.error('Missing "request_key" parameter. Exiting.')
-            return None
-
-        request = models.Request.get(request_key)
-        if not request:
-            logging.error('Request "%s" not found in datastore. Exiting.' % \
-                request_key)
-            return None
+            raise MissingException('Missing "request_key" parameter.')
 
         member = self.request.get('member')
         if not member:
-            logging.error('Missing "member" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "member" parameter.')
+
+        step = models.Step.get(step_key)
+        request = models.Request.get(request_key)
 
         team = None
         team_key = self.request.get('team_key')
         if team_key:
-            team = models.Team.get(team_key)
+            try:
+                team = models.Team.get(team_key)
+            except:
+                team = None
 
         execution_key = utils.generate_key()
         execution = models.Execution(key_name=execution_key, step=step,
@@ -64,7 +58,7 @@ class TaskHandler(webapp.RequestHandler):
         logging.debug('Finished execution-creation task handler')
 
 def main():
-    application = webapp.WSGIApplication([('/_ah/queue/request-process',
+    application = webapp.WSGIApplication([('/_ah/queue/execution-creation',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)
 

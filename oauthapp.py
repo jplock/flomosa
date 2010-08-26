@@ -20,8 +20,11 @@ class OAuthHandler(webapp.RequestHandler):
         self._server.add_signature_method(oauth.SignatureMethod_PLAINTEXT())
 
     def handle_exception(self, exception, debug_mode):
-        logging.error(exception)
-        return utils.build_json(self, exception)
+        if debug_mode:
+            super(OAuthHandler, self).handle_exception(exception, debug_mode)
+        else:
+            logging.error(exception)
+            return utils.build_json(self, exception)
 
     def get_oauth_request(self):
         "Return an OAuth Request object for the current request."

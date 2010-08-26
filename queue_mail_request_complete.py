@@ -10,11 +10,14 @@ from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
+from exceptions import MissingException, QuotaException, InternalException
 import models
 import settings
+import queueapp
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
         logging.debug('Begin mail-request-complete task handler')
 
@@ -23,19 +26,14 @@ class TaskHandler(webapp.RequestHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            logging.error('Missing "key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
-        if not execution:
-            logging.error('Execution "%s" not found in datastore. Exiting.' % \
-                execution_key)
-            return None
+        request = execution.request
 
-        if not execution.request.requestor:
-            logging.error('Request "%s" has no email address. Exiting.' % \
-                execution.id)
-            return None
+        if not request.requestor:
+            raise InternalException('Request "%s" has no requestor email ' \
+                'address.' % request.id)
 
         directory = os.path.dirname(__file__)
         text_template_file = os.path.join(directory,
@@ -57,23 +55,20 @@ class TaskHandler(webapp.RequestHandler):
 
         message = mail.EmailMessage()
         message.sender = 'Flomosa <%s>' % settings.FEEDBACK_FORWARDER_EMAIL
-        message.to = execution.request.requestor
-        message.subject = '[flomosa] Request #%s' % execution.request.id
+        message.to = request.requestor
+        message.subject = '[flomosa] Request #%s' % request.id
         message.body = text_body
         message.html = html_body
 
-        logging.info('Sending completion email to "%s".' % \
-            execution.request.requestor)
+        logging.info('Sending completion email to "%s".' % request.requestor)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            logging.error('Over email quota limit to send completion ' \
-                'email to "%s". Re-queuing.' % execution.request.requestor)
-            self.error(500)
-        except Exception, e:
-            logging.error('Unable to send completion email to "%s" (%s). ' \
-                'Re-queuing.' % (execution.request.requestor, e))
-            self.error(500)
+            raise QuotaException('Over email quota limit to send completion ' \
+                'email to "%s".' % request.requestor)
+        except:
+            raise InternalException('Unable to send completion email to ' \
+                '"%s".' % request.requestor)
 
         logging.debug('Finished mail-request-complete task handler')
 

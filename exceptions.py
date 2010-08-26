@@ -48,6 +48,12 @@ class MaintenanceException(HTTPException):
         super(MaintenanceException, self).__init__(503, body=body)
 
 
+class QuotaException(HTTPException):
+    type = 'quota'
+    def __init__(self, body=''):
+        super(QuotaException, self).__init__(503, body=body)
+
+
 class InternalException(HTTPException):
     type = 'error'
     def __init__(self, body=''):

@@ -2,20 +2,23 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os.path
-import logging
 from datetime import datetime
+import logging
+import os.path
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
+from exceptions import MissingException, QuotaException, InternalException
 import models
 import settings
+import queueapp
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
         logging.debug('Begin mail-request-notify task handler')
 
@@ -24,25 +27,20 @@ class TaskHandler(webapp.RequestHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            logging.error('Missing "key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "key" parameter.')
 
-        logging.debug('Looking up Execution "%s" in datastore.' % execution_key)
         execution = models.Execution.get(execution_key)
-        if not execution:
-            logging.error('Execution "%s" not found in datastore. Exiting.' % \
-                execution_key)
-            return None
-
         if not execution.member:
-            logging.error('Execution "%s" has no email address. Exiting.' % \
+            raise InternalException('Execution "%s" has no email address.' % \
                 execution.id)
-            return None
 
         if execution.sent_date:
-            logging.error('Execution "%s" notification already sent to "%s". ' \
-                'Exiting.' % (execution.id, execution.member))
+            logging.warning('Execution "%s" notification already sent to ' \
+                '"%s". Exiting.' % (execution.id, execution.member))
             return None
+
+        request = execution.request
+        step = execution.step
 
         directory = os.path.dirname(__file__)
         text_template_file = os.path.join(directory,
@@ -52,12 +50,12 @@ class TaskHandler(webapp.RequestHandler):
 
         template_vars = {
             'execution_key': execution.id,
-            'actions': execution.step.actions,
-            'requestor': execution.request.requestor,
-            'request_key': execution.request.id,
-            'submitted_date': execution.request.submitted_date,
-            'request_data': execution.request.get_submitted_data(),
-            'step_name': execution.step.name
+            'actions': step.actions,
+            'requestor': request.requestor,
+            'request_key': request.id,
+            'submitted_date': request.submitted_date,
+            'request_data': request.get_submitted_data(),
+            'step_name': step.name
         }
 
         text_body = template.render(text_template_file, template_vars)
@@ -67,7 +65,7 @@ class TaskHandler(webapp.RequestHandler):
         message.sender = 'Flomosa <reply+%s@%s>' % (execution.id,
             settings.EMAIL_DOMAIN)
         message.to = execution.member
-        message.subject = '[flomosa] Request #%s' % execution.request.id
+        message.subject = '[flomosa] Request #%s' % request.id
         message.body = text_body
         message.html = html_body
 
@@ -76,21 +74,13 @@ class TaskHandler(webapp.RequestHandler):
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            logging.error('Over email quota limit to send notification ' \
+            raise QuotaException('Over email quota limit to send notification ' \
                 'email to "%s". Re-queuing.' % execution.member)
-            self.error(500)
-            return None
-        except Exception, e:
-            logging.error('Unable to send notification email to "%s" (%s). ' \
-                'Re-queuing.' % (execution.member, e))
-            self.error(500)
-            return None
+        except:
+            raise InternalException('Unable to send notification email to ' \
+                '"%s". Re-queuing.' % execution.member)
 
-        try:
-            execution.set_sent()
-        except Exception, e:
-            logging.error(e)
-            self.error(500)
+        execution.set_sent()
 
         logging.debug('Finished mail-request-notify task handler')
 

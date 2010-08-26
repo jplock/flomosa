@@ -10,55 +10,48 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
+from exceptions import MissingException, InternalException
 import models
 import settings
+import queueapp
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
-        logging.debug('Begin request-process task handler')
+        logging.debug('Begin execution-process task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
         logging.info('Task has been executed %s times' % num_tries)
 
         execution_key = self.request.get('key')
         if not execution_key:
-            logging.error('Missing "key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
-        if not execution:
-            logging.error('Execution "%s" not found in datastore. Exiting.' % \
-                execution_key)
-            return None
 
         if not isinstance(execution.step, models.Step):
-            logging.error('Execution "%s" has no step defined. Exiting.' % \
+            raise InternalException('Execution "%s" has no step defined.' % \
                 execution.id)
-            return None
 
         if not isinstance(execution.request, models.Request):
-            logging.error('Execution "%s" has no request defined. Exiting.' % \
-                execution.step.id)
-            return None
+            raise InternalException('Execution "%s" has no request defined.' % \
+                execution.id)
 
         if not execution.step.actions:
-            logging.error('Step "%s" has no actions defined. Exiting.' % \
+            raise InternalException('Step "%s" has no actions defined.' % \
                 execution.step.id)
-            return None
 
         if not execution.member:
-            logging.error('Execution "%s" has no email address. Exiting.' % \
+            raise InternalException('Execution "%s" has no email address.' % \
                 execution.id)
-            return None
 
         # Always fetch the latest version of the request from the datastore
         request_key = execution.request.id
         request = models.Request.get_by_key_name(request_key)
         if not request:
-            logging.info('Request "%s" not found in datastore. Exiting.' % \
+            raise InternalException('Request "%s" not found in datastore.' % \
                 request_key)
-            return None
         execution.request = request
 
         # If the request has been completed, close out this execution
@@ -68,8 +61,7 @@ class TaskHandler(webapp.RequestHandler):
             execution.end_date = request.completed_date
             execution.put()
 
-            self.error(200)
-            return None
+            return self.halt_success()
 
         # If we have not sent the email notifications
         if not execution.queued_for_send:
@@ -83,8 +75,7 @@ class TaskHandler(webapp.RequestHandler):
             logging.info('Queued notification email to be sent to "%s" for ' \
                 'Execution "%s". Re-queuing.' % (execution.member,
                 execution.id))
-            self.error(500)
-            return None
+            return self.halt_requeue()
 
         # If this task was executed again, and we queued the notification
         # email to be sent, but it has not yet been sent, re-queue this task
@@ -92,8 +83,7 @@ class TaskHandler(webapp.RequestHandler):
         if not execution.sent_date:
             logging.warning('Notification email not yet sent for Execution ' \
                 '"%s". Re-queuing.' % execution.id)
-            self.error(500)
-            return None
+            return self.halt_requeue()
 
         # Has this step already been completed by another team member?
         completed_execution = execution.is_step_completed()
@@ -108,8 +98,7 @@ class TaskHandler(webapp.RequestHandler):
             logging.warning('Step "%s" completed by "%s" on "%s". Exiting.' % \
                 (execution.step.id, completed_execution.member,
                 completed_execution.end_date))
-            self.error(200)
-            return None
+            return self.halt_success()
 
         # If an action has been chosen, queue the next steps
         if execution.action and isinstance(execution.action, models.Action):
@@ -126,11 +115,9 @@ class TaskHandler(webapp.RequestHandler):
                 logging.info('Queuing statistics collection for Request ' \
                     '"%s".' % execution.request.id)
                 queue = taskqueue.Queue('request-statistics')
-                task = taskqueue.Task(params={
-                    'request_key': request.id,
+                task = taskqueue.Task(params={'request_key': request.id,
                     'process_key': execution.process.id,
-                    'timestamp': time.time()
-                })
+                    'timestamp': time.time()})
                 queue.add(task)
 
                 logging.info('Queuing completed email to be sent to "%s" for ' \
@@ -156,15 +143,13 @@ class TaskHandler(webapp.RequestHandler):
                         step.queue_tasks(execution.request)
 
             logging.info('Completed Execution "%s". Exiting.' % execution.id)
-            self.error(200)
-            return None
+            return self.halt_success()
 
         # Reached reminder limit, cancel this execution
         if execution.reminder_count == settings.REMINDER_LIMIT:
             logging.warning('Reminder limit reached for Execution "%s". ' \
                 'Exiting.' % execution.id)
-            self.error(200)
-            return None
+            return self.halt_success()
 
         # Send a reminder email notification
         else:
@@ -193,10 +178,10 @@ class TaskHandler(webapp.RequestHandler):
         logging.info('Re-queuing Execution "%s".' % execution.id)
         self.error(500)
 
-        logging.debug('Finished request-process task handler')
+        logging.debug('Finished execution-process task handler')
 
 def main():
-    application = webapp.WSGIApplication([('/_ah/queue/request-process',
+    application = webapp.WSGIApplication([('/_ah/queue/execution-process',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)
 

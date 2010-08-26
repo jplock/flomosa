@@ -9,10 +9,13 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import urlfetch
 
+from exceptions import MissingException
 import models
+import queueapp
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
         logging.debug('Begin request-callback task handler')
 
@@ -23,22 +26,14 @@ class TaskHandler(webapp.RequestHandler):
         callback_url = self.request.get('callback_url')
 
         if not request_key:
-            logging.error('Missing "request_key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "request_key" parameter.')
 
         if not callback_url:
-            logging.error('Missing "callback_url" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "callback_url" parameter.')
 
         request = models.Request.get(request_key)
-        if request is None:
-            logging.error('Request "%s" not found in datastore. Exiting.' % \
-                request_key)
-            return None
 
-        response_fields = {'key': request.id}
-
-        form_data = urllib.urlencode(response_fields)
+        form_data = urllib.urlencode({'key': request.id})
 
         rpc = urlfetch.create_rpc(deadline=2)
         urlfetch.make_fetch_call(rpc, url=callback_url, payload=form_data,
@@ -53,9 +48,9 @@ class TaskHandler(webapp.RequestHandler):
             else:
                 logging.warning('Could not submit POST request to "%s" for ' \
                     'Request "%s".' % (callback_url, request.id))
-        except urlfetch.DownloadError, e:
+        except urlfetch.DownloadError, ex:
             logging.warning('Could not submit POST request to "%s" for ' \
-                'Request "%s" (%s).' % (callback_url, request.id, e))
+                'Request "%s" (%s).' % (callback_url, request.id, ex))
 
         logging.debug('Finished request-callback task handler')
 

@@ -10,11 +10,14 @@ from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
+from exceptions import MissingException, InternalException, QuotaException
 import models
 import settings
+import queueapp
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
         logging.debug('Begin mail-request-step task handler')
 
@@ -23,19 +26,13 @@ class TaskHandler(webapp.RequestHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            logging.error('Missing "key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
-        if not execution:
-            logging.error('Execution "%s" not found in datastore. Exiting.' % \
-                execution_key)
-            return None
-
-        if not execution.request.requestor:
-            logging.error('Request "%s" has no email address. Exiting.' % \
+        request = execution.request
+        if not request.requestor:
+            raise InternalException('Request "%s" has no email address.' % \
                 execution.id)
-            return None
 
         directory = os.path.dirname(__file__)
         text_template_file = os.path.join(directory,
@@ -46,10 +43,10 @@ class TaskHandler(webapp.RequestHandler):
         template_vars = {
             'step_name': execution.step.name,
             'process_name': execution.process.name,
-            'requestor': execution.request.requestor,
-            'request_key': execution.request.id,
-            'submitted_date': execution.request.submitted_date,
-            'request_data': execution.request.get_submitted_data(),
+            'requestor': request.requestor,
+            'request_key': request.id,
+            'submitted_date': request.submitted_date,
+            'request_data': request.get_submitted_data(),
             'action_name': execution.action.name
         }
 
@@ -58,23 +55,20 @@ class TaskHandler(webapp.RequestHandler):
 
         message = mail.EmailMessage()
         message.sender = 'Flomosa <%s>' % settings.FEEDBACK_FORWARDER_EMAIL
-        message.to = execution.request.requestor
-        message.subject = '[flomosa] Request #%s' % execution.request.id
+        message.to = request.requestor
+        message.subject = '[flomosa] Request #%s' % request.id
         message.body = text_body
         message.html = html_body
 
-        logging.info('Sending step email to "%s".' % \
-            execution.request.requestor)
+        logging.info('Sending step email to "%s".' % request.requestor)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            logging.error('Over email quota limit to send step email to ' \
-                '"%s". Re-queuing.' % execution.request.requestor)
-            self.error(500)
-        except Exception, e:
-            logging.error('Unable to send step email to "%s" (%s). ' \
-                'Re-queuing.' % (execution.request.requestor, e))
-            self.error(500)
+            raise QuotaException('Over email quota limit to send step email ' \
+                'to "%s". Re-queuing.' % request.requestor)
+        except Exception:
+            raise InternalException('Unable to send step email to "%s". ' \
+                'Re-queuing.' % request.requestor)
 
         logging.debug('Finished mail-request-step task handler')
 

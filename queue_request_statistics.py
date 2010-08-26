@@ -2,16 +2,19 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import logging
 from datetime import datetime
+import logging
 
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 
+from exceptions import MissingException
 import models
+import queueapp
 
 
-class TaskHandler(webapp.RequestHandler):
+class TaskHandler(queueapp.QueueHandler):
+
     def post(self):
         logging.debug('Begin request-statistics task handler')
 
@@ -19,44 +22,25 @@ class TaskHandler(webapp.RequestHandler):
         logging.info('Task has been executed %s times' % num_tries)
 
         request_key = self.request.get('request_key')
-        process_key = self.request.get('process_key')
-        timestamp = self.request.get('timestamp') # POSIX UTC timestamp
-
         if not request_key:
-            logging.error('Missing "request_key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "request_key" parameter.')
 
-        request = models.Request.get(request_key)
-        if request is None:
-            logging.error('Request "%s" not found in datastore. Exiting.' % \
-                request_key)
-            return None
-
+        process_key = self.request.get('process_key')
         if not process_key:
-            logging.error('Missing "process_key" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "process_key" parameter.')
 
-        process = models.Process.get(process_key)
-        if not process:
-            logging.error('Process "%s" not found in datastore. Exiting.' % \
-                process_key)
-            return None
-
+        timestamp = self.request.get('timestamp') # POSIX UTC timestamp
         if not timestamp:
-            logging.error('Missing "timestamp" parameter. Exiting.')
-            return None
+            raise MissingException('Missing "timestamp" parameter.')
 
-        try:
-            stat_time = datetime.utcfromtimestamp(timestamp)
-        except ValueError, e:
-            logging.error('Could not convert timestamp "%s": %s' % \
-                (timestamp, e))
-            return None
+        stat_time = datetime.utcfromtimestamp(timestamp)
+        request = models.Request.get(request_key)
+        process = models.Process.get(process_key)
 
         try:
             db.run_in_transaction(models.Statistic.store_stats, request,
-                process, timestamp=stat_time)
-        except db.TransactionFailedError, e:
+                process, stat_time)
+        except db.TransactionFailedError:
             logging.critical('Storing statistics failed for Request "%s". ' \
                 'Re-queuing.' % request.id)
             self.error(500)
