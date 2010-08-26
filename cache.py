@@ -3,13 +3,14 @@
 #
 
 import logging
-import thread
+import time
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
 from google.appengine.runtime import apiproxy_errors
 
-from exceptions import MissingException
+from exceptions import (MissingException, NotFoundException,
+    MaintenanceException, InternalException)
 from settings import DATASTORE_RETRY_ATTEMPTS
 
 
@@ -70,7 +71,7 @@ def save_to_cache(model):
                 raise MaintenanceException('Unable to save %s "%s" to the ' \
                     'datastore due to maintenance.' % (model.kind(), model.id))
             except db.Timeout:
-                thread.sleep(timeout_ms)
+                time.sleep(timeout_ms / 1000)
                 timeout_ms *= 2
                 attempts += 1
             except db.Error, ex:
