@@ -35,8 +35,10 @@ class ProcessHandler(oauthapp.OAuthHandler):
 
         if 'name' not in data:
             raise MissingException('Missing "name" parameter.')
+        if 'kind' not in data:
+            raise MissingException('Missing "kind" parameter.')
 
-        if data.get('kind') != 'Process':
+        if data['kind'] != 'Process':
             raise MissingException('Invalid "kind" parameter; expected ' \
                 '"kind=Process".')
 

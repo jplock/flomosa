@@ -88,10 +88,14 @@ class RequestHandler(oauthapp.OAuthHandler):
 
         logging.debug('Finished RequestHandler.post() method')
 
-    def delete(self, request_key):
+    def delete(self, request_key=None):
         logging.debug('Begin RequestHandler.delete() method')
 
         client = self.is_valid()
+
+        if not request_key:
+            raise MissingException('Missing "request_key" parameter.')
+
         request = models.Request.get(request_key, client)
         request.delete()
 

@@ -348,6 +348,7 @@ class Step(FlomosaBase):
     is_start = db.BooleanProperty(default=False)
     team = db.ReferenceProperty(Team, collection_name='steps')
     members = db.ListProperty(basestring)
+    callbacks = db.ListProperty(basestring)
 
     @property
     def actions(self):

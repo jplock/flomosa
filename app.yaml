@@ -30,6 +30,10 @@ handlers:
   script: app_process.py
   secure: optional
 
+- url: /steps/.*
+  script: app_step.py
+  secure: optional
+
 - url: /teams/.*
   script: app_team.py
   secure: optional

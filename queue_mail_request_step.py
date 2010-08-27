@@ -65,10 +65,10 @@ class TaskHandler(queueapp.QueueHandler):
             message.send()
         except apiproxy_errors.OverQuotaError:
             raise QuotaException('Over email quota limit to send step email ' \
-                'to "%s". Re-queuing.' % request.requestor)
+                'to "%s".' % request.requestor)
         except Exception:
-            raise InternalException('Unable to send step email to "%s". ' \
-                'Re-queuing.' % request.requestor)
+            raise InternalException('Unable to send step email to "%s".' % \
+                request.requestor)
 
         logging.debug('Finished mail-request-step task handler')
 

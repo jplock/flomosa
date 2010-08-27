@@ -75,10 +75,10 @@ class TaskHandler(queueapp.QueueHandler):
             message.send()
         except apiproxy_errors.OverQuotaError:
             raise QuotaException('Over email quota limit to send notification ' \
-                'email to "%s". Re-queuing.' % execution.member)
+                'email to "%s".' % execution.member)
         except:
             raise InternalException('Unable to send notification email to ' \
-                '"%s". Re-queuing.' % execution.member)
+                '"%s".' % execution.member)
 
         execution.set_sent()
 

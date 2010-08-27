@@ -43,8 +43,7 @@ class TaskHandler(queueapp.QueueHandler):
         except db.TransactionFailedError:
             logging.critical('Storing statistics failed for Request "%s". ' \
                 'Re-queuing.' % request.id)
-            self.error(500)
-            return None
+            return self.halt_requeue()
 
         logging.debug('Finished request-statistics task handler')
 

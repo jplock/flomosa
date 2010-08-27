@@ -10,12 +10,6 @@ from django.utils import simplejson
 from exceptions import HTTPException
 
 
-_CLIENT_ERROR_FORMAT = 'CLIENT ERROR [%s]: %s'
-
-def get_log_message(message, code=0, format=_CLIENT_ERROR_FORMAT):
-    "Return a formatted error log message."
-    return format % (code, message)
-
 def generate_key():
     "Generate a datastore key."
     return str(uuid.uuid4())

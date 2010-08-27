@@ -14,7 +14,11 @@ queue:
 - name: request-statistics
   rate: 50/s
   bucket_size: 20
-  
+
+- name: step-callback
+  rate: 50/s
+  bucket_size: 20
+
 - name: mail-request-notify
   rate: 50/s
   bucket_size: 20

@@ -46,11 +46,14 @@ class TaskHandler(queueapp.QueueHandler):
                 logging.info('Submitted POST request to "%s" for Request ' \
                     '"%s".' % (callback_url, request.id))
             else:
-                logging.warning('Could not submit POST request to "%s" for ' \
-                    'Request "%s".' % (callback_url, request.id))
+                logging.warning('Received an HTTP status of "%s" when ' \
+                    'submitting POST request to "%s" for Request "%s".' % (
+                    result.status_code, callback_url, request.id))
+                self.halt_requeue()
         except urlfetch.DownloadError, ex:
             logging.warning('Could not submit POST request to "%s" for ' \
                 'Request "%s" (%s).' % (callback_url, request.id, ex))
+            self.halt_requeue()
 
         logging.debug('Finished request-callback task handler')
 

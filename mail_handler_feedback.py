@@ -10,6 +10,7 @@ from google.appengine.ext.webapp import util, mail_handlers
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
+from exceptions import QuotaException, InternalException
 import settings
 
 
@@ -52,11 +53,11 @@ class MailHandler(mail_handlers.InboundMailHandler):
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            logging.error('Over email quota limit to forward feedback email ' \
-                'to "%s".' % settings.FEEDBACK_EMAIL)
+            raise QuotaException('Over email quota limit to forward feedback ' \
+                'email to "%s".' % settings.FEEDBACK_EMAIL)
         except Exception, e:
-            logging.error('Unable to forward feedback email to "%s" (%s). ' % \
-                (settings.FEEDBACK_EMAIL, e))
+            raise InternalException('Unable to forward feedback email to ' \
+                '"%s" (%s). ' % (settings.FEEDBACK_EMAIL, e))
 
         logging.debug('Finished feedback@ incoming mail handler')
 

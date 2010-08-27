@@ -27,12 +27,8 @@ class TestHandler(authapp.SecureRequestHandler):
         client.company = 'Flomosa'
         client.oauth_secret = SECRET
 
-        try:
-            client.put()
-            self.response.out.write('Test account created')
-        except Exception, e:
-            logging.error(e)
-            self.response.out.write(e)
+        client.put()
+        self.response.out.write('Test account created')
 
         logging.debug('Finished TestHandler.get() method')
 

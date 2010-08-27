@@ -29,10 +29,6 @@ class MailHandler(mail_handlers.InboundMailHandler):
         temp, execution_key = user.split('+')
 
         execution = models.Execution.get(execution_key)
-        if not execution:
-            logging.error('Execution "%s" not found in datastore. Exiting.' % \
-                execution_key)
-            return None
 
         if isinstance(execution.action, models.Action):
             logging.error('Action "%s" already taken on Execution "%s". ' \
@@ -86,16 +82,11 @@ class MailHandler(mail_handlers.InboundMailHandler):
         logging.info('Parsed reply "%s" from email.' % reply_text)
 
         if not isinstance(executed_action, models.Action):
-            logging.error('Could not locate action named "%s". Exiting.' % \
-                reply_text)
-            return None
+            raise InternalException('Could not locate action named "%s". ' \
+                'Exiting.' % executed_action)
 
-        try:
-            execution.set_completed(executed_action)
-        except Exception, e:
-            logging.error('%s Exiting.' % e)
-            return None
-
+        execution.set_completed(executed_action)
+        
         logging.info('Queuing confirmation email to be sent to "%s".' % \
             execution.member)
         task = taskqueue.Task(params={'key': execution.id})
