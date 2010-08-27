@@ -54,7 +54,8 @@ class TaskHandler(queueapp.QueueHandler):
             'request_key': request.id,
             'submitted_date': request.submitted_date,
             'request_data': request.get_submitted_data(),
-            'step_name': execution.step.name
+            'step_name': execution.step.name,
+            'url': settings.HTTP_URL
         }
 
         text_body = template.render(text_template_file, template_vars)

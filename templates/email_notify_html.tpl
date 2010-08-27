@@ -10,7 +10,7 @@ needs to exactly match as written.</p>
 
 <ul>
 {% for action in actions %}
-<li>"<a href="http://flomosa.appspot.com/viewed/{{ execution_key }}/{{ action.id }}.json">{{ action.name }}</a>"</li>
+<li>"<a href="{{ url }}/viewed/{{ execution_key }}/{{ action.id }}.json">{{ action.name }}</a>"</li>
 {% endfor %}
 </ul>
 {% endblock msg %}
@@ -18,5 +18,5 @@ needs to exactly match as written.</p>
 {% block sig %}
 <p>Thanks.</p>
 
-<p>-Flomosa Team<img src="http://flomosa.appspot.com/viewed/{{ execution_key }}.json" height="1" width="1" border="0"/></p>
+<p>-Flomosa Team<img src="{{ url }}/viewed/{{ execution_key }}.json" height="1" width="1" border="0"/></p>
 {% endblock sig %}

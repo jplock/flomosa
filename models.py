@@ -87,7 +87,7 @@ class Client(FlomosaBase):
             'company': self.company,
             'email_address': self.email_address,
             'password': self.password,
-            'created_date': self.created_date
+            'created_date': str(self.created_date)
         }
         if self.is_saved():
             data['key'] = self.id
@@ -523,7 +523,7 @@ class Request(db.Expando):
     submitted_date = db.DateTimeProperty(auto_now_add=True)
     is_completed = db.BooleanProperty(default=False)
     completed_date = db.DateTimeProperty()
-    duration = db.IntegerProperty(default=0)
+    duration = db.IntegerProperty(default=0) # seconds
 
     @property
     def id(self):
@@ -611,10 +611,15 @@ class Request(db.Expando):
         "Return request as a dict object."
 
         data = {
+            'kind': self.kind(),
             'process': self.process.id,
             'requestor': self.requestor,
             'contact': self.contact,
             'is_draft': self.is_draft,
+            'submitted_date': str(self.submitted_date),
+            'is_completed': self.is_completed,
+            'completed_date': str(self.completed_date),
+            'duration': self.duration,
             'executions': []
         }
         for property in self.dynamic_properties():
@@ -652,20 +657,29 @@ class Execution(FlomosaBase):
         "Return execution as a dict object."
 
         data = {
-            'step': self.step.name,
+            'kind': self.kind(),
+            'process': self.process.id,
+            'request': self.request.id,
+            'step': self.step.id,
+            'action': None,
+            'team': None,
             'member': self.member,
             'start_date': str(self.start_date),
             'reminder_count': self.reminder_count,
-            'email_delay': self.email_delay,
-            'action_delay': self.action_delay,
-            'duration': self.duration,
             'last_reminder_sent_date': None,
             'sent_date': None,
             'viewed_date': None,
             'end_date': None,
-            'action': None,
-            'team': None
+            'email_delay': self.email_delay,
+            'action_delay': self.action_delay,
+            'duration': self.duration
         }
+        actions = []
+        for action in self.step.actions:
+            action_data = {'kind': action.kind(), 'key': action.id,
+                'name': action.name, 'is_complete': action.is_complete}
+            actions.append(action_data)
+        data['available_actions'] = actions
         if self.last_reminder_sent_date:
             data['last_reminder_sent_date'] = str(self.last_reminder_sent_date)
         if self.sent_date:
@@ -675,9 +689,11 @@ class Execution(FlomosaBase):
         if self.end_date:
             data['end_date'] = str(self.end_date)
         if self.action:
-            data['action'] = self.action.name
+            data['action'] = self.action.id
         if self.team:
-            data['team'] = self.team.name
+            data['team'] = self.team.id
+        if self.is_saved():
+            data['key'] = self.id
         return data
 
     def set_sent(self, sent_date=None):
@@ -802,16 +818,16 @@ class Statistic(db.Model):
         "Store a Statistic object"
 
         if not isinstance(process, Process):
-            raise Exception('"%s" is not a Process model.' % process)
+            raise InternalException('"%s" is not a Process model.' % process)
         if not isinstance(request, Request):
-            raise Exception('"%s" is not a Request model.' % request)
+            raise InternalException('"%s" is not a Request model.' % request)
 
         valid_types = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
         if type not in valid_types:
-            raise Exception('"%s" is an invalid type.' % type)
+            raise InternalException('"%s" is an invalid type.' % type)
 
         if not isinstance(timestamp, datetime.datetime):
-            raise Exception('Timestamp is not a valid datetime object.')
+            raise InternalException('Timestamp is not a valid datetime object.')
 
         month = None
         day = None
@@ -882,9 +898,10 @@ class Statistic(db.Model):
             'type': self.type,
             'year': self.year,
             'month': self.month,
-            'week_num': self.week_num,
             'day': self.day,
             'hour': self.hour,
+            'week_day': self.week_day,
+            'week_num': self.week_num,
             'num_requests': self.num_requests,
             'num_requests_completed': self.num_requests_completed,
             'min_request_seconds': self.min_request_seconds,
