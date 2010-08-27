@@ -458,7 +458,7 @@ class Step(FlomosaBase):
             queue = taskqueue.Queue('execution-creation')
             queue.add(tasks)
 
-        # Queue up step PubSubHubBub hub notifications
+        # Queue up step PubSubHubbub hub notifications
         tasks = []
         for hub in Hub.all():
             task = taskqueue.Task(params={'step_key': self.id,
@@ -469,15 +469,18 @@ class Step(FlomosaBase):
             queue.add(tasks)
         return True
 
-    def get_executions(self):
-        "Return non-actioned executions in creation order."
+    def get_executions(self, limit=100):
+        """Return non-actioned executions with uncompleted requests in
+        this step in creation order."""
 
         query = Execution.all()
         query.filter('step =', self)
         query.filter('action =', None)
         query.order('start_date')
 
-        return query.fetch(100)
+        for execution in query.fetch(limit):
+            if not execution.request.is_completed:
+                yield execution
 
 class Action(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='actions',
@@ -490,6 +493,8 @@ class Action(FlomosaBase):
     def put(self):
         if self.outgoing:
             self.is_complete = False
+        else:
+            self.is_complete = True
         super(Action, self).put()
 
     def add_incoming_step(self, step, save=True):
@@ -562,10 +567,8 @@ class Request(db.Expando):
         return request
 
     def put(self):
-        """Save the Request to the datastore and memcache.
-
-        Start the request in the process after the first save.
-        """
+        """Save the Request to the datastore and memcache and start the process
+        after the first save."""
 
         start_process = False
         if not self.is_saved():
