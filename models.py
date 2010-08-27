@@ -4,7 +4,6 @@
 
 import datetime
 import logging
-import time
 
 from google.appengine.ext import db
 from google.appengine.api.labs import taskqueue
@@ -13,6 +12,7 @@ from google.appengine.runtime import apiproxy_errors
 import cache
 from exceptions import (UnauthorizedException, MaintenanceException,
     MissingException, NotFoundException)
+from settings import HTTPS_URL
 import utils
 
 
@@ -100,6 +100,10 @@ class Team(FlomosaBase):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     members = db.ListProperty(basestring)
+
+    def get_absolute_url(self):
+        url = '%s/teams/%s.json' % (HTTPS_URL, self.id)
+        return url
 
     @classmethod
     def from_dict(cls, client, data):
@@ -395,6 +399,10 @@ class Step(FlomosaBase):
             return None
         return execution.start_date
 
+    def get_absolute_url(self):
+        url = '%s/steps/%s.atom' % (HTTPS_URL, self.id)
+        return url
+
     def to_dict(self):
         "Return step as a dict object."
 
@@ -448,6 +456,16 @@ class Step(FlomosaBase):
                 queued_members.append(member)
         if tasks:
             queue = taskqueue.Queue('execution-creation')
+            queue.add(tasks)
+
+        # Queue up step PubSubHubBub hub notifications
+        tasks = []
+        for hub in Hub.all():
+            task = taskqueue.Task(params={'step_key': self.id,
+                'callback_url': hub.url})
+            tasks.append(task)
+        if tasks:
+            queue = taskqueue.Queue('step-callback')
             queue.add(tasks)
         return True
 
@@ -530,6 +548,10 @@ class Request(db.Expando):
         "Return the unique ID for this request."
         return self.key().id_or_name()
 
+    def get_absolute_url(self):
+        url = '%s/requests/%s.json' % (HTTPS_URL, self.id)
+        return url
+
     @classmethod
     def get(cls, key, client=None):
         "Lookup the request key in memcache and then the datastore."
@@ -555,14 +577,18 @@ class Request(db.Expando):
             # Lookup the start step in the process and create the first batch
             # of Execution objects to work on the request
             step = self.process.get_start_step()
-            if step:
-                step.queue_tasks(self)
+            if not step:
+                raise ValidationException('Process "%s" does not have a ' \
+                    'starting step.' % process.id)
 
-                # Record the request in the Process statistics
-                task = taskqueue.Task(params={'request_key': self.id,
-                    'process_key': self.process.id, 'timestamp': time.time()})
-                queue = taskqueue.Queue('request-statistics')
-                queue.add(task)
+            step.queue_tasks(self)
+
+            import time
+            # Record the request in the Process statistics
+            task = taskqueue.Task(params={'request_key': self.id,
+                'process_key': self.process.id, 'timestamp': time.time()})
+            queue = taskqueue.Queue('request-statistics')
+            queue.add(task)
 
         return self.key()
 
@@ -576,9 +602,9 @@ class Request(db.Expando):
         if self.is_completed:
             return None
 
-        # If we haven't already marked this request as being
-        # completed, set the is_completed flag and compute
-        # the duration the request was in progress, in seconds.
+        # If we haven't already marked this request as being completed, set
+        # the is_completed flag and compute the duration the request was in
+        # progress, in seconds.
 
         self.is_completed = True
         if not completed_date:
@@ -652,6 +678,10 @@ class Execution(FlomosaBase):
     email_delay = db.IntegerProperty(default=0) # viewed_date-sent_date
     action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
     duration = db.IntegerProperty(default=0) # end_date-start_date
+
+    def get_absolute_url(self):
+        url = '%s/executions/%s.json' % (HTTPS_URL, self.id)
+        return url
 
     def to_dict(self):
         "Return execution as a dict object."

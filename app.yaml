@@ -62,6 +62,10 @@ handlers:
   script: queue_execution_process.py
   #login: admin
 
+- url: /_ah/queue/step-callback
+  script: queue_step_callback.py
+  #login: admin
+
 - url: /_ah/queue/request-callback
   script: queue_request_callback.py
   #login: admin
