@@ -17,6 +17,15 @@ FEEDBACK_EMAIL = 'feedback@flomosa.com'
 # Full email domain name on AppEngine
 EMAIL_DOMAIN = '%s.appspotmail.com' % APPLICATION_NAME
 
+# Full URL domain name on AppEngine
+URL_DOMAIN = '%s.appspot.com' % APPLICATION_NAME
+
+# Full HTTP domain URL
+HTTP_URL = 'http://%s' % URL_DOMAIN
+
+# Full HTTPS domain URL
+HTTPS_URL = 'https://%s' % URL_DOMAIN
+
 # Email address on AppEngine to receive feedback at
 FEEDBACK_FORWARDER_EMAIL = 'feedback@%s' % EMAIL_DOMAIN
 

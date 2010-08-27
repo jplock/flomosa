@@ -3,6 +3,7 @@
 #
 
 import logging
+import os.path
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
@@ -10,6 +11,7 @@ from google.appengine.ext.webapp import template, util
 from exceptions import MissingException, UnauthorizedException
 import models
 import oauthapp
+from settings import HTTPS_URL, FEEDBACK_EMAIL
 import utils
 
 
@@ -29,6 +31,16 @@ class StepAtomHandler(StepHandler):
         logging.debug('Begin StepAtomHandler.get() method')
 
         step = self.is_client_allowed()
+
+        template_vars = {'step': step, 'url': HTTPS_URL,
+            'email': FEEDBACK_EMAIL}
+
+        template_file = os.path.join(os.path.dirname(__file__),
+            'templates/step_feed_atom.tpl')
+        output = template.render(template_file, template_vars)
+
+        self.response.headers['Content-Type'] = 'application/atom+xml'
+        self.response.out.write(output)
 
         logging.debug('Finished StepAtomHandler.get() method')
 

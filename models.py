@@ -51,6 +51,18 @@ class FlomosaBase(db.Model):
         return cache.delete_from_cache(self)
 
 
+class Hub(db.Model):
+    "PubSubHubBub hub URL listing"
+
+    url = db.LinkProperty() # http://pubsubhubbub.appspot.com
+
+    def __unicode__(self):
+        return unicode(self.hub_url)
+
+    def __str__(self):
+        return self.__unicode__()
+
+
 class Client(FlomosaBase):
     oauth_secret = db.StringProperty()
     first_name = db.StringProperty()
@@ -231,11 +243,11 @@ class Process(FlomosaBase):
         for step_key in incoming:
             step = Step.get(step_key)
             if step:
-                action.add_incoming_step(step)
+                action.add_incoming_step(step, save=False)
         for step_key in outgoing:
             step = Step.get(step_key)
             if step:
-                action.add_outgoing_step(step)
+                action.add_outgoing_step(step, save=False)
 
         action.put()
         return action
@@ -348,7 +360,6 @@ class Step(FlomosaBase):
     is_start = db.BooleanProperty(default=False)
     team = db.ReferenceProperty(Team, collection_name='steps')
     members = db.ListProperty(basestring)
-    callbacks = db.ListProperty(basestring)
 
     @property
     def actions(self):
@@ -359,6 +370,30 @@ class Step(FlomosaBase):
     def prior(self):
         "Return the actions that come before this step."
         return Action.all().filter('outgoing', self.key())
+
+    @property
+    def is_valid(self):
+        """A step is valid if it has at least one direct member or a team with
+        members defined."""
+        if self.members:
+            return True
+        elif self.team and self.team.members:
+            return True
+        return False
+
+    @property
+    def last_updated(self):
+        """Get the most recent non-actioned execution as the time this
+        step was updated."""
+        query = Execution.all()
+        query.filter('step =', self)
+        query.filter('action =', None)
+        query.order('-start_date')
+
+        execution = query.get()
+        if not execution:
+            return None
+        return execution.start_date
 
     def to_dict(self):
         "Return step as a dict object."
@@ -378,15 +413,6 @@ class Step(FlomosaBase):
         if self.is_saved():
             data['key'] = self.id
         return data
-
-    def is_valid(self):
-        """A step is valid if it has at least one direct member or a team with
-        members defined."""
-        if self.members:
-            return True
-        elif self.team and self.team.members:
-            return True
-        return False
 
     def queue_tasks(self, request):
         "Queue execution tasks for a given request."
@@ -425,6 +451,15 @@ class Step(FlomosaBase):
             queue.add(tasks)
         return True
 
+    def get_executions(self):
+        "Return non-actioned executions in creation order."
+
+        query = Execution.all()
+        query.filter('step =', self)
+        query.filter('action =', None)
+        query.order('start_date')
+
+        return query.fetch(100)
 
 class Action(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='actions',
@@ -434,18 +469,24 @@ class Action(FlomosaBase):
     outgoing = db.ListProperty(db.Key)
     is_complete = db.BooleanProperty(default=False)
 
-    def add_incoming_step(self, step):
+    def put(self):
+        if self.outgoing:
+            self.is_complete = False
+        super(Action, self).put()
+
+    def add_incoming_step(self, step, save=True):
         "Add an incoming Step to this Action."
         if step.key() not in self.incoming:
             self.incoming.append(step.key())
-            self.put()
+            if save:
+                self.put()
 
-    def add_outgoing_step(self, step):
+    def add_outgoing_step(self, step, save=True):
         "Add an outgoing Step to this Action."
         if step.key() not in self.outgoing:
             self.outgoing.append(step.key())
-            self.is_complete = False
-            self.put()
+            if save:
+                self.put()
 
     def to_dict(self):
         "Return action as a dict object."
@@ -564,8 +605,7 @@ class Request(db.Expando):
         query.filter('request =', self)
         query.order('start_date')
 
-        executions = query.fetch(100)
-        return executions
+        return query.fetch(100)
 
     def to_dict(self):
         "Return request as a dict object."
@@ -661,7 +701,8 @@ class Execution(FlomosaBase):
             return None
 
         if not isinstance(action, Action):
-            raise Exception('"%s" is not a valid Action model.' % action)
+            raise InternalException('"%s" is not a valid Action model.' % \
+                action)
 
         self.action = action
         if not end_date:
