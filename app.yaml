@@ -11,93 +11,93 @@ derived_file_type:
 
 handlers:
 - url: /
-  script: app_index.py
+  script: web/index.py
   secure: optional
 
 - url: /account/.*
-  script: app_account.py
+  script: web/account.py
   secure: always
 
 - url: /viewed/.*
-  script: app_viewed.py
+  script: web/viewed.py
   secure: optional
 
 - url: /requests/.*
-  script: app_request.py
+  script: api/request.py
   secure: optional
 
 - url: /processes/.*
-  script: app_process.py
+  script: api/process.py
   secure: optional
 
 - url: /executions/.*
-  script: app_execution.py
+  script: api/execution.py
   secure: optional
 
 - url: /steps/.*
-  script: app_step.py
+  script: api/step.py
   secure: optional
 
 - url: /teams/.*
-  script: app_team.py
+  script: api/team.py
   secure: optional
 
 - url: /stats/.*
-  script: app_stat.py
+  script: api/stat.py
   secure: optional
   
 - url: /search/.*
-  script: app_search.py
+  script: api/search.py
   secure: optional
 
 - url: /tests/.*
-  script: app_test.py
+  script: web/test.py
   secure: optional
 
 - url: /_ah/queue/execution-creation
-  script: queue_execution_creation.py
+  script: queue/execution_creation.py
   #login: admin
 
 - url: /_ah/queue/execution-process
-  script: queue_execution_process.py
+  script: queue/execution_process.py
   #login: admin
 
 - url: /_ah/queue/step-callback
-  script: queue_step_callback.py
+  script: queue/step_callback.py
   #login: admin
 
 - url: /_ah/queue/request-callback
-  script: queue_request_callback.py
+  script: queue/request_callback.py
   #login: admin
 
 - url: /_ah/queue/request-statistics
-  script: queue_request_statistics.py
+  script: queue/request_statistics.py
   #login: admin
 
 - url: /_ah/queue/mail-request-notify
-  script: queue_mail_request_notify.py
+  script: queue/mail/request_notify.py
   #login: admin
 
 - url: /_ah/queue/mail-request-confirmation
-  script: queue_mail_request_confirmation.py
+  script: queue/mail/request_confirmation.py
   #login: admin
 
 - url: /_ah/queue/mail-request-complete
-  script: queue_mail_request_complete.py
+  script: queue/mail/request_complete.py
   #login: admin
 
 - url: /_ah/queue/mail-request-step
-  script: queue_mail_request_step.py
+  script: queue/mail/request_step.py
   #login: admin
 
 - url: /_ah/queue/mail-request-reminder
-  script: queue_mail_request_reminder.py
+  script: queue/mail/request_reminder.py
   #login: admin
 
 - url: /_ah/mail/feedback@.*flomosa\.appspotmail\.com
-  script: mail_handler_feedback.py
+  script: mail/feedback_handler.py
   login: admin
 
 - url: /_ah/mail/.+
-  script: mail_handler.py
+  script: mail/handler.py
   login: admin
