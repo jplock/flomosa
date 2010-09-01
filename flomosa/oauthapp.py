@@ -2,6 +2,7 @@
 # Copyright 2010 Flomosa, LLC
 #
 
+import logging
 import os
 
 from google.appengine.ext import webapp

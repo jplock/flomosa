@@ -13,11 +13,11 @@ from flomosa import cache, exceptions, settings, utils
 
 
 class FlomosaBase(db.Model):
-    "Base model inherited by other models."
+    """Base model inherited by other models."""
 
     @property
     def id(self):
-        "Return the unique ID for this model."
+        """Return the unique ID for this model."""
         return self.key().id_or_name()
 
     def __unicode__(self):
@@ -28,7 +28,7 @@ class FlomosaBase(db.Model):
 
     @classmethod
     def get(cls, key, client=None):
-        "Lookup the model in memcache and then the datastore."
+        """Lookup the model in memcache and then the datastore."""
         model = cache.get_from_cache(cls, key)
         if client and client.id != model.client.id:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
@@ -37,19 +37,19 @@ class FlomosaBase(db.Model):
         return model
 
     def put(self):
-        "Save the model to the datastore and memcache."
+        """Save the model to the datastore and memcache."""
         model = cache.save_to_cache(self)
         if model:
             return model.key()
         return None
 
     def delete(self):
-        "Delete the model from the datastore and memcache."
+        """Delete the model from the datastore and memcache."""
         return cache.delete_from_cache(self)
 
 
 class Hub(db.Model):
-    "PubSubHubBub hub URL listing"
+    """PubSubHubBub hub URL listing."""
 
     url = db.LinkProperty() # http://pubsubhubbub.appspot.com
 
@@ -74,7 +74,7 @@ class Client(FlomosaBase):
         return self.oauth_secret
 
     def to_dict(self):
-        "Return client as a dict object."
+        """Return client as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -104,7 +104,7 @@ class Team(FlomosaBase):
 
     @classmethod
     def from_dict(cls, client, data):
-        "Return a new Team instance from a dict object."
+        """Return a new Team instance from a dict object."""
 
         if not (client or isinstance(client, Client)):
             raise exceptions.MissingException('No client found')
@@ -124,22 +124,18 @@ class Team(FlomosaBase):
                 '"kind=%s".' % (cls.__name__, kind))
 
         team_key = data.get('key', None)
+        if not team_key:
+            team_key = utils.generate_key()
         description = data.get('description', None)
         members = data.get('members', None)
 
-        if team_key:
-            team = cls.get(team_key, client)
-            team.name = name
-        else:
-            team_key = utils.generate_key()
-            team = cls(key_name=team_key, client=client, name=name)
-
+        team = cls.get_or_insert(team_key, client=client, name=name)
         team.description = description
         team.members = members or []
         return team
 
     def to_dict(self):
-        "Return team as a dict object."
+        """Return team as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -196,7 +192,7 @@ class Process(FlomosaBase):
 
     def add_step(self, name, description=None, team_key=None, members=None,
             is_start=None, step_key=None):
-        "Add a step to this process."
+        """Add a step to this process."""
 
         if is_start is None:
             is_start = True
@@ -219,7 +215,7 @@ class Process(FlomosaBase):
         return step
 
     def add_actions(self, actions):
-        "Add multiple actions to this process."
+        """Add multiple actions to this process."""
         for data in actions:
             kwargs = {'name': data.get('name'), 'incoming': data.get('incoming'),
                 'outgoing': data.get('outgoing'), 'action_key': data.get('key'),
@@ -228,7 +224,7 @@ class Process(FlomosaBase):
 
     def add_action(self, name, incoming=None, outgoing=None, is_complete=False,
             action_key=None):
-        "Add an action to this process."
+        """Add an action to this process."""
 
         if not action_key:
             action_key = utils.generate_key()
@@ -254,13 +250,13 @@ class Process(FlomosaBase):
         return action
 
     def delete_stats(self):
-        "Delete any statistic objects for this Process."
+        """Delete any statistic objects for this Process."""
         for stats in self.stats:
             stats.delete()
 
     @classmethod
     def from_dict(cls, client, data):
-        "Return a new Process instance from a dict object."
+        """Return a new Process instance from a dict object."""
 
         if not (client or isinstance(client, Client)):
             raise exceptions.MissingException('No client found')
@@ -280,23 +276,19 @@ class Process(FlomosaBase):
                 '"kind=%s".' % (cls.__name__, kind))
 
         process_key = data.get('key', None)
+        if not process_key:
+            process_key = utils.generate_key()
         description = data.get('description', None)
         collect_stats = data.get('collect_stats', None)
 
-        if process_key:
-            process = cls.get(process_key, client)
-            process.name = name
-        else:
-            process_key = utils.generate_key()
-            process = cls(key_name=process_key, client=client, name=name)
-
+        process = cls.get_or_insert(process_key, client=client, name=name)
         process.description = description
         if collect_stats is not None:
             process.collect_stats = bool(collect_stats)
         return process
 
     def delete_steps_actions(self):
-        "Delete this process' steps and actions."
+        """Delete this process' steps and actions."""
 
         entities = []
         entity_keys = []
@@ -321,7 +313,7 @@ class Process(FlomosaBase):
             memcache.delete_multi(entity_keys)
 
     def get_start_step(self):
-        "Get start step in this process."
+        """Get start step in this process."""
 
         query = Step.all().filter('is_start', True)
         return query.get()
@@ -339,7 +331,7 @@ class Process(FlomosaBase):
         return step.is_valid()
 
     def to_dict(self):
-        "Return process as a dict object."
+        """Return process as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -365,12 +357,12 @@ class Step(FlomosaBase):
 
     @property
     def actions(self):
-        "Return the actions that come after this step."
+        """Return the actions that come after this step."""
         return Action.all().filter('incoming', self.key())
 
     @property
     def prior(self):
-        "Return the actions that come before this step."
+        """Return the actions that come before this step."""
         return Action.all().filter('outgoing', self.key())
 
     @property
@@ -402,7 +394,7 @@ class Step(FlomosaBase):
         return url
 
     def to_dict(self):
-        "Return step as a dict object."
+        """Return step as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -421,7 +413,7 @@ class Step(FlomosaBase):
         return data
 
     def queue_tasks(self, request):
-        "Queue execution tasks for a given request."
+        """Queue execution tasks for a given request."""
 
         if not isinstance(request, Request):
             raise exceptions.InternalException('"%s" is not a valid Request ' \
@@ -496,21 +488,21 @@ class Action(FlomosaBase):
         super(Action, self).put()
 
     def add_incoming_step(self, step, save=True):
-        "Add an incoming Step to this Action."
+        """Add an incoming Step to this Action."""
         if step.key() not in self.incoming:
             self.incoming.append(step.key())
             if save:
                 self.put()
 
     def add_outgoing_step(self, step, save=True):
-        "Add an outgoing Step to this Action."
+        """Add an outgoing Step to this Action."""
         if step.key() not in self.outgoing:
             self.outgoing.append(step.key())
             if save:
                 self.put()
 
     def to_dict(self):
-        "Return action as a dict object."
+        """Return action as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -548,7 +540,7 @@ class Request(db.Expando):
 
     @property
     def id(self):
-        "Return the unique ID for this request."
+        """Return the unique ID for this request."""
         return self.key().id_or_name()
 
     def get_absolute_url(self):
@@ -557,7 +549,7 @@ class Request(db.Expando):
 
     @classmethod
     def get(cls, key, client=None):
-        "Lookup the request key in memcache and then the datastore."
+        """Lookup the request key in memcache and then the datastore."""
         request = cache.get_from_cache(cls, key)
         if client and client.id != request.client.id:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
@@ -594,11 +586,11 @@ class Request(db.Expando):
         return self.key()
 
     def delete(self):
-        "Delete the Request from the datastore and memcache."
+        """Delete the Request from the datastore and memcache."""
         return cache.delete_from_cache(self)
 
     def set_completed(self, completed_date=None):
-        "Set the request has being completed."
+        """Set the request has being completed."""
 
         if self.is_completed:
             return None
@@ -618,7 +610,7 @@ class Request(db.Expando):
         return self.put()
 
     def get_submitted_data(self):
-        "Return a dict of the dynamic properties of this request."
+        """Return a dict of the dynamic properties of this request."""
 
         data = {}
         for property in self.dynamic_properties():
@@ -626,7 +618,7 @@ class Request(db.Expando):
         return data
 
     def get_executions(self):
-        "Return executions in creation order."
+        """Return executions in creation order."""
 
         query = Execution.all()
         query.filter('request =', self)
@@ -635,7 +627,7 @@ class Request(db.Expando):
         return query.fetch(100)
 
     def to_dict(self):
-        "Return request as a dict object."
+        """Return request as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -685,7 +677,7 @@ class Execution(FlomosaBase):
         return url
 
     def to_dict(self):
-        "Return execution as a dict object."
+        """Return execution as a dict object."""
 
         data = {
             'kind': self.kind(),
@@ -728,7 +720,7 @@ class Execution(FlomosaBase):
         return data
 
     def set_sent(self, sent_date=None):
-        "Set this execution as being sent."
+        """Set this execution as being sent."""
 
         # Only set the sent timestamp once
         if self.sent_date:
@@ -741,7 +733,7 @@ class Execution(FlomosaBase):
         return self.put()
 
     def set_completed(self, action, end_date=None):
-        "Set this execution as being completed."
+        """Set this execution as being completed."""
 
         # Only set the action once
         if self.action or self.end_date:
@@ -765,7 +757,7 @@ class Execution(FlomosaBase):
         return self.put()
 
     def set_viewed(self, viewed_date=None):
-        "Set this execution as being viewed."
+        """Set this execution as being viewed."""
 
         # Only set the viewed timestamp once
         if self.viewed_date:
@@ -781,7 +773,7 @@ class Execution(FlomosaBase):
         return self.put()
 
     def is_step_completed(self, limit=30):
-        "Has this request step been completed by anyone?"
+        """Has this request step been completed by anyone?"""
 
         query = self.all()
         query.filter('step =', self.step)
@@ -796,7 +788,7 @@ class Execution(FlomosaBase):
         return False
 
     def num_passes(self, limit=5):
-        "Return number of times through this step for this request."
+        """Return number of times through this step for this request."""
 
         query = self.all()
         query.filter('step =', self.step)
@@ -827,7 +819,7 @@ class Statistic(db.Model):
         return '%s_%s' % (self.process.id, self.date_key)
 
     def log(self, request):
-        "Store request data in a Statistic object."
+        """Store request data in a Statistic object."""
 
         if request.duration > 0:
             if self.min_request_seconds == 0:
@@ -846,7 +838,7 @@ class Statistic(db.Model):
     @classmethod
     def store_stat(cls, request, process, timestamp, type='daily', parent=None,
             date_key=None):
-        "Store a Statistic object"
+        """Store a Statistic object"""
 
         if not isinstance(process, Process):
             raise exceptions.InternalException('"%s" is not a Process ' \
@@ -910,7 +902,7 @@ class Statistic(db.Model):
 
     @classmethod
     def store_stats(cls, request, process, timestamp=None):
-        "Store hourly, daily, weekly, monthly and yearly statstics."
+        """Store hourly, daily, weekly, monthly and yearly statstics."""
 
         if timestamp is None:
             timestamp = datetime.datetime.now()
@@ -925,7 +917,7 @@ class Statistic(db.Model):
             parent=daily)
 
     def to_dict(self):
-        "Return statistics as a dict object."
+        """Return statistics as a dict object."""
 
         data = {
             'kind': self.kind(),
