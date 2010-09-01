@@ -2,7 +2,6 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os.path
 import logging
 
 from google.appengine.ext import webapp
@@ -10,10 +9,7 @@ from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
-from exceptions import MissingException, QuotaException, InternalException
-import models
-import settings
-import queueapp
+from flomosa import exceptions, models, settings, queueapp
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -26,24 +22,23 @@ class TaskHandler(queueapp.QueueHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            raise MissingException('Missing "key" parameter.')
+            raise exceptions.MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
         if not execution.member:
-            raise InternalException('Execution "%s" has no email address.' % \
-                execution.id)
+            raise exceptions.InternalException('Execution "%s" has no email ' \
+                                               'address.' % execution.id)
 
         if not isinstance(execution.action, models.Action):
-            raise InternalException('Execution "%s" has no action.' % \
-                execution.id)
+            raise exceptions.InternalException('Execution "%s" has no ' \
+                                               'action.' % execution.id)
 
         request = execution.request
 
-        directory = os.path.dirname(__file__)
-        text_template_file = os.path.join(directory,
-            'templates/email_confirmation_text.tpl')
-        html_template_file = os.path.join(directory,
-            'templates/email_confirmation_html.tpl')
+        text_template_file = settings.TEMPLATE_DIR + \
+                             '/email_confirmation_text.tpl'
+        html_template_file = settings.TEMPLATE_DIR + \
+                             '/email_confirmation_html.tpl'
 
         template_vars = {
             'requestor': request.requestor,
@@ -68,10 +63,10 @@ class TaskHandler(queueapp.QueueHandler):
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            raise QuotaException('Over email quota limit to send ' \
+            raise exceptions.QuotaException('Over email quota limit to send ' \
                 'confirmation email to "%s".' % execution.member)
-        except:
-            raise InternalException('Unable to send confirmation email to ' \
+        except Exception:
+            raise exceptions.InternalException('Unable to send confirmation email to ' \
                 '"%s".' % execution.member)
 
         logging.debug('Finished mail-request-confirmation task handler')

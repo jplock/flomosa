@@ -7,8 +7,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-import models
-import oauthapp
+from flomosa import models, oauthapp
 
 
 class ProcessHandler(oauthapp.OAuthHandler):
@@ -27,7 +26,7 @@ class StepHandler(oauthapp.OAuthHandler):
         logging.debug('Begin StepHandler.get() method')
 
         step = models.Step.get(step_key)
-        
+
         logging.debug('Finished StepHandler.get() method')
 
 

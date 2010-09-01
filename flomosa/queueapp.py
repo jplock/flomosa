@@ -6,7 +6,7 @@ import logging
 
 from google.appengine.ext import webapp
 
-from exceptions import HTTPException
+from flomosa import exceptions
 
 
 class QueueHandler(webapp.RequestHandler):
@@ -16,16 +16,16 @@ class QueueHandler(webapp.RequestHandler):
             super(QueueHandler, self).handle_exception(exception, debug_mode)
         else:
             logging.error(exception)
-            if isinstance(exception, HTTPException):
+            if isinstance(exception, exceptions.HTTPException):
                 self.error(exception.status)
             return None
 
     def halt_requeue(self):
-        "Re-queue the task in the queue."
+        """Re-queue the task in the queue."""
         self.error(500)
         return None
 
     def halt_success(self):
-        "Mark the task as being completed in the queue."
+        """Mark the task as being completed in the queue."""
         self.error(200)
         return None

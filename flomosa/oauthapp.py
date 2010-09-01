@@ -7,9 +7,7 @@ import os
 from google.appengine.ext import webapp
 import oauth2 as oauth
 
-from exceptions import UnauthenticatedException, UnauthorizedException
-import models
-import utils
+from flomosa import exceptions, models, utils
 
 
 class OAuthHandler(webapp.RequestHandler):
@@ -27,11 +25,11 @@ class OAuthHandler(webapp.RequestHandler):
             return utils.build_json(self, exception)
 
     def get_oauth_request(self):
-        "Return an OAuth Request object for the current request."
+        """Return an OAuth Request object for the current request."""
 
         try:
             method = os.environ['REQUEST_METHOD']
-        except:
+        except Exception:
             method = 'GET'
 
         postdata = None
@@ -42,24 +40,25 @@ class OAuthHandler(webapp.RequestHandler):
             headers=self.request.headers, query_string=postdata)
 
     def get_client(self, request=None):
-        "Return the client from the OAuth parameters."
+        """Return the client from the OAuth parameters."""
 
         if not isinstance(request, oauth.Request):
             request = self.get_oauth_request()
         if not request:
-            raise UnauthenticatedException('OAuth "Authorization" header '
-                'not found')
+            raise exceptions.UnauthenticatedException('OAuth "Authorization" ' \
+                                                      'header not found')
 
         client_key = request.get_parameter('oauth_consumer_key')
         if not client_key:
-            raise UnauthenticatedException('Missing "oauth_consumer_key" ' \
-                'parameter in OAuth "Authorization" header')
+            raise exceptions.UnauthenticatedException('Missing ' \
+                '"oauth_consumer_key" parameter in OAuth "Authorization" ' \
+                'header')
 
         client = models.Client.get(client_key)
         return client
 
     def is_valid(self):
-        "Returns a Client object if this is a valid OAuth request."
+        """Returns a Client object if this is a valid OAuth request."""
 
         request = self.get_oauth_request()
         client = self.get_client(request)
@@ -68,7 +67,7 @@ class OAuthHandler(webapp.RequestHandler):
         return client
 
     def is_client_allowed(self, process_key):
-        "Checks that the client is valid and created the given process."
+        """Checks that the client is valid and created the given process."""
 
         client = self.is_valid()
         process = models.Process.get(process_key, client)

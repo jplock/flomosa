@@ -11,93 +11,93 @@ derived_file_type:
 
 handlers:
 - url: /
-  script: web/index.py
+  script: flomosa/web/index.py
   secure: optional
 
 - url: /account/.*
-  script: web/account.py
+  script: flomosa/web/account.py
   secure: always
 
 - url: /viewed/.*
-  script: web/viewed.py
+  script: flomosa/web/viewed.py
   secure: optional
 
 - url: /requests/.*
-  script: api/request.py
+  script: flomosa/api/request.py
   secure: optional
 
 - url: /processes/.*
-  script: api/process.py
+  script: flomosa/api/process.py
   secure: optional
 
 - url: /executions/.*
-  script: api/execution.py
+  script: flomosa/api/execution.py
   secure: optional
 
 - url: /steps/.*
-  script: api/step.py
+  script: flomosa/api/step.py
   secure: optional
 
 - url: /teams/.*
-  script: api/team.py
+  script: flomosa/api/team.py
   secure: optional
 
 - url: /stats/.*
-  script: api/stat.py
+  script: flomosa/api/stat.py
   secure: optional
   
 - url: /search/.*
-  script: api/search.py
+  script: flomosa/api/search.py
   secure: optional
 
 - url: /tests/.*
-  script: web/test.py
+  script: flomosa/web/test.py
   secure: optional
 
 - url: /_ah/queue/execution-creation
-  script: queue/execution_creation.py
+  script: flomosa/queue/execution_creation.py
   #login: admin
 
 - url: /_ah/queue/execution-process
-  script: queue/execution_process.py
+  script: flomosa/queue/execution_process.py
   #login: admin
 
 - url: /_ah/queue/step-callback
-  script: queue/step_callback.py
+  script: flomosa/queue/step_callback.py
   #login: admin
 
 - url: /_ah/queue/request-callback
-  script: queue/request_callback.py
+  script: flomosa/queue/request_callback.py
   #login: admin
 
 - url: /_ah/queue/request-statistics
-  script: queue/request_statistics.py
+  script: flomosa/queue/request_statistics.py
   #login: admin
 
 - url: /_ah/queue/mail-request-notify
-  script: queue/mail/request_notify.py
+  script: flomosa/queue/mail/request_notify.py
   #login: admin
 
 - url: /_ah/queue/mail-request-confirmation
-  script: queue/mail/request_confirmation.py
+  script: flomosa/queue/mail/request_confirmation.py
   #login: admin
 
 - url: /_ah/queue/mail-request-complete
-  script: queue/mail/request_complete.py
+  script: flomosa/queue/mail/request_complete.py
   #login: admin
 
 - url: /_ah/queue/mail-request-step
-  script: queue/mail/request_step.py
+  script: flomosa/queue/mail/request_step.py
   #login: admin
 
 - url: /_ah/queue/mail-request-reminder
-  script: queue/mail/request_reminder.py
+  script: flomosa/queue/mail/request_reminder.py
   #login: admin
 
 - url: /_ah/mail/feedback@.*flomosa\.appspotmail\.com
-  script: mail/feedback_handler.py
+  script: flomosa/mail/feedback_handler.py
   login: admin
 
 - url: /_ah/mail/.+
-  script: mail/handler.py
+  script: flomosa/mail/handler.py
   login: admin

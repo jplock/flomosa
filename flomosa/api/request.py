@@ -8,10 +8,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
-from exceptions import MissingException, UnauthorizedException
-import models
-import utils
-import oauthapp
+from flomosa import exceptions, models, oauthapp, utils
 
 
 class RequestHandler(oauthapp.OAuthHandler):
@@ -22,7 +19,8 @@ class RequestHandler(oauthapp.OAuthHandler):
         client = self.is_valid()
 
         if not request_key:
-            raise MissingException('Missing "request_key" parameter.')
+            raise exceptions.MissingException('Missing "request_key" ' \
+                                              'parameter.')
 
         request = models.Request.get(request_key, client)
 
@@ -37,23 +35,23 @@ class RequestHandler(oauthapp.OAuthHandler):
 
         process_key = data.get('process', None)
         if not process_key:
-            raise MissingException('Missing "process" parameter.')
+            raise exceptions.MissingException('Missing "process" parameter.')
 
         process = models.Process.get(process_key)
 
         if not process.is_valid():
-            raise ValidationException('Process "%s" is not valid.' % \
-                process_key)
+            raise exceptions.ValidationException('Process "%s" is not ' \
+                'valid.' % process_key)
 
         requestor = data.get('requestor', None)
         if not requestor:
-            raise MissingException('Missing "requestor" parameter.')
+            raise exceptions.MissingException('Missing "requestor" parameter.')
 
         if request_key:
             request = models.Request.get(request_key)
             if request:
-                raise InternalException('Request "%s" already exists.' % \
-                    request_key)
+                raise exceptions.InternalException('Request "%s" already ' \
+                    'exists.' % request_key)
         else:
             request_key = utils.generate_key()
             request = models.Request(key_name=request_key, process=process,
@@ -94,7 +92,8 @@ class RequestHandler(oauthapp.OAuthHandler):
         client = self.is_valid()
 
         if not request_key:
-            raise MissingException('Missing "request_key" parameter.')
+            raise exceptions.MissingException('Missing "request_key" ' \
+                                              'parameter.')
 
         request = models.Request.get(request_key, client)
         request.delete()

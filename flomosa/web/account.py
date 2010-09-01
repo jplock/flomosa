@@ -3,15 +3,11 @@
 #
 
 import logging
-import os.path
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 
-import authapp
-import models
-import settings
-import utils
+from flomosa import authapp, models, settings, utils
 
 
 class AccountHandler(authapp.SecureRequestHandler):
@@ -21,8 +17,7 @@ class AccountHandler(authapp.SecureRequestHandler):
         if 'uri' not in template_vars:
             template_vars['uri'] = self.request.uri
 
-        template_file = os.path.join(os.path.dirname(__file__),
-            'templates/account.tpl')
+        template_file = settings.TEMPLATE_DIR + '/account.tpl'
         return template.render(template_file, template_vars)
 
     def post(self):
@@ -74,9 +69,9 @@ class AccountHandler(authapp.SecureRequestHandler):
 
             try:
                 client.put()
-            except Exception, e:
-                logging.error(e)
-                template_vars['messages'] = [e]
+            except Exception, ex:
+                logging.error(ex)
+                template_vars['messages'] = [ex]
                 self.response.out.write(self.show_form(template_vars))
 
             if client.is_saved():
@@ -112,8 +107,7 @@ class RegisterHandler(authapp.SecureRequestHandler):
         elif 'uri' not in template_vars:
             template_vars['uri'] = self.request.uri
 
-        template_file = os.path.join(os.path.dirname(__file__),
-            'templates/account_register.tpl')
+        template_file = settings.TEMPLATE_DIR + '/account_register.tpl'
         return template.render(template_file, template_vars)
 
     def post(self):
@@ -161,9 +155,9 @@ class RegisterHandler(authapp.SecureRequestHandler):
 
             try:
                 client.put()
-            except Exception, e:
-                logging.error(e)
-                template_vars['messages'] = [e]
+            except Exception, ex:
+                logging.error(ex)
+                template_vars['messages'] = [ex]
                 self.response.out.write(self.show_form(template_vars))
 
             if client.is_saved():
@@ -198,8 +192,7 @@ class LoginHandler(authapp.SecureRequestHandler):
         elif 'uri' not in template_vars:
             template_vars['uri'] = self.request.uri
 
-        template_file = os.path.join(os.path.dirname(__file__),
-            'templates/account_login.tpl')
+        template_file = settings.TEMPLATE_DIR + '/account_login.tpl'
         return template.render(template_file, template_vars)
 
     def post(self):
@@ -267,8 +260,7 @@ class LogoutHandler(authapp.SecureRequestHandler):
 
         self.clear_cookie(settings.COOKIE_NAME)
 
-        template_file = os.path.join(os.path.dirname(__file__),
-            'templates/account_logout.tpl')
+        template_file = settings.TEMPLATE_DIR + '/account_logout.tpl'
         output = template.render(template_file, {})
         self.response.out.write(output)
 
@@ -284,8 +276,8 @@ class CloseHandler(authapp.SecureRequestHandler):
 
         try:
             client.delete()
-        except Exception, e:
-            logging.error(e)
+        except Exception, ex:
+            logging.error(ex)
 
         self.clear_cookie(settings.COOKIE_NAME)
 

@@ -7,10 +7,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from exceptions import MissingException
-import models
-import oauthapp
-import utils
+from flomosa import exceptions, models, oauthapp, utils
 
 
 class ProcessHandler(oauthapp.OAuthHandler):
@@ -34,13 +31,13 @@ class ProcessHandler(oauthapp.OAuthHandler):
         data = simplejson.loads(self.request.body)
 
         if 'name' not in data:
-            raise MissingException('Missing "name" parameter.')
+            raise exceptions.MissingException('Missing "name" parameter.')
         if 'kind' not in data:
-            raise MissingException('Missing "kind" parameter.')
+            raise exceptions.MissingException('Missing "kind" parameter.')
 
         if data['kind'] != 'Process':
-            raise MissingException('Invalid "kind" parameter; expected ' \
-                '"kind=Process".')
+            raise exceptions.MissingException('Invalid "kind" parameter; ' \
+                'expected "kind=Process".')
 
         # Load the process data
         process = models.Process.from_dict(client, data)
@@ -56,7 +53,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
             try:
                 db.run_in_transaction(process.add_steps, steps)
             except db.TransactionFailedError:
-                raise InternalException('Failed to save steps')
+                raise exceptions.InternalException('Failed to save steps')
 
         # Load any actions on this process
         logging.info('Loading actions for Process "%s".' % process.id)
@@ -65,7 +62,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
             try:
                 db.run_in_transaction(process.add_actions, actions)
             except db.TransactionFailedError:
-                raise InternalException('Failed to save actions')
+                raise exceptions.InternalException('Failed to save actions')
 
         logging.info('Returning Process "%s" as JSON to client.' % process.id)
         utils.build_json(self, {'key': process.id}, 201)

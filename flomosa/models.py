@@ -9,11 +9,7 @@ from google.appengine.ext import db
 from google.appengine.api.labs import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
-import cache
-from exceptions import (UnauthorizedException, MaintenanceException,
-    MissingException, NotFoundException)
-from settings import HTTPS_URL
-import utils
+from flomosa import cache, exceptions, settings, utils
 
 
 class FlomosaBase(db.Model):
@@ -35,8 +31,9 @@ class FlomosaBase(db.Model):
         "Lookup the model in memcache and then the datastore."
         model = cache.get_from_cache(cls, key)
         if client and client.id != model.client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access %s "%s".' % (client.id, model.kind(), model.id))
+            raise exceptions.UnauthorizedException('Client "%s" is not ' \
+                'authorized to access %s "%s".' % (client.id, model.kind(),
+                                                   model.id))
         return model
 
     def put(self):
@@ -110,21 +107,21 @@ class Team(FlomosaBase):
         "Return a new Team instance from a dict object."
 
         if not (client or isinstance(client, Client)):
-            raise MissingException('No client found')
+            raise exceptions.MissingException('No client found')
 
         if not (data or isinstance(data, dict)):
-            raise MissingException('No data found')
+            raise exceptions.MissingException('No data found')
 
         kind = data.get('kind', None)
         name = data.get('name', None)
 
         if not name:
-            raise MissingException('Missing "name" parameter.')
+            raise exceptions.MissingException('Missing "name" parameter.')
         if not kind:
-            raise MissingException('Missing "kind" parameter.')
+            raise exceptions.MissingException('Missing "kind" parameter.')
         if kind != cls.__name__:
-            raise MissingException('Expected "kind=%s", found "kind=%s".' % \
-                (cls.__name__, kind))
+            raise exceptions.MissingException('Expected "kind=%s", found ' \
+                '"kind=%s".' % (cls.__name__, kind))
 
         team_key = data.get('key', None)
         description = data.get('description', None)
@@ -266,21 +263,21 @@ class Process(FlomosaBase):
         "Return a new Process instance from a dict object."
 
         if not (client or isinstance(client, Client)):
-            raise MissingException('No client found')
+            raise exceptions.MissingException('No client found')
 
         if not (data or isinstance(data, dict)):
-            raise MissingException('No data found')
+            raise exceptions.MissingException('No data found')
 
         kind = data.get('kind', None)
         name = data.get('name', None)
 
         if not name:
-            raise MissingException('Missing "name" parameter.')
+            raise exceptions.MissingException('Missing "name" parameter.')
         if not kind:
-            raise MissingException('Missing "kind" parameter.')
+            raise exceptions.MissingException('Missing "kind" parameter.')
         if kind != cls.__name__:
-            raise MissingException('Expected "kind=%s", found "kind=%s".' % \
-                (cls.__name__, kind))
+            raise exceptions.MissingException('Expected "kind=%s", found ' \
+                '"kind=%s".' % (cls.__name__, kind))
 
         process_key = data.get('key', None)
         description = data.get('description', None)
@@ -316,8 +313,9 @@ class Process(FlomosaBase):
             try:
                 db.delete(entities)
             except apiproxy_errors.CapabilityDisabledError:
-                raise MaintenanceException('Unable to delete steps and ' \
-                    'actions from Process "%s" due to maintenance.' % self.id)
+                raise exceptions.MaintenanceException('Unable to delete ' \
+                    'steps and actions from Process "%s" due to ' \
+                    'maintenance.' % self.id)
         if entity_keys:
             from google.appengine.api import memcache
             memcache.delete_multi(entity_keys)
@@ -400,7 +398,7 @@ class Step(FlomosaBase):
         return execution.start_date
 
     def get_absolute_url(self):
-        url = '%s/steps/%s.atom' % (HTTPS_URL, self.id)
+        url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self.id)
         return url
 
     def to_dict(self):
@@ -426,11 +424,11 @@ class Step(FlomosaBase):
         "Queue execution tasks for a given request."
 
         if not isinstance(request, Request):
-            raise InternalException('"%s" is not a valid Request model.' % \
-                request)
+            raise exceptions.InternalException('"%s" is not a valid Request ' \
+                'model.' % request)
         if not self.is_valid():
-            raise InternalException('Step is not valid: no team or members ' \
-                'found.')
+            raise exceptions.InternalException('Step is not valid: no team ' \
+                'or members found.')
 
         params = {'step_key': self.id, 'request_key': request.id}
         tasks = []
@@ -554,7 +552,7 @@ class Request(db.Expando):
         return self.key().id_or_name()
 
     def get_absolute_url(self):
-        url = '%s/requests/%s.json' % (HTTPS_URL, self.id)
+        url = '%s/requests/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     @classmethod
@@ -562,8 +560,8 @@ class Request(db.Expando):
         "Lookup the request key in memcache and then the datastore."
         request = cache.get_from_cache(cls, key)
         if client and client.id != request.client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access Request "%s".' % (client.id, request.id))
+            raise exceptions.UnauthorizedException('Client "%s" is not ' \
+                'authorized to access Request "%s".' % (client.id, request.id))
         return request
 
     def put(self):
@@ -683,7 +681,7 @@ class Execution(FlomosaBase):
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
     def get_absolute_url(self):
-        url = '%s/executions/%s.json' % (HTTPS_URL, self.id)
+        url = '%s/executions/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     def to_dict(self):
@@ -750,8 +748,8 @@ class Execution(FlomosaBase):
             return None
 
         if not isinstance(action, Action):
-            raise InternalException('"%s" is not a valid Action model.' % \
-                action)
+            raise exceptions.InternalException('"%s" is not a valid Action ' \
+                'model.' % action)
 
         self.action = action
         if not end_date:
@@ -851,16 +849,20 @@ class Statistic(db.Model):
         "Store a Statistic object"
 
         if not isinstance(process, Process):
-            raise InternalException('"%s" is not a Process model.' % process)
+            raise exceptions.InternalException('"%s" is not a Process ' \
+                                               'model.' % process)
         if not isinstance(request, Request):
-            raise InternalException('"%s" is not a Request model.' % request)
+            raise exceptions.InternalException('"%s" is not a Request ' \
+                                               'model.' % request)
 
         valid_types = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
         if type not in valid_types:
-            raise InternalException('"%s" is an invalid type.' % type)
+            raise exceptions.InternalException('"%s" is an invalid type.' % \
+                                               type)
 
         if not isinstance(timestamp, datetime.datetime):
-            raise InternalException('Timestamp is not a valid datetime object.')
+            raise exceptions.InternalException('Timestamp is not a valid ' \
+                                               'datetime object.')
 
         month = None
         day = None

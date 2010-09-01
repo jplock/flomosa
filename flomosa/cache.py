@@ -9,9 +9,7 @@ from google.appengine.ext import db
 from google.appengine.api import memcache
 from google.appengine.runtime import apiproxy_errors
 
-from exceptions import (MissingException, NotFoundException,
-    MaintenanceException, InternalException)
-from settings import DATASTORE_RETRY_ATTEMPTS
+from flomosa import exceptions, settings
 
 
 def get_from_cache(cls, key):
@@ -27,7 +25,7 @@ def get_from_cache(cls, key):
     if isinstance(key, db.Key):
         key = key.name()
     if not key:
-        raise MissingException('Missing "key" parameter.')
+        raise exceptions.MissingException('Missing "key" parameter.')
 
     logging.debug('Looking up %s "%s" in memcache.' % (cls.__name__, key))
     model = memcache.get(key, namespace=cls.__name__)
@@ -36,8 +34,8 @@ def get_from_cache(cls, key):
             (cls.__name__, key))
         model = cls.get_by_key_name(key)
         if not isinstance(model, cls):
-            raise NotFoundException('%s "%s" does not exist.' % (cls.__name__,
-                key))
+            raise exceptions.NotFoundException('%s "%s" does not exist.' % (
+                cls.__name__, key))
         elif model.id == key:
             logging.info('%s "%s" found in datastore. Writing to memcache.' % \
                 (cls.__name__, key))
@@ -60,25 +58,27 @@ def save_to_cache(model):
 
     attempts = 0
     try:
-        while attempts <= DATASTORE_RETRY_ATTEMPTS:
+        while attempts <= settings.DATASTORE_RETRY_ATTEMPTS:
             timeout_ms = 100
             logging.debug('Storing %s "%s" in datastore (%d/%d).' % (
-                model.kind(), model.id, (attempts+1), DATASTORE_RETRY_ATTEMPTS))
+                model.kind(), model.id, (attempts+1),
+                settings.DATASTORE_RETRY_ATTEMPTS))
             try:
                 db.Model.put(model)
                 break
             except apiproxy_errors.CapabilityDisabledError:
-                raise MaintenanceException('Unable to save %s "%s" to the ' \
-                    'datastore due to maintenance.' % (model.kind(), model.id))
+                raise exceptions.MaintenanceException('Unable to save %s ' \
+                    '"%s" to the datastore due to maintenance.' % (
+                    model.kind(), model.id))
             except db.Timeout:
                 time.sleep(timeout_ms / 1000)
                 timeout_ms *= 2
                 attempts += 1
             except db.Error, ex:
-                raise InternalException('Unable to save %s "%s" to the ' \
-                    'datastore: %s' % (model.kind(), model.id, ex))
+                raise exceptions.InternalException('Unable to save %s "%s" ' \
+                    'to the datastore: %s' % (model.kind(), model.id, ex))
     except apiproxy_errors.DeadlineExceededError, ex:
-        raise InternalException('Unable to save %s "%s" to the ' \
+        raise exceptions.InternalException('Unable to save %s "%s" to the ' \
             'datastore: %s' % (model.kind(), model.id, ex))
 
     memcache.delete(model.id)
@@ -104,7 +104,8 @@ def delete_from_cache(model=None, kind=None, key=None):
     elif kind and key:
         model_key = db.Key.from_path(kind, key)
     else:
-        raise MissingException('Missing "model" or "kind" and "key" parameters.')
+        raise exceptions.MissingException('Missing "model" or "kind" and ' \
+                                          '"key" parameters.')
 
     logging.debug('Deleting %s "%s" from the datastore.' % (kind, key))
     try:
@@ -113,11 +114,11 @@ def delete_from_cache(model=None, kind=None, key=None):
         logging.warning('%s "%s" was never saved in the datastore.' % (kind,
             key))
     except apiproxy_errors.CapabilityDisabledError:
-        raise MaintenanceException('Unable to delete %s "%s" from the ' \
-            'datastore due to maintenance.' % (kind, key))
+        raise exceptions.MaintenanceException('Unable to delete %s "%s" ' \
+            'from the datastore due to maintenance.' % (kind, key))
     except db.Error, ex:
-        raise InternalException('Unable to delete %s "%s" from the ' \
-            'datastore: %s' % (kind, key, ex))
+        raise exceptions.InternalException('Unable to delete %s "%s" from ' \
+            'the datastore: %s' % (kind, key, ex))
 
     logging.debug('Deleting %s "%s" from the memcache.' % (kind, key))
     if not memcache.delete(key):

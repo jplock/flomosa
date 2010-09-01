@@ -9,9 +9,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import urlfetch
 
-from exceptions import MissingException
-import models
-import queueapp
+from flomosa import exceptions, models, queueapp
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -26,10 +24,12 @@ class TaskHandler(queueapp.QueueHandler):
         callback_url = self.request.get('callback_url')
 
         if not request_key:
-            raise MissingException('Missing "request_key" parameter.')
+            raise exceptions.MissingException('Missing "request_key" ' \
+                                              'parameter.')
 
         if not callback_url:
-            raise MissingException('Missing "callback_url" parameter.')
+            raise exceptions.MissingException('Missing "callback_url" ' \
+                                              'parameter.')
 
         request = models.Request.get(request_key)
 

@@ -7,9 +7,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-import models
-import oauthapp
-import utils
+from flomosa import models, oauthapp, utils
 
 
 class TeamHandler(oauthapp.OAuthHandler):

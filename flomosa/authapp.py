@@ -15,8 +15,7 @@ import time
 
 from google.appengine.ext import webapp
 
-import models
-import settings
+from flomosa import models, settings
 
 
 class SecureRequestHandler(webapp.RequestHandler):
@@ -26,7 +25,7 @@ class SecureRequestHandler(webapp.RequestHandler):
         client_key = self.get_secure_cookie(settings.COOKIE_NAME)
         try:
             return models.Client.get(client_key)
-        except:
+        except Exception:
             return default
 
     def _cookie_signature(self, *parts):
@@ -116,7 +115,7 @@ class SecureRequestHandler(webapp.RequestHandler):
 
         try:
             return base64.b64decode(parts[0])
-        except:
+        except Exception:
             return None
 
     def encrypt_string(self, password):

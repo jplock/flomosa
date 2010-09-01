@@ -10,10 +10,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from exceptions import MissingException
-import models
-import oauthapp
-import utils
+from flomosa import exceptions, models, oauthapp, utils
 
 
 _STAT_TUPLE = (
@@ -57,7 +54,8 @@ class StatHandler(oauthapp.OAuthHandler):
             return return_stats
         if not value:
             if required:
-                raise MissingException('Missing "%s" parameter.' % name)
+                raise exceptions.MissingException('Missing "%s" ' \
+                                                  'parameter.' % name)
         else:
             value = int(value)
             return value

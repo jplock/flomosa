@@ -3,15 +3,15 @@
 #
 
 import logging
-import os.path
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 
-import authapp
+from flomosa import authapp, settings
 
 
 class MainHandler(authapp.SecureRequestHandler):
+
     def get(self):
         logging.debug('Begin MainHandler.get() method')
 
@@ -20,8 +20,7 @@ class MainHandler(authapp.SecureRequestHandler):
         if client:
             template_vars['current_client'] = client
 
-        template_file = os.path.join(os.path.dirname(__file__),
-            'templates/index.tpl')
+        template_file = settings.TEMPLATE_DIR + '/index.tpl'
         output = template.render(template_file, template_vars)
 
         self.response.out.write(output)

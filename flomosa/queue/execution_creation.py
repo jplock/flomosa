@@ -8,10 +8,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
-from exceptions import MissingException
-import models
-import queueapp
-import utils
+from flomosa import exceptions, models, queueapp, utils
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -24,15 +21,15 @@ class TaskHandler(queueapp.QueueHandler):
 
         step_key = self.request.get('step_key')
         if not step_key:
-            raise MissingException('Missing "step_key" parameter.')
+            raise exceptions.MissingException('Missing "step_key" parameter.')
 
         request_key = self.request.get('request_key')
         if not request_key:
-            raise MissingException('Missing "request_key" parameter.')
+            raise exceptions.MissingException('Missing "request_key" parameter.')
 
         member = self.request.get('member')
         if not member:
-            raise MissingException('Missing "member" parameter.')
+            raise exceptions.MissingException('Missing "member" parameter.')
 
         step = models.Step.get(step_key)
         request = models.Request.get(request_key)
@@ -42,7 +39,7 @@ class TaskHandler(queueapp.QueueHandler):
         if team_key:
             try:
                 team = models.Team.get(team_key)
-            except:
+            except Exception:
                 team = None
 
         execution_key = utils.generate_key()

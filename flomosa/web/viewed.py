@@ -8,8 +8,8 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-import models
-import utils
+from flomosa import models, utils
+
 
 PIXEL_GIF = \
 """R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==
@@ -19,7 +19,7 @@ PIXEL_GIF = \
 class ViewedHandler(webapp.RequestHandler):
 
     def output_pixel(self):
-        "Output a transparent pixel GIF image to the user"
+        """Output a transparent pixel GIF image to the user"""
         pixel = base64.b64decode(PIXEL_GIF)
         self.error(200)
         self.response.headers['Content-Type'] = 'image/gif'

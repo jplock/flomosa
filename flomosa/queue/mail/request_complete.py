@@ -2,7 +2,6 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os.path
 import logging
 
 from google.appengine.ext import webapp
@@ -10,10 +9,7 @@ from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
-from exceptions import MissingException, QuotaException, InternalException
-import models
-import settings
-import queueapp
+from flomosa import exceptions, models, settings, queueapp
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -26,20 +22,17 @@ class TaskHandler(queueapp.QueueHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            raise MissingException('Missing "key" parameter.')
+            raise exceptions.MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
         request = execution.request
 
         if not request.requestor:
-            raise InternalException('Request "%s" has no requestor email ' \
-                'address.' % request.id)
+            raise exceptions.InternalException('Request "%s" has no ' \
+                'requestor email address.' % request.id)
 
-        directory = os.path.dirname(__file__)
-        text_template_file = os.path.join(directory,
-            'templates/email_complete_text.tpl')
-        html_template_file = os.path.join(directory,
-            'templates/email_complete_html.tpl')
+        text_template_file = settings.TEMPLATE_DIR + '/email_complete_text.tpl'
+        html_template_file = settings.TEMPLATE_DIR + '/email_complete_html.tpl'
 
         template_vars = {
             'process_name': execution.process.name,
@@ -64,11 +57,11 @@ class TaskHandler(queueapp.QueueHandler):
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            raise QuotaException('Over email quota limit to send completion ' \
+            raise exceptions.QuotaException('Over email quota limit to send ' \
+                'completion email to "%s".' % request.requestor)
+        except Exception:
+            raise exceptions.InternalException('Unable to send completion ' \
                 'email to "%s".' % request.requestor)
-        except:
-            raise InternalException('Unable to send completion email to ' \
-                '"%s".' % request.requestor)
 
         logging.debug('Finished mail-request-complete task handler')
 

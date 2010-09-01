@@ -7,7 +7,7 @@ import uuid
 
 from django.utils import simplejson
 
-from exceptions import HTTPException
+from flomosa import exceptions
 
 
 def generate_key():
@@ -17,7 +17,7 @@ def generate_key():
 def build_json(webapp, data, code=200, return_response=False):
     "Build a JSON error message response."
 
-    if isinstance(data, HTTPException):
+    if isinstance(data, exceptions.HTTPException):
         code = data.status
         data = {'message': data.body}
     elif isinstance(data, Exception):

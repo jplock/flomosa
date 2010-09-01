@@ -10,9 +10,11 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util, mail_handlers
 from google.appengine.api.labs import taskqueue
 
-import models
+from flomosa import exceptions, models
+
 
 class MailHandler(mail_handlers.InboundMailHandler):
+
     def receive(self, message):
         logging.debug('Begin incoming mail handler')
 
@@ -82,11 +84,11 @@ class MailHandler(mail_handlers.InboundMailHandler):
         logging.info('Parsed reply "%s" from email.' % reply_text)
 
         if not isinstance(executed_action, models.Action):
-            raise InternalException('Could not locate action named "%s". ' \
-                'Exiting.' % executed_action)
+            raise exceptions.InternalException('Could not locate action ' \
+                'named "%s".' % executed_action)
 
         execution.set_completed(executed_action)
-        
+
         logging.info('Queuing confirmation email to be sent to "%s".' % \
             execution.member)
         task = taskqueue.Task(params={'key': execution.id})

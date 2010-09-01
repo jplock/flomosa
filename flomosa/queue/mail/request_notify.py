@@ -4,17 +4,13 @@
 
 from datetime import datetime
 import logging
-import os.path
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
-from exceptions import MissingException, QuotaException, InternalException
-import models
-import settings
-import queueapp
+from flomosa import exceptions, models, settings, queueapp
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -27,12 +23,12 @@ class TaskHandler(queueapp.QueueHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            raise MissingException('Missing "key" parameter.')
+            raise exceptions.MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
         if not execution.member:
-            raise InternalException('Execution "%s" has no email address.' % \
-                execution.id)
+            raise exceptions.InternalException('Execution "%s" has no email ' \
+                                               'address.' % execution.id)
 
         if execution.sent_date:
             logging.warning('Execution "%s" notification already sent to ' \
@@ -42,11 +38,8 @@ class TaskHandler(queueapp.QueueHandler):
         request = execution.request
         step = execution.step
 
-        directory = os.path.dirname(__file__)
-        text_template_file = os.path.join(directory,
-            'templates/email_notify_text.tpl')
-        html_template_file = os.path.join(directory,
-            'templates/email_notify_html.tpl')
+        text_template_file = settings.TEMPLATE_DIR + '/email_notify_text.tpl'
+        html_template_file = settings.TEMPLATE_DIR + '/email_notify_html.tpl'
 
         template_vars = {
             'execution_key': execution.id,
@@ -75,11 +68,11 @@ class TaskHandler(queueapp.QueueHandler):
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            raise QuotaException('Over email quota limit to send notification ' \
+            raise exceptions.QuotaException('Over email quota limit to send ' \
+                'notification email to "%s".' % execution.member)
+        except Exception:
+            raise exceptions.InternalException('Unable to send notification ' \
                 'email to "%s".' % execution.member)
-        except:
-            raise InternalException('Unable to send notification email to ' \
-                '"%s".' % execution.member)
 
         execution.set_sent()
 

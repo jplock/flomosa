@@ -8,9 +8,7 @@ import logging
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 
-from exceptions import MissingException
-import models
-import queueapp
+from flomosa import exceptions, models, queueapp
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -23,15 +21,17 @@ class TaskHandler(queueapp.QueueHandler):
 
         request_key = self.request.get('request_key')
         if not request_key:
-            raise MissingException('Missing "request_key" parameter.')
+            raise exceptions.MissingException('Missing "request_key" ' \
+                                              'parameter.')
 
         process_key = self.request.get('process_key')
         if not process_key:
-            raise MissingException('Missing "process_key" parameter.')
+            raise exceptions.MissingException('Missing "process_key" ' \
+                                              'parameter.')
 
         timestamp = self.request.get('timestamp') # POSIX UTC timestamp
         if not timestamp:
-            raise MissingException('Missing "timestamp" parameter.')
+            raise exceptions.MissingException('Missing "timestamp" parameter.')
 
         stat_time = datetime.utcfromtimestamp(timestamp)
         request = models.Request.get(request_key)

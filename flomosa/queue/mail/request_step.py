@@ -2,7 +2,6 @@
 # Copyright 2010 Flomosa, LLC
 #
 
-import os.path
 import logging
 
 from google.appengine.ext import webapp
@@ -10,10 +9,7 @@ from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
-from exceptions import MissingException, InternalException, QuotaException
-import models
-import settings
-import queueapp
+from flomosa import exceptions, models, settings, queueapp
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -26,19 +22,16 @@ class TaskHandler(queueapp.QueueHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            raise MissingException('Missing "key" parameter.')
+            raise exceptions.MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
         request = execution.request
         if not request.requestor:
-            raise InternalException('Request "%s" has no email address.' % \
-                execution.id)
+            raise exceptions.InternalException('Request "%s" has no email ' \
+                                               'address.' % execution.id)
 
-        directory = os.path.dirname(__file__)
-        text_template_file = os.path.join(directory,
-            'templates/email_step_text.tpl')
-        html_template_file = os.path.join(directory,
-            'templates/email_step_html.tpl')
+        text_template_file = settings.TEMPLATE_DIR + '/email_step_text.tpl'
+        html_template_file = settings.TEMPLATE_DIR + '/email_step_html.tpl'
 
         template_vars = {
             'step_name': execution.step.name,
@@ -64,11 +57,11 @@ class TaskHandler(queueapp.QueueHandler):
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
-            raise QuotaException('Over email quota limit to send step email ' \
-                'to "%s".' % request.requestor)
+            raise exceptions.QuotaException('Over email quota limit to send ' \
+                'step email to "%s".' % request.requestor)
         except Exception:
-            raise InternalException('Unable to send step email to "%s".' % \
-                request.requestor)
+            raise exceptions.InternalException('Unable to send step email ' \
+                                               'to "%s".' % request.requestor)
 
         logging.debug('Finished mail-request-step task handler')
 

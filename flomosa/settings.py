@@ -2,6 +2,11 @@
 # Copyright 2010 Flomosa, LLC
 #
 
+import os.path
+
+# Template directory
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+
 # Application name on AppEngine
 APPLICATION_NAME = 'flomosa'
 

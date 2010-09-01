@@ -10,10 +10,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
-from exceptions import MissingException, InternalException
-import models
-import settings
-import queueapp
+from flomosa import exceptions, models, settings, queueapp
 
 
 class TaskHandler(queueapp.QueueHandler):
@@ -26,32 +23,32 @@ class TaskHandler(queueapp.QueueHandler):
 
         execution_key = self.request.get('key')
         if not execution_key:
-            raise MissingException('Missing "key" parameter.')
+            raise exceptions.MissingException('Missing "key" parameter.')
 
         execution = models.Execution.get(execution_key)
 
         if not isinstance(execution.step, models.Step):
-            raise InternalException('Execution "%s" has no step defined.' % \
-                execution.id)
+            raise exceptions.InternalException('Execution "%s" has no step ' \
+                                               'defined.' % execution.id)
 
         if not isinstance(execution.request, models.Request):
-            raise InternalException('Execution "%s" has no request defined.' % \
-                execution.id)
+            raise exceptions.InternalException('Execution "%s" has no ' \
+                'request defined.' % execution.id)
 
         if not execution.step.actions:
-            raise InternalException('Step "%s" has no actions defined.' % \
-                execution.step.id)
+            raise exceptions.InternalException('Step "%s" has no actions ' \
+                                               'defined.' % execution.step.id)
 
         if not execution.member:
-            raise InternalException('Execution "%s" has no email address.' % \
-                execution.id)
+            raise exceptions.InternalException('Execution "%s" has no email ' \
+                                               'address.' % execution.id)
 
         # Always fetch the latest version of the request from the datastore
         request_key = execution.request.id
         request = models.Request.get_by_key_name(request_key)
         if not request:
-            raise InternalException('Request "%s" not found in datastore.' % \
-                request_key)
+            raise exceptions.InternalException('Request "%s" not found in ' \
+                                               'datastore.' % request_key)
         execution.request = request
 
         # If the request has been completed, close out this execution

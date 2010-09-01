@@ -7,9 +7,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-import models
-import oauthapp
-import utils
+from flomosa import exceptions, models, oauthapp, utils
 
 
 class ExecutionHandler(oauthapp.OAuthHandler):
@@ -19,8 +17,8 @@ class ExecutionHandler(oauthapp.OAuthHandler):
         execution = models.Execution.get(execution_key)
         process = execution.process
         if client.id != process.client.id:
-            raise UnauthorizedException('Client "%s" is not authorized to ' \
-                'access Process "%s".' % (client.id, process.id))
+            raise exceptions.UnauthorizedException('Client "%s" is not ' \
+                'authorized to access Process "%s".' % (client.id, process.id))
         return execution
 
     def get(self, execution_key):
