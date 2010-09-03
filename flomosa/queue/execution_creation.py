@@ -43,8 +43,10 @@ class TaskHandler(queueapp.QueueHandler):
                 team = None
 
         execution_key = utils.generate_key()
-        execution = models.Execution(key_name=execution_key, step=step,
-            process=step.process, member=member, team=team)
+        execution = models.Execution(key_name=execution_key, parent=request,
+                                     request=request, step=step,
+                                     process=step.process, member=member,
+                                     team=team)
 
         execution.put()
 

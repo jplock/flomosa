@@ -10,7 +10,7 @@ from google.appengine.ext.webapp import template, util
 from flomosa import exceptions, models, oauthapp, settings, utils
 
 
-class StepHandler(oauthapp.OAuthHandler):
+class StepHandler(webapp.RequestHandler):
 
     def is_client_allowed(self, step_key):
         client = self.is_valid()
@@ -26,7 +26,8 @@ class StepAtomHandler(StepHandler):
     def get(self, step_key):
         logging.debug('Begin StepAtomHandler.get() method')
 
-        step = self.is_client_allowed(step_key)
+        step = models.Step.get(step_key)
+        #step = self.is_client_allowed(step_key)
 
         template_vars = {'step': step, 'url': settings.HTTPS_URL,
             'email': settings.FEEDBACK_EMAIL}

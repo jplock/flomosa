@@ -33,13 +33,13 @@ class TaskHandler(queueapp.QueueHandler):
         if not timestamp:
             raise exceptions.MissingException('Missing "timestamp" parameter.')
 
-        stat_time = datetime.utcfromtimestamp(timestamp)
+        stat_time = datetime.utcfromtimestamp(float(timestamp))
         request = models.Request.get(request_key)
         process = models.Process.get(process_key)
 
         try:
             db.run_in_transaction(models.Statistic.store_stats, request,
-                process, stat_time)
+                                  process, stat_time)
         except db.TransactionFailedError:
             logging.critical('Storing statistics failed for Request "%s". ' \
                 'Re-queuing.' % request.id)

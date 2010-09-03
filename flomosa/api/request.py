@@ -65,7 +65,6 @@ class RequestHandler(oauthapp.OAuthHandler):
         for key, value in data.items():
             if not hasattr(request, key) and key not in reserved_keys:
                 setattr(request, key, value)
-
         request.put()
 
         if callback_url:

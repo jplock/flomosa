@@ -93,7 +93,7 @@ class Client(FlomosaBase):
 
 class Team(FlomosaBase):
     client = db.ReferenceProperty(Client, collection_name='teams',
-        required=True)
+                                  required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     members = db.ListProperty(basestring)
@@ -150,7 +150,7 @@ class Team(FlomosaBase):
 
 class Process(FlomosaBase):
     client = db.ReferenceProperty(Client, collection_name='processes',
-        required=True)
+                                  required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     collect_stats = db.BooleanProperty(default=False)
@@ -162,7 +162,7 @@ class Process(FlomosaBase):
         statistics from the datastore.
         """
 
-        if not self.collect_stats:
+        if self.is_saved() and not self.collect_stats:
             self.delete_stats()
 
         process = cache.save_to_cache(self)
@@ -184,14 +184,15 @@ class Process(FlomosaBase):
     def add_steps(self, steps):
         "Add multiple steps to this process."
         for data in steps:
-            kwargs = {'name': data.get('name'), 'members': data.get('members'),
-                'description': data.get('description'),
-                'team_key': data.get('team'), 'step_key': data.get('key'),
-                'is_start': data.get('is_start')}
-            self.add_step(**kwargs)
+            kwargs = {'step_key': data.get('key'),
+                      'members': data.get('members'),
+                      'team_key': data.get('team'),
+                      'description': data.get('description'),
+                      'is_start': data.get('is_start')}
+            self.add_step(data['name'], **kwargs)
 
-    def add_step(self, name, description=None, team_key=None, members=None,
-            is_start=None, step_key=None):
+    def add_step(self, name, description=None, team_key=None,
+                 members=None, is_start=None, step_key=None):
         """Add a step to this process."""
 
         if is_start is None:
@@ -203,7 +204,10 @@ class Process(FlomosaBase):
             members = []
         if not step_key:
             step_key = utils.generate_key()
-        step = Step(key_name=step_key, process=self, name=name)
+
+        step = Step.get_by_key_name(step_key, parent=self)
+        if not step:
+            step = Step(key_name=step_key, parent=self, process=self, name=name)
         step.is_start = bool(is_start)
         if team_key:
             team = Team.get(team_key)
@@ -217,13 +221,14 @@ class Process(FlomosaBase):
     def add_actions(self, actions):
         """Add multiple actions to this process."""
         for data in actions:
-            kwargs = {'name': data.get('name'), 'incoming': data.get('incoming'),
-                'outgoing': data.get('outgoing'), 'action_key': data.get('key'),
-                'is_complete': data.get('is_complete')}
-            self.add_action(**kwargs)
+            kwargs = {'incoming': data.get('incoming'),
+                      'outgoing': data.get('outgoing'),
+                      'action_key': data.get('key'),
+                      'is_complete': data.get('is_complete')}
+            self.add_action(data['name'], **kwargs)
 
     def add_action(self, name, incoming=None, outgoing=None, is_complete=False,
-            action_key=None):
+                   action_key=None):
         """Add an action to this process."""
 
         if not action_key:
@@ -234,7 +239,10 @@ class Process(FlomosaBase):
             outgoing = []
         if is_complete and outgoing:
             is_complete = False
-        action = Action(key_name=action_key, process=self, name=name)
+        action = Action.get_by_key_name(action_key, parent=self)
+        if not action:
+            action = Action(key_name=action_key, parent=self, process=self,
+                            name=name)
         action.is_complete = bool(is_complete)
 
         for step_key in incoming:
@@ -348,7 +356,7 @@ class Process(FlomosaBase):
 
 class Step(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='steps',
-        required=True)
+                                   required=True)
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     is_start = db.BooleanProperty(default=False)
@@ -366,16 +374,6 @@ class Step(FlomosaBase):
         return Action.all().filter('outgoing', self.key())
 
     @property
-    def is_valid(self):
-        """A step is valid if it has at least one direct member or a team with
-        members defined."""
-        if self.members:
-            return True
-        elif self.team and self.team.members:
-            return True
-        return False
-
-    @property
     def last_updated(self):
         """Get the most recent non-actioned execution as the time this
         step was updated."""
@@ -388,6 +386,15 @@ class Step(FlomosaBase):
         if not execution:
             return None
         return execution.start_date
+
+    def is_valid(self):
+        """A step is valid if it has at least one direct member or a team with
+        members defined."""
+        if self.members:
+            return True
+        elif self.team and self.team.members:
+            return True
+        return False
 
     def get_absolute_url(self):
         url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self.id)
@@ -417,10 +424,10 @@ class Step(FlomosaBase):
 
         if not isinstance(request, Request):
             raise exceptions.InternalException('"%s" is not a valid Request ' \
-                'model.' % request)
+                                               'model.' % request)
         if not self.is_valid():
             raise exceptions.InternalException('Step is not valid: no team ' \
-                'or members found.')
+                                               'or members found.')
 
         params = {'step_key': self.id, 'request_key': request.id}
         tasks = []
@@ -472,9 +479,10 @@ class Step(FlomosaBase):
             if not execution.request.is_completed:
                 yield execution
 
+
 class Action(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='actions',
-        required=True)
+                                   required=True)
     name = db.StringProperty(required=True)
     incoming = db.ListProperty(db.Key)
     outgoing = db.ListProperty(db.Key)
@@ -527,9 +535,9 @@ class Action(FlomosaBase):
 
 class Request(db.Expando):
     client = db.ReferenceProperty(Client, collection_name='requests',
-        required=True)
+                                  required=True)
     process = db.ReferenceProperty(Process, collection_name='requests',
-        required=True)
+                                   required=True)
     requestor = db.EmailProperty(required=True)
     contact = db.EmailProperty()
     is_draft = db.BooleanProperty(default=False)
@@ -572,7 +580,7 @@ class Request(db.Expando):
             step = self.process.get_start_step()
             if not step:
                 raise ValidationException('Process "%s" does not have a ' \
-                    'starting step.' % process.id)
+                                          'starting step.' % process.id)
 
             step.queue_tasks(self)
 
@@ -653,11 +661,11 @@ class Request(db.Expando):
 
 class Execution(FlomosaBase):
     process = db.ReferenceProperty(Process, collection_name='executions',
-        required=True)
+                                   required=True)
     request = db.ReferenceProperty(Request, collection_name='executions',
-        required=True)
+                                   required=True)
     step = db.ReferenceProperty(Step, collection_name='executions',
-        required=True)
+                                required=True)
     action = db.ReferenceProperty(Action, collection_name='executions')
     team = db.ReferenceProperty(Team, collection_name='executions')
     member = db.EmailProperty(required=True)
@@ -700,7 +708,8 @@ class Execution(FlomosaBase):
         actions = []
         for action in self.step.actions:
             action_data = {'kind': action.kind(), 'key': action.id,
-                'name': action.name, 'is_complete': action.is_complete}
+                           'name': action.name,
+                           'is_complete': action.is_complete}
             actions.append(action_data)
         data['available_actions'] = actions
         if self.last_reminder_sent_date:
@@ -741,7 +750,7 @@ class Execution(FlomosaBase):
 
         if not isinstance(action, Action):
             raise exceptions.InternalException('"%s" is not a valid Action ' \
-                'model.' % action)
+                                               'model.' % action)
 
         self.action = action
         if not end_date:
@@ -799,7 +808,7 @@ class Execution(FlomosaBase):
 
 class Statistic(db.Model):
     process = db.ReferenceProperty(Process, collection_name='stats',
-        required=True)
+                                   required=True)
     type = db.StringProperty(required=True)
     year = db.IntegerProperty(required=True)
     month = db.IntegerProperty()
@@ -831,13 +840,13 @@ class Statistic(db.Model):
             self.num_requests_completed += 1
             self.total_request_seconds += request.duration
             self.avg_request_seconds = float(self.total_request_seconds /
-                self.num_requests_completed)
+                                             self.num_requests_completed)
         else:
             self.num_requests += 1
 
     @classmethod
     def store_stat(cls, request, process, timestamp, type='daily', parent=None,
-            date_key=None):
+                   date_key=None):
         """Store a Statistic object"""
 
         if not isinstance(process, Process):
@@ -864,7 +873,7 @@ class Statistic(db.Model):
         if date_key is None:
             if type == 'daily':
                 date_key = '%d%02d%02d' % (timestamp.year, timestamp.month,
-                    timestamp.day)
+                                           timestamp.day)
                 month = timestamp.month
                 day = timestamp.day
                 temp, week_num, week_day = timestamp.isocalendar()
@@ -878,7 +887,7 @@ class Statistic(db.Model):
                 date_key = timestamp.year
             elif type == 'hourly':
                 date_key = '%d%02d%02d%02d' % (timestamp.year, timestamp.month,
-                    timestamp.day, timestamp.hour)
+                                               timestamp.day, timestamp.hour)
                 month = timestamp.month
                 day = timestamp.day
                 hour = timestamp.hour
@@ -890,7 +899,7 @@ class Statistic(db.Model):
         stat = cls.get_by_key_name(stat_key, parent=parent)
         if not stat:
             stat = cls(key_name=stat_key, parent=parent, process=process,
-                type=type, year=timestamp.year)
+                       type=type, year=timestamp.year)
             stat.month = month
             stat.day = day
             stat.week_day = week_day
@@ -906,15 +915,16 @@ class Statistic(db.Model):
 
         if timestamp is None:
             timestamp = datetime.datetime.now()
-        yearly = cls.store_stat(request, process, timestamp, type='yearly')
+        yearly = cls.store_stat(request, process, timestamp, type='yearly',
+                                parent=process)
         monthly = cls.store_stat(request, process, timestamp, type='monthly',
-            parent=yearly)
+                                 parent=yearly)
         weekly = cls.store_stat(request, process, timestamp, type='weekly',
-            parent=yearly)
+                                parent=yearly)
         daily = cls.store_stat(request, process, timestamp, type='daily',
-            parent=weekly)
+                               parent=weekly)
         hourly = cls.store_stat(request, process, timestamp, type='hourly',
-            parent=daily)
+                                parent=daily)
 
     def to_dict(self):
         """Return statistics as a dict object."""

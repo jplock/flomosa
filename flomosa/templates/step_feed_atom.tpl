@@ -7,7 +7,7 @@
     {% endfor %}
     <generator uri="{{ url }}/">Flomosa</generator>
     <id>urn:uuid:{{ step.id }}</id>
-    <updated>{{ step.last_updated|date:"c" }}Z</updated>
+    <updated>{{ step.last_updated|date:"Y-m-d\TH:i:s\Z" }}</updated>
     <author>
         <name>{{ step.process.name }}</name>
         <email>{{ email }}</email>
@@ -17,7 +17,7 @@
         <title>{{ execution.request.id }}</title>
         <link rel="alternate" href="{{ execution.get_absolute_url }}" type="application/json" />
         <id>urn:uuid:{{ execution.id }}</id>
-        <updated>{{ execution.start_date|date:"c" }}Z</updated>
+        <updated>{{ execution.start_date|date:"Y-m-d\TH:i:s\Z" }}</updated>
         <author>
             <name>{{ execution.request.requestor }}</name>
             <email>{{ execution.request.requestor }}</email>

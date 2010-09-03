@@ -4,7 +4,7 @@
 
 import logging
 
-from google.appengine.ext import webapp
+from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 
 from flomosa import exceptions, models, oauthapp, utils
@@ -53,6 +53,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
             try:
                 db.run_in_transaction(process.add_steps, steps)
             except db.TransactionFailedError:
+                process.delete_steps_actions()
                 raise exceptions.InternalException('Failed to save steps')
 
         # Load any actions on this process
@@ -62,6 +63,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
             try:
                 db.run_in_transaction(process.add_actions, actions)
             except db.TransactionFailedError:
+                process.delete_steps_actions()
                 raise exceptions.InternalException('Failed to save actions')
 
         logging.info('Returning Process "%s" as JSON to client.' % process.id)
