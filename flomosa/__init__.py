@@ -6,6 +6,9 @@
 # All Rights Reserved.
 #
 
+__version__ = '0.1'
+__all__ = ['is_development']
+
 import os
 
 

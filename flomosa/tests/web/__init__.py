@@ -6,6 +6,8 @@
 # All Rights Reserved.
 #
 
+__all__ = ['create_test_request', 'HandlerTestBase']
+
 import logging
 import os
 import StringIO

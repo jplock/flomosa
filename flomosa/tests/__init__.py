@@ -6,6 +6,8 @@
 # All Rights Reserved.
 #
 
+__all__ = ['fix_paths', 'setup_for_testing']
+
 import logging
 import os
 import sys
