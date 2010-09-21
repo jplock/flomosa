@@ -11,10 +11,11 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 
-from flomosa import authapp, settings
+from flomosa import settings
+from flomosa.web import SecureRequestHandler
 
 
-class MainHandler(authapp.SecureRequestHandler):
+class MainHandler(SecureRequestHandler):
 
     def get(self):
         logging.debug('Begin MainHandler.get() method')

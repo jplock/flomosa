@@ -11,7 +11,8 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 
-from flomosa import exceptions, models, oauthapp, settings, utils
+from flomosa import exceptions, models, settings
+from flomosa.api import OAuthHandler
 
 
 class StepHandler(webapp.RequestHandler):
@@ -24,6 +25,7 @@ class StepHandler(webapp.RequestHandler):
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
                 'authorized to access Process "%s".' % (client.id, process.id))
         return step
+
 
 class StepAtomHandler(StepHandler):
 
@@ -44,6 +46,7 @@ class StepAtomHandler(StepHandler):
         self.response.out.write(output)
 
         logging.debug('Finished StepAtomHandler.get() method')
+
 
 def main():
     application = webapp.WSGIApplication([(r'/steps/(.*)\.atom',

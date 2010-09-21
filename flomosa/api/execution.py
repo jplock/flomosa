@@ -11,10 +11,11 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from flomosa import exceptions, models, oauthapp, utils
+from flomosa import exceptions, models
+from flomosa.api import OAuthHandler, build_json
 
 
-class ExecutionHandler(oauthapp.OAuthHandler):
+class ExecutionHandler(OAuthHandler):
 
     def is_client_allowed(self, execution_key):
         client = self.is_valid()
@@ -32,9 +33,10 @@ class ExecutionHandler(oauthapp.OAuthHandler):
 
         logging.info('Returning Execution "%s" as JSON to client.' % \
             execution.id)
-        utils.build_json(self, execution.to_dict())
+        build_json(self, execution.to_dict())
 
         logging.debug('Finished ExecutionHandler.get() method')
+
 
 def main():
     application = webapp.WSGIApplication([(r'/executions/(.*)\.json',

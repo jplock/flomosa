@@ -11,10 +11,12 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template, util
 
-from flomosa import authapp, models, settings, utils
+from flomosa import models, settings, utils
+from flomosa.web import SecureRequestHandler
 
 
-class AccountHandler(authapp.SecureRequestHandler):
+class AccountHandler(SecureRequestHandler):
+
     def show_form(self, template_vars=None):
         if not template_vars:
             template_vars = {'uri': self.request.uri}
@@ -104,7 +106,8 @@ class AccountHandler(authapp.SecureRequestHandler):
 
         logging.debug('Finished AccountHandler.get() method')
 
-class RegisterHandler(authapp.SecureRequestHandler):
+
+class RegisterHandler(SecureRequestHandler):
     def show_form(self, template_vars=None):
         if not template_vars:
             template_vars = {'uri': self.request.uri}
@@ -189,7 +192,9 @@ class RegisterHandler(authapp.SecureRequestHandler):
 
         logging.debug('Finished RegisterHandler.get() method')
 
-class LoginHandler(authapp.SecureRequestHandler):
+
+class LoginHandler(SecureRequestHandler):
+
     def show_form(self, template_vars=None):
         if not template_vars:
             template_vars = {'uri': self.request.uri}
@@ -254,7 +259,9 @@ class LoginHandler(authapp.SecureRequestHandler):
 
         logging.debug('Finished LoginHandler.get() method')
 
-class LogoutHandler(authapp.SecureRequestHandler):
+
+class LogoutHandler(SecureRequestHandler):
+
     def get(self):
         logging.debug('Begin LogoutHandler.get() method')
 
@@ -270,7 +277,9 @@ class LogoutHandler(authapp.SecureRequestHandler):
 
         logging.debug('Finished LogoutHandler.get() method')
 
-class CloseHandler(authapp.SecureRequestHandler):
+
+class CloseHandler(SecureRequestHandler):
+
     def get(self):
         logging.debug('Begin CloseHandler.get() method')
 
@@ -288,6 +297,7 @@ class CloseHandler(authapp.SecureRequestHandler):
         self.redirect('/')
 
         logging.debug('Finished CloseHandler.get() method')
+
 
 def main():
     application = webapp.WSGIApplication(

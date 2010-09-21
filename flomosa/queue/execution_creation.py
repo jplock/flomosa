@@ -12,10 +12,11 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
-from flomosa import exceptions, models, queueapp, utils
+from flomosa import exceptions, models, utils
+from flomosa.queue import QueueHandler
 
 
-class TaskHandler(queueapp.QueueHandler):
+class TaskHandler(QueueHandler):
 
     def post(self):
         logging.debug('Begin execution-creation task handler')
@@ -59,6 +60,7 @@ class TaskHandler(queueapp.QueueHandler):
         queue.add(task)
 
         logging.debug('Finished execution-creation task handler')
+
 
 def main():
     application = webapp.WSGIApplication([('/_ah/queue/execution-creation',

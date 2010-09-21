@@ -12,10 +12,11 @@ import logging
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 
-from flomosa import exceptions, models, queueapp
+from flomosa import exceptions, models
+from flomosa.queue import QueueHandler
 
 
-class TaskHandler(queueapp.QueueHandler):
+class TaskHandler(QueueHandler):
 
     def post(self):
         logging.debug('Begin request-statistics task handler')
@@ -50,6 +51,7 @@ class TaskHandler(queueapp.QueueHandler):
             return self.halt_requeue()
 
         logging.debug('Finished request-statistics task handler')
+
 
 def main():
     application = webapp.WSGIApplication([('/_ah/queue/request-statistics',

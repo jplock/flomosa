@@ -11,10 +11,11 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from flomosa import models, oauthapp
+from flomosa import models
+from flomosa.api import OAuthHandler, build_json
 
 
-class ProcessHandler(oauthapp.OAuthHandler):
+class ProcessHandler(OAuthHandler):
 
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() method')
@@ -24,7 +25,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
         logging.debug('Finished ProcessHandler.get() method')
 
 
-class StepHandler(oauthapp.OAuthHandler):
+class StepHandler(OAuthHandler):
 
     def get(self, step_key):
         logging.debug('Begin StepHandler.get() method')

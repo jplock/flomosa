@@ -13,10 +13,11 @@ from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
-from flomosa import exceptions, models, settings, queueapp
+from flomosa import exceptions, models, settings
+from flomosa.queue import QueueHandler
 
 
-class TaskHandler(queueapp.QueueHandler):
+class TaskHandler(QueueHandler):
 
     def post(self):
         logging.debug('Begin mail-request-confirmation task handler')
@@ -74,6 +75,7 @@ class TaskHandler(queueapp.QueueHandler):
                 '"%s".' % execution.member)
 
         logging.debug('Finished mail-request-confirmation task handler')
+
 
 def main():
     application = webapp.WSGIApplication(

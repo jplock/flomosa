@@ -11,10 +11,11 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from flomosa import models, oauthapp, utils
+from flomosa import models
+from flomosa.api import OAuthHandler, build_json
 
 
-class TeamHandler(oauthapp.OAuthHandler):
+class TeamHandler(OAuthHandler):
 
     def get(self, team_key):
         logging.debug('Begin TeamHandler.get() method')
@@ -23,7 +24,7 @@ class TeamHandler(oauthapp.OAuthHandler):
         team = models.Team.get(team_key, client)
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
-        utils.build_json(self, team.to_dict())
+        build_json(self, team.to_dict())
 
         logging.debug('Finished TeamHandler.get() method')
 
@@ -39,7 +40,7 @@ class TeamHandler(oauthapp.OAuthHandler):
         team.put()
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
-        utils.build_json(self, team.to_dict(), 201)
+        build_json(self, team.to_dict(), 201)
 
         logging.debug('Finished TeamHandler.put() method')
 
@@ -53,6 +54,7 @@ class TeamHandler(oauthapp.OAuthHandler):
         self.error(204)
 
         logging.debug('Finished TeamHandler.delete() method')
+
 
 def main():
     application = webapp.WSGIApplication([(r'/teams/(.*)\.json', TeamHandler)],

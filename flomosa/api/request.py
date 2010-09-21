@@ -12,10 +12,11 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
-from flomosa import exceptions, models, oauthapp, utils
+from flomosa import exceptions, models
+from flomosa.api import OAuthHandler, build_json
 
 
-class RequestHandler(oauthapp.OAuthHandler):
+class RequestHandler(OAuthHandler):
 
     def get(self, request_key=None):
         logging.debug('Begin RequestHandler.get() method')
@@ -28,7 +29,7 @@ class RequestHandler(oauthapp.OAuthHandler):
 
         request = models.Request.get(request_key, client)
 
-        utils.build_json(self, request.to_dict())
+        build_json(self, request.to_dict())
 
         logging.debug('Finished RequestHandler.get() method')
 
@@ -85,7 +86,7 @@ class RequestHandler(oauthapp.OAuthHandler):
         else:
             logging.info('Returning Request "%s" as JSON to client.' % \
                 request.id)
-            utils.build_json(self, {'key': request.id}, 201)
+            build_json(self, {'key': request.id}, 201)
 
         logging.debug('Finished RequestHandler.post() method')
 
@@ -104,6 +105,7 @@ class RequestHandler(oauthapp.OAuthHandler):
         self.error(204)
 
         logging.debug('Finished RequestHandler.delete() method')
+
 
 def main():
     application = webapp.WSGIApplication(

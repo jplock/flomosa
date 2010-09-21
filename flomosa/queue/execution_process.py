@@ -14,10 +14,11 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
-from flomosa import exceptions, models, settings, queueapp
+from flomosa import exceptions, models, settings
+from flomosa.queue import QueueHandler
 
 
-class TaskHandler(queueapp.QueueHandler):
+class TaskHandler(QueueHandler):
 
     def post(self):
         logging.debug('Begin execution-process task handler')

@@ -11,10 +11,11 @@ import logging
 from google.appengine.ext import db, webapp
 from google.appengine.ext.webapp import util
 
-from flomosa import exceptions, models, oauthapp, utils
+from flomosa import exceptions, models
+from flomosa.api import OAuthHandler, build_json
 
 
-class ProcessHandler(oauthapp.OAuthHandler):
+class ProcessHandler(OAuthHandler):
 
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() method')
@@ -22,7 +23,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
         process = self.is_client_allowed(process_key)
 
         logging.debug('Returning Process "%s" as JSON to client.' % process.id)
-        utils.build_json(self, process.to_dict())
+        build_json(self, process.to_dict())
 
         logging.debug('Finished ProcessHandler.get() method')
 
@@ -71,7 +72,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
                 raise exceptions.InternalException('Failed to save actions')
 
         logging.info('Returning Process "%s" as JSON to client.' % process.id)
-        utils.build_json(self, {'key': process.id}, 201)
+        build_json(self, {'key': process.id}, 201)
 
         logging.debug('Finished ProcessHandler.put() method')
 
@@ -84,6 +85,7 @@ class ProcessHandler(oauthapp.OAuthHandler):
         self.error(204)
 
         logging.debug('Finished ProcessHandler.delete() method')
+
 
 def main():
     application = webapp.WSGIApplication([(r'/processes/(.*)\.json',

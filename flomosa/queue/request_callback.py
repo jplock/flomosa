@@ -13,10 +13,11 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import urlfetch
 
-from flomosa import exceptions, models, queueapp
+from flomosa import exceptions, models
+from flomosa.queue import QueueHandler
 
 
-class TaskHandler(queueapp.QueueHandler):
+class TaskHandler(QueueHandler):
 
     def post(self):
         logging.debug('Begin request-callback task handler')
@@ -60,6 +61,7 @@ class TaskHandler(queueapp.QueueHandler):
             self.halt_requeue()
 
         logging.debug('Finished request-callback task handler')
+
 
 def main():
     application = webapp.WSGIApplication([('/_ah/queue/request-callback',

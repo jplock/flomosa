@@ -14,7 +14,8 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from flomosa import exceptions, models, oauthapp, utils
+from flomosa import exceptions, models
+from flomosa.api import OAuthHandler, build_json
 
 
 _STAT_TUPLE = (
@@ -34,7 +35,7 @@ def list_to_dict(keys, default_value=0):
     return new_dict
 
 
-class StatHandler(oauthapp.OAuthHandler):
+class StatHandler(OAuthHandler):
 
     def get_param(self, name, required=True):
         """Get a request parameter, raising an exception if not valid.
@@ -100,7 +101,7 @@ class YearHandler(StatHandler):
                     stats[month][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats)
+        build_json(self, stats)
 
         logging.debug('Finished YearHandler.get() method')
 
@@ -146,7 +147,7 @@ class MonthHandler(StatHandler):
                     stats[day][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats)
+        build_json(self, stats)
 
         logging.debug('Finished MonthHandler.get() method')
 
@@ -189,7 +190,7 @@ class WeekHandler(StatHandler):
                     stats[week_day][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats)
+        build_json(self, stats)
 
         logging.debug('Finished WeekHandler.get() method')
 
@@ -234,7 +235,7 @@ class DayHandler(StatHandler):
                     stats[hour][key] = getattr(result, key, 0)
 
         logging.info('Returning JSON response to client.')
-        utils.build_json(self, stats)
+        build_json(self, stats)
 
         logging.debug('Finished DayHandler.get() method')
 
