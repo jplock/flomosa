@@ -12,7 +12,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api.labs import taskqueue
 
-from flomosa import exceptions, models
+from flomosa import exceptions, models, utils
 from flomosa.api import OAuthHandler, build_json
 
 
