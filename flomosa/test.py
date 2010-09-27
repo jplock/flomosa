@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -6,16 +7,77 @@
 # All Rights Reserved.
 #
 
-__all__ = ['create_test_request', 'HandlerTestBase']
-
+import base64
+import cgi
 import logging
 import os
 import StringIO
+import sys
+import tempfile
 import unittest
 import urllib
 
 
-def create_test_request(method, body, *params):
+TEST_APP_ID = 'flomosa'
+TEST_VERSION_ID = '2'
+
+# Assign the application ID up front here so we can create db.Key instances
+# before doing any other test setup.
+os.environ['APPLICATION_ID'] = TEST_APP_ID
+os.environ['CURRENT_VERSION_ID'] = TEST_VERSION_ID
+
+
+def fix_path():
+    """Finds the google_appengine directory and fixes Python imports to use it.
+
+    """
+    all_paths = os.environ.get('PATH').split(os.pathsep)
+    for path_dir in all_paths:
+        dev_appserver_path = os.path.join(path_dir, 'dev_appserver.py')
+        if os.path.exists(dev_appserver_path):
+            google_appengine = os.path.dirname(os.path.realpath(
+                dev_appserver_path))
+            sys.path.append(google_appengine)
+            # Use the next import will fix up sys.path even further to bring in
+            # any dependent lib directories that the SDK needs.
+            dev_appserver = __import__('dev_appserver')
+            sys.path.extend(dev_appserver.EXTRA_PATHS)
+            return
+
+def setup_for_testing(require_indexes=True):
+    """Sets up the stubs for testing.
+
+    Args:
+        require_indexes: True if indexes should be required for all indexes.
+    """
+    from google.appengine.api import apiproxy_stub_map
+    from google.appengine.api import memcache
+    from google.appengine.tools import dev_appserver
+    from google.appengine.tools import dev_appserver_index
+    from flomosa.tests import urlfetch_test_stub
+    before_level = logging.getLogger().getEffectiveLevel()
+    try:
+        logging.getLogger().setLevel(100)
+        root_path = os.path.realpath(os.path.dirname(__file__))
+        dev_appserver.SetupStubs(
+            TEST_APP_ID,
+            root_path=root_path,
+            login_url='',
+            datastore_path=tempfile.mktemp(suffix='datastore_stub'),
+            history_path=tempfile.mktemp(suffix='datastore_history'),
+            blobstore_path=tempfile.mktemp(suffix='blobstore_stub'),
+            require_indexes=require_indexes,
+            clear_datastore=False)
+        dev_appserver_index.SetupIndexes(TEST_APP_ID, root_path)
+        apiproxy_stub_map.apiproxy._APIProxyStubMap__stub_map['urlfetch'] = \
+            urlfetch_test_stub.instance
+        # Actually need to flush, even though we've reallocated. Maybe because
+        # the memcache stub's cache is at the module level, not the API stub?
+        memcache.flush_all()
+    finally:
+        logging.getLogger().setLevel(before_level)
+
+def create_test_request(method, body, params):
     """Creates a webapp.Request object for use in testing.
 
     Args:
@@ -30,11 +92,14 @@ def create_test_request(method, body, *params):
     assert not(body and params), 'Must specify body or params, not both'
     from google.appengine.ext import webapp
 
+    encoded_params = ''
     if body:
         body = StringIO.StringIO(body)
-        encoded_params = ''
     else:
-        encoded_params = urllib.urlencode(params)
+        try:
+            encoded_params = urllib.urlencode(params)
+        except TypeError:
+            pass
         body = StringIO.StringIO()
         body.write(encoded_params)
         body.seek(0)
@@ -68,12 +133,14 @@ class HandlerTestBase(unittest.TestCase):
         """Tears down the test harness."""
         pass
 
-    def handle(self, method, *params):
+    def handle(self, method, headers=None, params=None, query_params=None):
         """Runs a test of a webapp.RequestHandler.
 
         Args:
             method: The method to invoke for this test.
-            *params: Passed to testutil.create_test_request
+            headers: Request headers to set
+            params: URL parameters to set
+            query_params: Query string parameters to set
         """
         from google.appengine.ext import webapp
         before_software = os.environ.get('SERVER_SOFTWARE')
@@ -91,10 +158,12 @@ class HandlerTestBase(unittest.TestCase):
             if not before_email:
                 os.environ['USER_EMAIL'] = ''
             self.resp = webapp.Response()
-            self.req = create_test_request(method, None, *params)
+            self.req = create_test_request(method, None, query_params)
+            #if headers:
+            #    self.req.headers.update(headers)
             handler = self.handler_class()
             handler.initialize(self.req, self.resp)
-            getattr(handler, method.lower())()
+            getattr(handler, method.lower())(*params)
             logging.info('%r returned status %d: %s', self.handler_class,
                          self.response_code(), self.response_body())
         finally:
@@ -147,3 +216,36 @@ class HandlerTestBase(unittest.TestCase):
     def response_headers(self):
         """Returns the response headers after the request is handled."""
         return self.resp.headers
+
+def get_tasks(queue_name, expected_count=None):
+    """Retrieves Tasks from the supplied named queue.
+
+    Args:
+        queue_name: The queue to access.
+        expected_count: If not None, the number of tasks expected to be in the
+            queue. This function will raise an AssertionError exception if
+            there are more or fewer tasks.
+
+    Returns:
+        List of dictionaries corresponding to each task, with the keys: 'name',
+        'url', 'method', 'body', 'headers', 'params'. The 'params' value will
+        only be present if the body's Content-Type header is
+        'application/x-www-form-urlencoded'.
+    """
+
+    from google.appengine.api import apiproxy_stub_map
+    stub = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
+
+    tasks = stub.GetTasks(queue_name)
+
+    if expected_count is not None:
+        assert len(tasks) == expected_count, 'found %s == %s' % (len(tasks),
+                                                                 expected_count)
+    for task in tasks:
+        task['body'] = base64.b64decode(task['body'])
+        # Convert headers list into a dictionary-- we don't care about repeats
+        task['headers'] = dict(task['headers'])
+        if ('application/x-www-form-urlencoded' in
+            task['headers'].get('content-type', '')):
+            task['params'] = dict(cgi.parse_qsl(task['body'], True))
+    return tasks

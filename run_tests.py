@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -8,34 +9,51 @@
 
 """
 This is our basic test running framework.
-
-Usage Examples:
-
-    # to run all the tests
-    python run_tests.py
-
-    # to run a specific test suite imported here
-    python run_tests.py NodeConnectionTestCase
-
-    # to run a specific test imported here
-    python run_tests.py NodeConnectionTestCase.test_reboot
-
-    # to run some test suites elsewhere
-    python run_tests.py nova.tests.node_unittest
-    python run_tests.py nova.tests.node_unittest.NodeConnectionTestCase
-
 """
 
-import __main__
-import os
+import getopt
+import unittest
 import sys
 
-#from nova import datastore
-#from nova import flags
-#from nova import twistd
+from flomosa import test
+test.fix_path()
 
-#from nova.tests.access_unittest import *
+from flomosa.tests.team_unittest import TeamTest
 
+
+def usage():
+    print 'run_tests.py [-v verbosity]'
+    print '    -t   run specific testsuite'
+    print '    -v   verbosity (0|1|2)'
+
+def main():
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'ht:v:',
+                                   ['help', 'testsuite', 'verbosity'])
+    except Exception:
+        usage()
+        sys.exit(2)
+
+    testsuite = 'all'
+    verbosity = 1
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            usage()
+            sys.exit()
+        if opt in ('-t', '--testsuite'):
+            testsuite = a
+        if opt in ('-v', '--verbosity'):
+            verbosity = int(arg)
+    if len(args) != 0:
+        usage()
+        sys.exit()
+    suite = unittest.TestSuite()
+    if testsuite == 'all':
+        suite.addTest(unittest.makeSuite(TeamTest))
+    else:
+        usage()
+        sys.exit()
+    unittest.TextTestRunner(verbosity=verbosity).run(suite)
 
 if __name__ == '__main__':
-    pass
+    main()
