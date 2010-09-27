@@ -19,11 +19,12 @@ from flomosa import test
 test.fix_path()
 
 from flomosa.tests.team_unittest import TeamTest
+from flomosa.tests.client_unittest import ClientTest
 
 
 def usage():
     print 'run_tests.py [-v verbosity]'
-    print '    -t   run specific testsuite'
+    print '    -t   run specific testsuite (all|client|team|process)'
     print '    -v   verbosity (0|1|2)'
 
 def main():
@@ -41,7 +42,7 @@ def main():
             usage()
             sys.exit()
         if opt in ('-t', '--testsuite'):
-            testsuite = a
+            testsuite = arg
         if opt in ('-v', '--verbosity'):
             verbosity = int(arg)
     if len(args) != 0:
@@ -49,6 +50,11 @@ def main():
         sys.exit()
     suite = unittest.TestSuite()
     if testsuite == 'all':
+        suite.addTest(unittest.makeSuite(TeamTest))
+        suite.addTest(unittest.makeSuite(ClientTest))
+    elif testsuite == 'client':
+        suite.addTest(unittest.makeSuite(ClientTest))
+    elif testsuite == 'team':
         suite.addTest(unittest.makeSuite(TeamTest))
     else:
         usage()

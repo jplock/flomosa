@@ -103,7 +103,7 @@ class Team(FlomosaBase):
     members = db.ListProperty(basestring)
 
     def get_absolute_url(self):
-        url = '%s/teams/%s.json' % (HTTPS_URL, self.id)
+        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     @classmethod

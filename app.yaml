@@ -50,8 +50,8 @@ handlers:
   script: flomosa/api/search.py
   secure: optional
 
-- url: /tests/.*
-  script: flomosa/web/test.py
+- url: /clients/.*
+  script: flomosa/web/client.py
   secure: optional
 
 - url: /_ah/queue/execution-creation

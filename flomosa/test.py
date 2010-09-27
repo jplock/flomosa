@@ -57,7 +57,7 @@ def setup_for_testing(require_indexes=True):
     from flomosa.tests import urlfetch_test_stub
     before_level = logging.getLogger().getEffectiveLevel()
     try:
-        logging.getLogger().setLevel(100)
+        logging.getLogger().setLevel(logging.DEBUG)
         root_path = os.path.realpath(os.path.dirname(__file__))
         dev_appserver.SetupStubs(
             TEST_APP_ID,
@@ -77,7 +77,7 @@ def setup_for_testing(require_indexes=True):
     finally:
         logging.getLogger().setLevel(before_level)
 
-def create_test_request(method, body, params):
+def create_test_request(method, body, params=None):
     """Creates a webapp.Request object for use in testing.
 
     Args:
@@ -96,10 +96,8 @@ def create_test_request(method, body, params):
     if body:
         body = StringIO.StringIO(body)
     else:
-        try:
+        if params:
             encoded_params = urllib.urlencode(params)
-        except TypeError:
-            pass
         body = StringIO.StringIO()
         body.write(encoded_params)
         body.seek(0)
@@ -133,14 +131,14 @@ class HandlerTestBase(unittest.TestCase):
         """Tears down the test harness."""
         pass
 
-    def handle(self, method, headers=None, params=None, query_params=None):
+    def handle(self, method, url_value=None, headers=None, params=None):
         """Runs a test of a webapp.RequestHandler.
 
         Args:
             method: The method to invoke for this test.
+            url_value: value to pass in URL
             headers: Request headers to set
-            params: URL parameters to set
-            query_params: Query string parameters to set
+            params: Passed to create_test_request()
         """
         from google.appengine.ext import webapp
         before_software = os.environ.get('SERVER_SOFTWARE')
@@ -158,12 +156,14 @@ class HandlerTestBase(unittest.TestCase):
             if not before_email:
                 os.environ['USER_EMAIL'] = ''
             self.resp = webapp.Response()
-            self.req = create_test_request(method, None, query_params)
-            #if headers:
-            #    self.req.headers.update(headers)
+            self.req = create_test_request(method, None, params)
             handler = self.handler_class()
             handler.initialize(self.req, self.resp)
-            getattr(handler, method.lower())(*params)
+            handler_method = getattr(handler, method.lower())
+            if url_value:
+                handler_method(url_value)
+            else:
+                handler_method()
             logging.info('%r returned status %d: %s', self.handler_class,
                          self.response_code(), self.response_body())
         finally:
@@ -171,12 +171,13 @@ class HandlerTestBase(unittest.TestCase):
             del os.environ['AUTH_DOMAIN']
             del os.environ['USER_EMAIL']
 
-    def handle_body(self, method, body):
+    def handle_body(self, method, body, url_value=None):
         """Runs a test of a webapp.RequestHandler with a POST body.
 
         Args:
             method: The HTTP method to invoke for this test.
             body: The body payload bytes.
+            url_value: value to pass in URL
         """
         from google.appengine.ext import webapp
         before_software = os.environ.get('SERVER_SOFTWARE')
@@ -197,7 +198,7 @@ class HandlerTestBase(unittest.TestCase):
             self.req = create_test_request(method, body)
             handler = self.handler_class()
             handler.initialize(self.req, self.resp)
-            getattr(handler, method.lower())()
+            getattr(handler, method.lower())(url_value)
             logging.info('%r returned status %d: %s', self.handler_class,
                          self.response_code(), self.response_body())
         finally:
