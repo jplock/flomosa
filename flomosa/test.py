@@ -17,15 +17,35 @@ import tempfile
 import unittest
 import urllib
 
+import oauth2 as oauth
+
 
 TEST_APP_ID = 'flomosa'
 TEST_VERSION_ID = '2'
+
+# test@flomosa.com
+TEST_KEY = '4ef3e685-37c1-43f9-ae03-0a21523051c6'
+TEST_SECRET = '1913b245-18ae-4caa-a491-cedd2e471a50'
 
 # Assign the application ID up front here so we can create db.Key instances
 # before doing any other test setup.
 os.environ['APPLICATION_ID'] = TEST_APP_ID
 os.environ['CURRENT_VERSION_ID'] = TEST_VERSION_ID
 
+
+def create_client():
+    from flomosa import models
+    client = models.Client(key_name=TEST_KEY, email_address='test@flomosa.com',
+                           password='test', first_name='Test',
+                           last_name='Test', company='Flomosa',
+                           oauth_secret=TEST_SECRET)
+    client.put()
+    return client
+
+def delete_client():
+    from flomosa import models
+    client = models.Client.get_by_key_name(TEST_KEY)
+    client.delete()
 
 def fix_path():
     """Finds the google_appengine directory and fixes Python imports to use it.
@@ -77,7 +97,7 @@ def setup_for_testing(require_indexes=True):
     finally:
         logging.getLogger().setLevel(before_level)
 
-def create_test_request(method, body, params=None):
+def create_test_request(method, body, params=None, add_oauth=False):
     """Creates a webapp.Request object for use in testing.
 
     Args:
@@ -114,7 +134,20 @@ def create_test_request(method, body, params=None):
         environ['REQUEST_METHOD'] = method.upper()
         environ['CONTENT_TYPE'] = 'application/x-www-form-urlencoded'
         environ['CONTENT_LENGTH'] = str(len(body.getvalue()))
-    return webapp.Request(environ)
+
+    req = webapp.Request(environ)
+    if add_oauth:
+        consumer = oauth.Consumer(TEST_KEY, TEST_SECRET)
+        signature = oauth.SignatureMethod_HMAC_SHA1()
+        endpoint = 'http://flomosa.appspot.com'
+
+        oauth_request = oauth.Request.from_consumer_and_token(consumer,
+            http_method=method, http_url=endpoint, parameters=params)
+
+        oauth_request.sign_request(signature, consumer, None)
+        headers = oauth_request.to_header('http://flomosa.appspot.com')
+        req.headers.update(headers)
+    return req
 
 
 class HandlerTestBase(unittest.TestCase):
@@ -131,7 +164,8 @@ class HandlerTestBase(unittest.TestCase):
         """Tears down the test harness."""
         pass
 
-    def handle(self, method, url_value=None, headers=None, params=None):
+    def handle(self, method, url_value=None, headers=None, params=None,
+               add_oauth=False):
         """Runs a test of a webapp.RequestHandler.
 
         Args:
@@ -146,7 +180,7 @@ class HandlerTestBase(unittest.TestCase):
         before_email = os.environ.get('USER_EMAIL')
 
         os.environ['wsgi.url_scheme'] = 'http'
-        os.environ['SERVER_NAME'] = 'flomosa.com'
+        os.environ['SERVER_NAME'] = 'flomosa.appspot.com'
         os.environ['SERVER_PORT'] = ''
         try:
             if not before_software:
@@ -156,7 +190,8 @@ class HandlerTestBase(unittest.TestCase):
             if not before_email:
                 os.environ['USER_EMAIL'] = ''
             self.resp = webapp.Response()
-            self.req = create_test_request(method, None, params)
+            self.req = create_test_request(method, body=None, params=params,
+                                           add_oauth=add_oauth)
             handler = self.handler_class()
             handler.initialize(self.req, self.resp)
             handler_method = getattr(handler, method.lower())
@@ -171,7 +206,8 @@ class HandlerTestBase(unittest.TestCase):
             del os.environ['AUTH_DOMAIN']
             del os.environ['USER_EMAIL']
 
-    def handle_body(self, method, body, url_value=None):
+    def handle_body(self, method, body, url_value=None, headers=None,
+                    add_oauth=False):
         """Runs a test of a webapp.RequestHandler with a POST body.
 
         Args:
@@ -185,7 +221,7 @@ class HandlerTestBase(unittest.TestCase):
         before_email = os.environ.get('USER_EMAIL')
 
         os.environ['wsgi.url_scheme'] = 'http'
-        os.environ['SERVER_NAME'] = 'flomosa.com'
+        os.environ['SERVER_NAME'] = 'flomosa.appspot.com'
         os.environ['SERVER_PORT'] = ''
         try:
             if not before_software:
@@ -195,7 +231,9 @@ class HandlerTestBase(unittest.TestCase):
             if not before_email:
                 os.environ['USER_EMAIL'] = ''
             self.resp = webapp.Response()
-            self.req = create_test_request(method, body)
+            self.req = create_test_request(method, body, add_oauth=add_oauth)
+            if headers:
+                self.req.headers.update(headers)
             handler = self.handler_class()
             handler.initialize(self.req, self.resp)
             getattr(handler, method.lower())(url_value)
@@ -217,6 +255,7 @@ class HandlerTestBase(unittest.TestCase):
     def response_headers(self):
         """Returns the response headers after the request is handled."""
         return self.resp.headers
+
 
 def get_tasks(queue_name, expected_count=None):
     """Retrieves Tasks from the supplied named queue.

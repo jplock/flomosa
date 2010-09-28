@@ -18,5 +18,6 @@ class ClientTest(HandlerTestBase):
 
     def test_create_client(self):
         self.handle('get')
-        assert(self.response_code() == 200), 'Response code is not 200'
-        assert(self.response_body() == 'Test account created'), 'Response body is not "Test account created"'
+        self.assertEqual(self.response_code(), 200, 'Response code is not 200')
+        self.assertEqual(self.response_body(), 'Test account created',
+                         'Response body is not "Test account created"')
