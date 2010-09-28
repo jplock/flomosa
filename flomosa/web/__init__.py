@@ -27,7 +27,7 @@ from flomosa import models, settings
 class SecureRequestHandler(webapp.RequestHandler):
 
     def get_current_client(self, default=None):
-        "Return the currently logged in Client."
+        """Return the currently logged in Client."""
         client_key = self.get_secure_cookie(settings.COOKIE_NAME)
         try:
             return models.Client.get(client_key)
@@ -41,14 +41,14 @@ class SecureRequestHandler(webapp.RequestHandler):
         return hash.hexdigest()
 
     def get_cookie(self, name, default=None):
-        "Gets the value of the cookie with the given name, else default."
+        """Gets the value of the cookie with the given name, else default."""
         if name in self.request.cookies:
             return self.request.cookies[name]
         return default
 
     def set_cookie(self, name, value, domain=None, expires=None, path='/',
             expires_days=None):
-        "Sets the given cookie name/value with the given options."
+        """Sets the given cookie name/value with the given options."""
 
         name = _utf8(name)
         value = _utf8(value)
@@ -76,7 +76,7 @@ class SecureRequestHandler(webapp.RequestHandler):
         self.response.headers.add_header('Set-Cookie', new_header)
 
     def clear_cookie(self, name, path='/', domain=None):
-        "Deletes the cookie with the given name."
+        """Deletes the cookie with the given name."""
         expires = datetime.datetime.utcnow() - datetime.timedelta(days=365)
         return self.set_cookie(name, value='', path=path, expires=expires,
             domain=domain)
@@ -103,7 +103,7 @@ class SecureRequestHandler(webapp.RequestHandler):
         return value
 
     def get_secure_cookie(self, name, value=None):
-        "Returns the given signed cookie if it validates, or None."
+        """Returns the given signed cookie if it validates, or None."""
 
         if value is None:
             value = self.get_cookie(name)
@@ -141,7 +141,7 @@ class SecureRequestHandler(webapp.RequestHandler):
             return None
 
     def encrypt_string(self, password):
-        "Encrypt a string using the MD5 hash."
+        """Encrypt a string using the MD5 hash."""
         return hashlib.md5(password).hexdigest()
 
 
