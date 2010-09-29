@@ -42,15 +42,6 @@ def create_client(key=TEST_KEY, secret=TEST_SECRET):
     client.put()
     return client
 
-def delete_client(key=TEST_KEY):
-    """Delete the test client from the datastore.
-
-    Args:
-        key: client key to delete
-    """
-    from flomosa import models
-    client = models.Client.get_by_key_name(key)
-    client.delete()
 
 def fix_path():
     """Finds the google_appengine directory and fixes Python imports to use it.
