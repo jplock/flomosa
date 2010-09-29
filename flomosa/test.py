@@ -27,24 +27,29 @@ TEST_VERSION_ID = '2'
 TEST_KEY = '4ef3e685-37c1-43f9-ae03-0a21523051c6'
 TEST_SECRET = '1913b245-18ae-4caa-a491-cedd2e471a50'
 
-# Assign the application ID up front here so we can create db.Key instances
-# before doing any other test setup.
-os.environ['APPLICATION_ID'] = TEST_APP_ID
-os.environ['CURRENT_VERSION_ID'] = TEST_VERSION_ID
 
+def create_client(key=TEST_KEY, secret=TEST_SECRET):
+    """Create the test client in the datastore.
 
-def create_client():
+    Args:
+        key: client key to create
+    """
     from flomosa import models
-    client = models.Client(key_name=TEST_KEY, email_address='test@flomosa.com',
+    client = models.Client(key_name=key, email_address='test@flomosa.com',
                            password='test', first_name='Test',
                            last_name='Test', company='Flomosa',
-                           oauth_secret=TEST_SECRET)
+                           oauth_secret=secret)
     client.put()
     return client
 
-def delete_client():
+def delete_client(key=TEST_KEY):
+    """Delete the test client from the datastore.
+
+    Args:
+        key: client key to delete
+    """
     from flomosa import models
-    client = models.Client.get_by_key_name(TEST_KEY)
+    client = models.Client.get_by_key_name(key)
     client.delete()
 
 def fix_path():
@@ -76,7 +81,7 @@ def setup_for_testing(require_indexes=True):
     from google.appengine.tools import dev_appserver_index
     before_level = logging.getLogger().getEffectiveLevel()
     try:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(100)
         root_path = os.path.realpath(os.path.dirname(__file__))
         dev_appserver.SetupStubs(
             TEST_APP_ID,
@@ -98,9 +103,10 @@ def create_test_request(method, body=None, params=None, wrap_oauth=False):
 
     Args:
         method: Method to use for the test.
-        body: The body to use for the request; implies that *params is empty.
-        params: Dictionary of (key, value) pairs to use in the post-body or query
-        string of the request.
+        body: The body to use for the request; implies that params is empty.
+        params: Dictionary to use in the post-body or query string of
+        the request.
+        wrap_oauth: Whether to wrap the request in with OAuth headers
 
     Returns:
         A new webapp.Request object for testing.
@@ -125,6 +131,8 @@ def create_test_request(method, body=None, params=None, wrap_oauth=False):
         'SERVER_NAME': 'flomosa.appspot.com',
         'SERVER_PORT': '',
         'SERVER_SOFTWARE': 'Development/1.0',
+        'APPLICATION_ID': TEST_APP_ID,
+        'CURRENT_VERSION_ID': TEST_VERSION_ID,
         'QUERY_STRING': '',
         'AUTH_DOMAIN': 'flomosa.com',
         'USER_EMAIL': '',
@@ -231,7 +239,7 @@ def get_tasks(queue_name, expected_count=None):
                                                                  expected_count)
     for task in tasks:
         task['body'] = base64.b64decode(task['body'])
-        # Convert headers list into a dictionary-- we don't care about repeats
+        # Convert headers list into a dictionary-
         task['headers'] = dict(task['headers'])
         if ('application/x-www-form-urlencoded' in
             task['headers'].get('content-type', '')):

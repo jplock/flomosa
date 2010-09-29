@@ -12,6 +12,7 @@ This is our basic test running framework.
 """
 
 import getopt
+import logging
 import unittest
 import sys
 
@@ -49,6 +50,9 @@ def main():
     if len(args) != 0:
         usage()
         sys.exit()
+
+    logging.getLogger().setLevel(logging.DEBUG)
+
     suite = unittest.TestSuite()
     if testsuite == 'all':
         suite.addTest(unittest.makeSuite(ClientTest))
