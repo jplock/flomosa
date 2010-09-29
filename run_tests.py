@@ -18,14 +18,15 @@ import sys
 from flomosa import test
 test.fix_path()
 
-from flomosa.tests.team_unittest import TeamTest
 from flomosa.tests.client_unittest import ClientTest
+from flomosa.tests.team_unittest import TeamTest
+from flomosa.tests.process_unittest import ProcessTest
 
 
 def usage():
     print 'run_tests.py [-v verbosity] [-t testsuite]'
-    print '    -t   run specific testsuite (all|client|team|process)'
-    print '    -v   verbosity (0|1|2)'
+    print '    -t   run specific testsuite [all|client|team|process]'
+    print '    -v   verbosity [0|1|2]'
 
 def main():
     try:
@@ -50,12 +51,15 @@ def main():
         sys.exit()
     suite = unittest.TestSuite()
     if testsuite == 'all':
-        suite.addTest(unittest.makeSuite(TeamTest))
         suite.addTest(unittest.makeSuite(ClientTest))
+        suite.addTest(unittest.makeSuite(TeamTest))
+        suite.addTest(unittest.makeSuite(ProcessTest))
     elif testsuite == 'client':
         suite.addTest(unittest.makeSuite(ClientTest))
     elif testsuite == 'team':
         suite.addTest(unittest.makeSuite(TeamTest))
+    elif testsuite == 'process':
+        suite.addTest(unittest.makeSuite(ProcessTest))
     else:
         usage()
         sys.exit()

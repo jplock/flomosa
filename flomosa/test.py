@@ -74,23 +74,19 @@ def setup_for_testing(require_indexes=True):
     from google.appengine.api import memcache
     from google.appengine.tools import dev_appserver
     from google.appengine.tools import dev_appserver_index
-    #from flomosa.tests import urlfetch_test_stub
     before_level = logging.getLogger().getEffectiveLevel()
     try:
         logging.getLogger().setLevel(logging.DEBUG)
         root_path = os.path.realpath(os.path.dirname(__file__))
-        fp, datastore_path = tempfile.mkstemp(suffix='datastore_stub')
         dev_appserver.SetupStubs(
             TEST_APP_ID,
             root_path=root_path,
             login_url='',
-            datastore_path=None,#datastore_path,
+            datastore_path=None,
             blobstore_path=tempfile.mkdtemp(suffix='blobstore_stub'),
             require_indexes=require_indexes,
             clear_datastore=False)
         dev_appserver_index.SetupIndexes(TEST_APP_ID, root_path)
-        #apiproxy_stub_map.apiproxy._APIProxyStubMap__stub_map['urlfetch'] = \
-        #    urlfetch_test_stub.instance
         # Actually need to flush, even though we've reallocated. Maybe because
         # the memcache stub's cache is at the module level, not the API stub?
         memcache.flush_all()

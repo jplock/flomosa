@@ -28,8 +28,18 @@ class TeamTest(HandlerTestBase):
         delete_client()
 
     def test_create_team(self):
-        data = {'kind': 'Team', 'name': 'Test Team'}
+        data = {'key': 'test', 'kind': 'Team', 'name': 'Test Team',
+                'description': 'Test Description'}
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value='test', wrap_oauth=True)
-        self.handle('get', url_value='test', wrap_oauth=True)
-        self.handle('delete', url_value='test', wrap_oauth=True)
+        self.assertEquals(self.response_code(), 201,
+                          'Response code does not equal 201')
+        resp_json = self.response_body()
+        resp_dict = simplejson.loads(resp_json)
+        for key, value in data.items():
+            self.assertEquals(resp_dict[key], data[key],
+                              'Response "%s" does not equal "%s"' % (key,
+                                                                     data[key]))
+        team_key = resp_dict['key']
+        self.handle('get', url_value=team_key, wrap_oauth=True)
+        self.handle('delete', url_value=team_key, wrap_oauth=True)
