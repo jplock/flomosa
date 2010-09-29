@@ -97,13 +97,13 @@ def setup_for_testing(require_indexes=True):
     finally:
         logging.getLogger().setLevel(before_level)
 
-def create_test_request(method, body, params=None, add_oauth=False):
+def create_test_request(method, body=None, params=None, wrap_oauth=False):
     """Creates a webapp.Request object for use in testing.
 
     Args:
         method: Method to use for the test.
         body: The body to use for the request; implies that *params is empty.
-        *params: List of (key, value) tuples to use in the post-body or query
+        params: Dictionary of (key, value) pairs to use in the post-body or query
         string of the request.
 
     Returns:
@@ -125,10 +125,16 @@ def create_test_request(method, body, params=None, add_oauth=False):
 
     environ = os.environ.copy()
     environ.update({
+        'REQUEST_METHOD': method.upper(),
+        'SERVER_NAME': 'flomosa.appspot.com',
+        'SERVER_PORT': '',
+        'SERVER_SOFTWARE': 'Development/1.0',
         'QUERY_STRING': '',
+        'AUTH_DOMAIN': 'flomosa.com',
+        'USER_EMAIL': '',
         'wsgi.input': body,
+        'wsgi.url_scheme': 'http'
     })
-    environ['REQUEST_METHOD'] = method.upper()
     if method.lower() == 'get':
         environ['QUERY_STRING'] = encoded_params
     else:
@@ -136,7 +142,7 @@ def create_test_request(method, body, params=None, add_oauth=False):
         environ['CONTENT_LENGTH'] = str(len(body.getvalue()))
 
     req = webapp.Request(environ)
-    if add_oauth:
+    if wrap_oauth:
         consumer = oauth.Consumer(TEST_KEY, TEST_SECRET)
         signature = oauth.SignatureMethod_HMAC_SHA1()
         endpoint = 'http://flomosa.appspot.com'
@@ -164,87 +170,31 @@ class HandlerTestBase(unittest.TestCase):
         """Tears down the test harness."""
         pass
 
-    def handle(self, method, url_value=None, headers=None, params=None,
-               add_oauth=False):
+    def handle(self, method, body=None, url_value=None, headers=None,
+               params=None, wrap_oauth=False):
         """Runs a test of a webapp.RequestHandler.
 
         Args:
             method: The method to invoke for this test.
+            body: POST/PUT body data to use for the request
             url_value: value to pass in URL
             headers: Request headers to set
             params: Passed to create_test_request()
+            wrap_oauth: Whether to wrap the request with OAuth headers
         """
         from google.appengine.ext import webapp
-        before_software = os.environ.get('SERVER_SOFTWARE')
-        before_auth_domain = os.environ.get('AUTH_DOMAIN')
-        before_email = os.environ.get('USER_EMAIL')
-
-        os.environ['wsgi.url_scheme'] = 'http'
-        os.environ['SERVER_NAME'] = 'flomosa.appspot.com'
-        os.environ['SERVER_PORT'] = ''
-        try:
-            if not before_software:
-                os.environ['SERVER_SOFTWARE'] = 'Development/1.0'
-            if not before_auth_domain:
-                os.environ['AUTH_DOMAIN'] = 'flomosa.com'
-            if not before_email:
-                os.environ['USER_EMAIL'] = ''
-            self.resp = webapp.Response()
-            self.req = create_test_request(method, body=None, params=params,
-                                           add_oauth=add_oauth)
-            handler = self.handler_class()
-            handler.initialize(self.req, self.resp)
-            handler_method = getattr(handler, method.lower())
-            if url_value:
-                handler_method(url_value)
-            else:
-                handler_method()
-            logging.info('%r returned status %d: %s', self.handler_class,
-                         self.response_code(), self.response_body())
-        finally:
-            del os.environ['SERVER_SOFTWARE']
-            del os.environ['AUTH_DOMAIN']
-            del os.environ['USER_EMAIL']
-
-    def handle_body(self, method, body, url_value=None, headers=None,
-                    add_oauth=False):
-        """Runs a test of a webapp.RequestHandler with a POST body.
-
-        Args:
-            method: The HTTP method to invoke for this test.
-            body: The body payload bytes.
-            url_value: value to pass in URL
-        """
-        from google.appengine.ext import webapp
-        before_software = os.environ.get('SERVER_SOFTWARE')
-        before_auth_domain = os.environ.get('AUTH_DOMAIN')
-        before_email = os.environ.get('USER_EMAIL')
-
-        os.environ['wsgi.url_scheme'] = 'http'
-        os.environ['SERVER_NAME'] = 'flomosa.appspot.com'
-        os.environ['SERVER_PORT'] = ''
-        try:
-            if not before_software:
-                os.environ['SERVER_SOFTWARE'] = 'Development/1.0'
-            if not before_auth_domain:
-                os.environ['AUTH_DOMAIN'] = 'flomosa.com'
-            if not before_email:
-                os.environ['USER_EMAIL'] = ''
-            self.resp = webapp.Response()
-            self.req = create_test_request(method, body, add_oauth=add_oauth)
-            handler = self.handler_class()
-            handler.initialize(self.req, self.resp)
-            handler_method = getattr(handler, method.lower())
-            if url_value:
-                handler_method(url_value)
-            else:
-                handler_method()
-            logging.info('%r returned status %d: %s', self.handler_class,
-                         self.response_code(), self.response_body())
-        finally:
-            del os.environ['SERVER_SOFTWARE']
-            del os.environ['AUTH_DOMAIN']
-            del os.environ['USER_EMAIL']
+        self.resp = webapp.Response()
+        self.req = create_test_request(method, body=body, params=params,
+                                       wrap_oauth=wrap_oauth)
+        handler = self.handler_class()
+        handler.initialize(self.req, self.resp)
+        handler_method = getattr(handler, method.lower())
+        if url_value:
+            handler_method(url_value)
+        else:
+            handler_method()
+        logging.info('%r returned status %d: %s', self.handler_class,
+                     self.response_code(), self.response_body())
 
     def response_body(self):
         """Returns the response body after the request is handled."""

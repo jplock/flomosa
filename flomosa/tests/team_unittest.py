@@ -30,10 +30,6 @@ class TeamTest(HandlerTestBase):
     def test_create_team(self):
         data = {'kind': 'Team', 'name': 'Test Team'}
         body = simplejson.dumps(data)
-        self.handle_body('put', body, url_value='test', add_oauth=True)
-
-    def test_get_team(self):
-        self.handle('get', url_value='test', add_oauth=True)
-
-    def test_delete_team(self):
-        self.handle('delete', url_value='test', add_oauth=True)
+        self.handle('put', body=body, url_value='test', wrap_oauth=True)
+        self.handle('get', url_value='test', wrap_oauth=True)
+        self.handle('delete', url_value='test', wrap_oauth=True)
