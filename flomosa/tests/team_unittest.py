@@ -28,12 +28,12 @@ class TeamTest(HandlerTestBase):
         delete_client()
 
     def test_create_team(self):
-        data = {'name': 'Test Team'}
+        data = {'kind': 'Team', 'name': 'Test Team'}
         body = simplejson.dumps(data)
-        self.handle_body('put', 'test', body, add_oauth=True)
+        self.handle_body('put', body, url_value='test', add_oauth=True)
 
     def test_get_team(self):
-        self.handle('get', 'test', add_oauth=True)
+        self.handle('get', url_value='test', add_oauth=True)
 
     def test_delete_team(self):
-        self.handle('delete', 'test', add_oauth=True)
+        self.handle('delete', url_value='test', add_oauth=True)

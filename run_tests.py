@@ -23,7 +23,7 @@ from flomosa.tests.client_unittest import ClientTest
 
 
 def usage():
-    print 'run_tests.py [-v verbosity]'
+    print 'run_tests.py [-v verbosity] [-t testsuite]'
     print '    -t   run specific testsuite (all|client|team|process)'
     print '    -v   verbosity (0|1|2)'
 

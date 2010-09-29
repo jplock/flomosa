@@ -74,23 +74,23 @@ def setup_for_testing(require_indexes=True):
     from google.appengine.api import memcache
     from google.appengine.tools import dev_appserver
     from google.appengine.tools import dev_appserver_index
-    from flomosa.tests import urlfetch_test_stub
+    #from flomosa.tests import urlfetch_test_stub
     before_level = logging.getLogger().getEffectiveLevel()
     try:
         logging.getLogger().setLevel(logging.DEBUG)
         root_path = os.path.realpath(os.path.dirname(__file__))
+        fp, datastore_path = tempfile.mkstemp(suffix='datastore_stub')
         dev_appserver.SetupStubs(
             TEST_APP_ID,
             root_path=root_path,
             login_url='',
-            datastore_path=tempfile.mktemp(suffix='datastore_stub'),
-            history_path=tempfile.mktemp(suffix='datastore_history'),
-            blobstore_path=tempfile.mktemp(suffix='blobstore_stub'),
+            datastore_path=None,#datastore_path,
+            blobstore_path=tempfile.mkdtemp(suffix='blobstore_stub'),
             require_indexes=require_indexes,
             clear_datastore=False)
         dev_appserver_index.SetupIndexes(TEST_APP_ID, root_path)
-        apiproxy_stub_map.apiproxy._APIProxyStubMap__stub_map['urlfetch'] = \
-            urlfetch_test_stub.instance
+        #apiproxy_stub_map.apiproxy._APIProxyStubMap__stub_map['urlfetch'] = \
+        #    urlfetch_test_stub.instance
         # Actually need to flush, even though we've reallocated. Maybe because
         # the memcache stub's cache is at the module level, not the API stub?
         memcache.flush_all()
@@ -112,12 +112,13 @@ def create_test_request(method, body, params=None, add_oauth=False):
     assert not(body and params), 'Must specify body or params, not both'
     from google.appengine.ext import webapp
 
-    encoded_params = ''
+    if params is None:
+        params = {}
     if body:
         body = StringIO.StringIO(body)
+        encoded_params = ''
     else:
-        if params:
-            encoded_params = urllib.urlencode(params)
+        encoded_params = urllib.urlencode(params)
         body = StringIO.StringIO()
         body.write(encoded_params)
         body.seek(0)
@@ -127,11 +128,10 @@ def create_test_request(method, body, params=None, add_oauth=False):
         'QUERY_STRING': '',
         'wsgi.input': body,
     })
+    environ['REQUEST_METHOD'] = method.upper()
     if method.lower() == 'get':
-        environ['REQUEST_METHOD'] = method.upper()
         environ['QUERY_STRING'] = encoded_params
     else:
-        environ['REQUEST_METHOD'] = method.upper()
         environ['CONTENT_TYPE'] = 'application/x-www-form-urlencoded'
         environ['CONTENT_LENGTH'] = str(len(body.getvalue()))
 
@@ -232,11 +232,13 @@ class HandlerTestBase(unittest.TestCase):
                 os.environ['USER_EMAIL'] = ''
             self.resp = webapp.Response()
             self.req = create_test_request(method, body, add_oauth=add_oauth)
-            if headers:
-                self.req.headers.update(headers)
             handler = self.handler_class()
             handler.initialize(self.req, self.resp)
-            getattr(handler, method.lower())(url_value)
+            handler_method = getattr(handler, method.lower())
+            if url_value:
+                handler_method(url_value)
+            else:
+                handler_method()
             logging.info('%r returned status %d: %s', self.handler_class,
                          self.response_code(), self.response_body())
         finally:
