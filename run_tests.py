@@ -25,33 +25,37 @@ from flomosa.tests.process_unittest import ProcessTest
 
 
 def usage():
-    print 'run_tests.py [-v verbosity] [-t testsuite]'
+    print 'run_tests.py [-v verbosity] [-t testsuite] [-f format]'
     print '    -t   run specific testsuite [all|client|team|process]'
     print '    -v   verbosity [0|1|2]'
+    print '    -f   format [text|xml]'
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'ht:v:',
-                                   ['help', 'testsuite', 'verbosity'])
+        opts, args = getopt.getopt(sys.argv[1:], 'ht:v:f:',
+                                   ['help', 'testsuite', 'verbosity', 'format'])
     except Exception:
         usage()
         sys.exit(2)
 
     testsuite = 'all'
     verbosity = 1
+    format = 'text'
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             usage()
             sys.exit()
-        if opt in ('-t', '--testsuite'):
+        elif opt in ('-t', '--testsuite'):
             testsuite = arg
-        if opt in ('-v', '--verbosity'):
+        elif opt in ('-v', '--verbosity'):
             verbosity = int(arg)
+        elif opt in ('-f', '--format'):
+            format = arg
     if len(args) != 0:
         usage()
         sys.exit()
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     suite = unittest.TestSuite()
     if testsuite == 'all':
@@ -67,7 +71,13 @@ def main():
     else:
         usage()
         sys.exit()
-    unittest.TextTestRunner(verbosity=verbosity).run(suite)
+
+    if format == 'text':
+        unittest.TextTestRunner(verbosity=verbosity).run(suite)
+    elif format == 'xml':
+        import xmlrunner
+        xmlrunner.XMLTestRunner(output='unittests.xml',
+                                verbose=True).run(suite)
 
 if __name__ == '__main__':
     main()
