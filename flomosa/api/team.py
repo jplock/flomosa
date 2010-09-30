@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -17,7 +18,7 @@ from flomosa.api import OAuthHandler, build_json
 
 class TeamHandler(OAuthHandler):
 
-    def get(self, team_key):
+    def get(self, team_key=None):
         logging.debug('Begin TeamHandler.get() method')
 
         client = self.is_valid()
@@ -28,7 +29,7 @@ class TeamHandler(OAuthHandler):
 
         logging.debug('Finished TeamHandler.get() method')
 
-    def put(self, team_key):
+    def put(self, team_key=None):
         logging.debug('Begin TeamHandler.put() method')
 
         client = self.is_valid()
@@ -44,7 +45,7 @@ class TeamHandler(OAuthHandler):
 
         logging.debug('Finished TeamHandler.put() method')
 
-    def delete(self, team_key):
+    def delete(self, team_key=None):
         logging.debug('Begin TeamHandler.delete() method')
 
         client = self.is_valid()
@@ -57,8 +58,9 @@ class TeamHandler(OAuthHandler):
 
 
 def main():
-    application = webapp.WSGIApplication([(r'/teams/(.*)\.json', TeamHandler)],
-        debug=False)
+    application = webapp.WSGIApplication([
+        (r'/teams/(.*)\.json', TeamHandler),
+        (r'/teams/', TeamHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

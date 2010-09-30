@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -9,7 +10,6 @@
 __all__ = ['OAuthHandler', 'build_json']
 
 import logging
-import os
 
 from google.appengine.ext import webapp
 from django.utils import simplejson
@@ -36,7 +36,7 @@ class OAuthHandler(webapp.RequestHandler):
         """Return an OAuth Request object for the current request."""
 
         try:
-            method = os.environ['REQUEST_METHOD']
+            method = self.request.environ['REQUEST_METHOD']
         except Exception:
             method = 'GET'
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -17,7 +18,7 @@ from flomosa.api import OAuthHandler, build_json
 
 class ProcessHandler(OAuthHandler):
 
-    def get(self, process_key):
+    def get(self, process_key=None):
         logging.debug('Begin ProcessHandler.get() method')
 
         process = self.is_client_allowed(process_key)
@@ -27,7 +28,7 @@ class ProcessHandler(OAuthHandler):
 
         logging.debug('Finished ProcessHandler.get() method')
 
-    def put(self, process_key):
+    def put(self, process_key=None):
         logging.debug('Begin ProcessHandler.put() method')
 
         client = self.is_valid()
@@ -76,7 +77,7 @@ class ProcessHandler(OAuthHandler):
 
         logging.debug('Finished ProcessHandler.put() method')
 
-    def delete(self, process_key):
+    def delete(self, process_key=None):
         logging.debug('Begin ProcessHandler.delete() method')
 
         process = self.is_client_allowed(process_key)
@@ -88,8 +89,9 @@ class ProcessHandler(OAuthHandler):
 
 
 def main():
-    application = webapp.WSGIApplication([(r'/processes/(.*)\.json',
-        ProcessHandler)], debug=False)
+    application = webapp.WSGIApplication([
+        (r'/processes/(.*)\.json', ProcessHandler),
+        (r'/processes/', ProcessHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -103,17 +104,17 @@ class Team(FlomosaBase):
     members = db.ListProperty(basestring)
 
     def get_absolute_url(self):
-        url = '%s/teams/%s.json' % (HTTPS_URL, self.id)
+        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     @classmethod
     def from_dict(cls, client, data):
         """Return a new Team instance from a dict object."""
 
-        if not (client or isinstance(client, Client)):
+        if not (client and isinstance(client, Client)):
             raise exceptions.MissingException('No client found')
 
-        if not (data or isinstance(data, dict)):
+        if not (data and isinstance(data, dict)):
             raise exceptions.MissingException('No data found')
 
         kind = data.get('kind', None)
@@ -158,6 +159,10 @@ class Process(FlomosaBase):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     collect_stats = db.BooleanProperty(default=False)
+
+    def get_absolute_url(self):
+        url = '%s/processes/%s.json' % (settings.HTTPS_URL, self.id)
+        return url
 
     def put(self):
         """Saves the process to the datastore and memcache.
@@ -270,10 +275,10 @@ class Process(FlomosaBase):
     def from_dict(cls, client, data):
         """Return a new Process instance from a dict object."""
 
-        if not (client or isinstance(client, Client)):
+        if not (client and isinstance(client, Client)):
             raise exceptions.MissingException('No client found')
 
-        if not (data or isinstance(data, dict)):
+        if not (data and isinstance(data, dict)):
             raise exceptions.MissingException('No data found')
 
         kind = data.get('kind', None)

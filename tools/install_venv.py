@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -18,7 +19,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 VENV = os.path.join(ROOT, '.flomosa-venv')
 PIP_REQUIRES = os.path.join(ROOT, 'tools', 'pip-requires')
-#TWISTED_NOVA='http://nova.openstack.org/Twisted-10.0.0Nova.tar.gz'
+
 
 def die(message, *args):
     print >>sys.stderr, message % args

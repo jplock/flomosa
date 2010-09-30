@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -26,7 +27,7 @@ class ExecutionHandler(OAuthHandler):
                 'authorized to access Process "%s".' % (client.id, process.id))
         return execution
 
-    def get(self, execution_key):
+    def get(self, execution_key=None):
         logging.debug('Begin ExecutionHandler.get() method')
 
         execution = self.is_client_allowed(execution_key)
@@ -39,8 +40,9 @@ class ExecutionHandler(OAuthHandler):
 
 
 def main():
-    application = webapp.WSGIApplication([(r'/executions/(.*)\.json',
-        ExecutionHandler)], debug=False)
+    application = webapp.WSGIApplication([
+        (r'/executions/(.*)\.json', ExecutionHandler),
+        (r'/executions/', ExecutionHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':
