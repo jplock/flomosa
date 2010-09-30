@@ -2,3 +2,6 @@
 *.pyc
 *.egg-info
 *.swp
+.coverage
+coverage.xml
+unittests.xml
