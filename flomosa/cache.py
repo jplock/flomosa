@@ -17,7 +17,7 @@ from google.appengine.runtime import apiproxy_errors
 from flomosa import exceptions, settings
 
 
-def get_from_cache(cls, key):
+def get_from_cache(cls, key, parent=None):
     """
     Load object from cache, then datastore.
 
@@ -35,9 +35,9 @@ def get_from_cache(cls, key):
     logging.debug('Looking up %s "%s" in memcache.' % (cls.__name__, key))
     model = memcache.get(key, namespace=cls.__name__)
     if not isinstance(model, cls):
-        logging.warning('%s "%s" not found in memcache. Trying datastore.' % \
+        logging.info('%s "%s" not found in memcache. Trying datastore.' % \
             (cls.__name__, key))
-        model = cls.get_by_key_name(key)
+        model = cls.get_by_key_name(key, parent=parent)
         if not isinstance(model, cls):
             raise exceptions.NotFoundException('%s "%s" does not exist.' % (
                 cls.__name__, key))

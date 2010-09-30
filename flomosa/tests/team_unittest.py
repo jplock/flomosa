@@ -143,7 +143,7 @@ class TeamTest(HandlerTestBase):
         team.put()
 
         url = 'https://flomosa.appspot.com/teams/%s.json' % team_key
-        self.assertEqual(team.get_absolute_url(), url)
+        self.assertEquals(team.get_absolute_url(), url)
         team.delete()
 
     def test_from_dict(self):
@@ -173,11 +173,11 @@ class TeamTest(HandlerTestBase):
 
         team_dict = team.to_dict()
         for key, value in data.items():
-            self.assertEqual(value, team_dict[key])
+            self.assertEquals(value, team_dict[key])
 
         team.put()
 
-        self.assertEqual(team.to_dict()['key'], team_key)
+        self.assertEquals(team.to_dict()['key'], team_key)
 
         team.delete()
 
@@ -188,9 +188,9 @@ class TeamTest(HandlerTestBase):
         team = models.Team(key_name=team_key, client=self.client, **data)
         team.put()
 
-        self.assertEqual(team.id, team_key)
-        self.assertEqual(str(team), team_key)
-        self.assertEqual(unicode(team), team_key)
+        self.assertEquals(team.id, team_key)
+        self.assertEquals(str(team), team_key)
+        self.assertEquals(unicode(team), team_key)
         team.delete()
 
     def test_team_not_found(self):

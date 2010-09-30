@@ -51,7 +51,7 @@ def main():
         usage()
         sys.exit()
 
-    logging.getLogger().setLevel(logging.DEBUG)
+    #logging.getLogger().setLevel(logging.DEBUG)
 
     suite = unittest.TestSuite()
     if testsuite == 'all':

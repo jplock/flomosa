@@ -46,7 +46,7 @@ class ProcessHandler(OAuthHandler):
                 'expected "kind=Process".')
 
         # Load the process data
-        process = models.Process.from_dict(client, data)
+        process = models.Process.from_dict(client, data, process_key)
         process.put()
 
         # Clear out any old steps and actions
@@ -58,9 +58,9 @@ class ProcessHandler(OAuthHandler):
         if steps:
             try:
                 db.run_in_transaction(process.add_steps, steps)
-            except db.TransactionFailedError:
+            except Exception, exc:
                 process.delete_steps_actions()
-                raise exceptions.InternalException('Failed to save steps')
+                raise exc
 
         # Load any actions on this process
         logging.info('Loading actions for Process "%s".' % process.id)
@@ -68,9 +68,9 @@ class ProcessHandler(OAuthHandler):
         if actions:
             try:
                 db.run_in_transaction(process.add_actions, actions)
-            except db.TransactionFailedError:
+            except Exception, exc:
                 process.delete_steps_actions()
-                raise exceptions.InternalException('Failed to save actions')
+                raise exc
 
         logging.info('Returning Process "%s" as JSON to client.' % process.id)
         build_json(self, {'key': process.id}, 201)

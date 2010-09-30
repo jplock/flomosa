@@ -32,9 +32,9 @@ class FlomosaBase(db.Model):
         return self.__unicode__()
 
     @classmethod
-    def get(cls, key, client=None):
+    def get(cls, key, client=None, parent=None):
         """Lookup the model in memcache and then the datastore."""
-        model = cache.get_from_cache(cls, key)
+        model = cache.get_from_cache(cls, key, parent)
         if client and client.id != model.client.id:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
                 'authorized to access %s "%s".' % (client.id, model.kind(),
@@ -108,7 +108,7 @@ class Team(FlomosaBase):
         return url
 
     @classmethod
-    def from_dict(cls, client, data):
+    def from_dict(cls, client, data, team_key=None):
         """Return a new Team instance from a dict object."""
 
         if not (client and isinstance(client, Client)):
@@ -125,18 +125,21 @@ class Team(FlomosaBase):
         if not kind:
             raise exceptions.MissingException('Missing "kind" parameter.')
         if kind != cls.__name__:
-            raise exceptions.MissingException('Expected "kind=%s", found ' \
-                '"kind=%s".' % (cls.__name__, kind))
+            raise exceptions.MissingException(
+                'Expected "kind=%s", found "kind=%s".' % (cls.__name__, kind))
 
-        team_key = data.get('key', None)
+        if team_key is None:
+            team_key = data.get('key', None)
         if not team_key:
             team_key = utils.generate_key()
-        description = data.get('description', None)
-        members = data.get('members', None)
 
         team = cls.get_or_insert(team_key, client=client, name=name)
-        team.description = description
-        team.members = members or []
+        if team.client != client:
+            raise exceptions.UnauthorizedException('Client "%s" is not ' \
+                'authorized to access Team "%s".' % (client.id, team.id))
+
+        team.description = data.get('description', None)
+        team.members = data.get('members', [])
         return team
 
     def to_dict(self):
@@ -159,6 +162,7 @@ class Process(FlomosaBase):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     collect_stats = db.BooleanProperty(default=False)
+    has_steps = False
 
     def get_absolute_url(self):
         url = '%s/processes/%s.json' % (settings.HTTPS_URL, self.id)
@@ -191,77 +195,110 @@ class Process(FlomosaBase):
         return cache.delete_from_cache(self)
 
     def add_steps(self, steps):
-        "Add multiple steps to this process."
+        """Add multiple steps to this process."""
         for data in steps:
+            name = data.get('name', None)
+            if not name:
+                raise exceptions.MissingException(
+                    'Missing "name" parameter on step')
+
             kwargs = {'step_key': data.get('key'),
                       'members': data.get('members'),
                       'team_key': data.get('team'),
                       'description': data.get('description'),
                       'is_start': data.get('is_start')}
-            self.add_step(data['name'], **kwargs)
+            self.add_step(name, **kwargs)
 
     def add_step(self, name, description=None, team_key=None,
                  members=None, is_start=None, step_key=None):
         """Add a step to this process."""
 
         if is_start is None:
-            is_start = True
-            for step in self.steps:
+            if self.has_steps:
                 is_start = False
-                break
+            else:
+                is_start = True
+        if team_key is None and not members:
+            raise exceptions.MissingException(
+                'Steps require at least one member or a team.')
         if not members:
             members = []
-        if not step_key:
-            step_key = utils.generate_key()
 
-        step = Step.get_by_key_name(step_key, parent=self)
-        if not step:
-            step = Step(key_name=step_key, parent=self, process=self, name=name)
-        step.is_start = bool(is_start)
+        team = None
         if team_key:
-            team = Team.get(team_key)
-            if team:
-                step.team = team
+            team = Team.get(team_key, self.client)
+            if not team:
+                raise exceptions.NotFoundException(
+                    'Team "%s" does not exist.' % team_key)
+
+        if step_key:
+            step = Step.get_by_key_name(step_key, parent=self)
+            if not step:
+                raise exceptions.NotFoundException(
+                    'Step "%s" does not exist.' % step_key)
+        else:
+            step_key = utils.generate_key()
+            step = Step(key_name=step_key, parent=self, process=self, name=name)
+
+        if team:
+            step.team = team
+        step.is_start = bool(is_start)
+        step.name = name
         step.members = members
         step.description = description
         step.put()
+        self.has_steps = True
         return step
 
     def add_actions(self, actions):
         """Add multiple actions to this process."""
         for data in actions:
+            name = data.get('name', None)
+            if not name:
+                raise exceptions.MissingException(
+                    'Missing "name" parameter on action')
+
             kwargs = {'incoming': data.get('incoming'),
                       'outgoing': data.get('outgoing'),
                       'action_key': data.get('key'),
                       'is_complete': data.get('is_complete')}
-            self.add_action(data['name'], **kwargs)
+            self.add_action(name, **kwargs)
 
     def add_action(self, name, incoming=None, outgoing=None, is_complete=False,
                    action_key=None):
         """Add an action to this process."""
 
-        if not action_key:
-            action_key = utils.generate_key()
         if not incoming:
             incoming = []
         if not outgoing:
             outgoing = []
         if is_complete and outgoing:
             is_complete = False
-        action = Action.get_by_key_name(action_key, parent=self)
-        if not action:
+
+        if action_key:
+            action = Action.get_by_key_name(action_key, parent=self)
+            if not action:
+                raise exceptions.NotFoundException(
+                    'Action "%s" does not exist.' % action_key)
+        else:
+            action_key = utils.generate_key()
             action = Action(key_name=action_key, parent=self, process=self,
                             name=name)
+        action.name = name
         action.is_complete = bool(is_complete)
 
         for step_key in incoming:
-            step = Step.get(step_key)
-            if step:
-                action.add_incoming_step(step, save=False)
+            step = Step.get(step_key, parent=self)
+            if not step:
+                raise exceptions.NotFoundException(
+                    'Incoming Step "%s" does not exist.' % step_key)
+            action.add_incoming_step(step, save=False)
         for step_key in outgoing:
-            step = Step.get(step_key)
-            if step:
-                action.add_outgoing_step(step, save=False)
+            step = Step.get(step_key, parent=self)
+            if not step:
+                raise exceptions.NotFoundException(
+                    'Outgoing Step "%s" does not exist.' % step_key)
+            action.add_outgoing_step(step, save=False)
 
         action.put()
         return action
@@ -272,7 +309,7 @@ class Process(FlomosaBase):
             stats.delete()
 
     @classmethod
-    def from_dict(cls, client, data):
+    def from_dict(cls, client, data, process_key=None):
         """Return a new Process instance from a dict object."""
 
         if not (client and isinstance(client, Client)):
@@ -289,17 +326,21 @@ class Process(FlomosaBase):
         if not kind:
             raise exceptions.MissingException('Missing "kind" parameter.')
         if kind != cls.__name__:
-            raise exceptions.MissingException('Expected "kind=%s", found ' \
-                '"kind=%s".' % (cls.__name__, kind))
+            raise exceptions.MissingException(
+                'Expected "kind=%s", found "kind=%s".' % (cls.__name__, kind))
 
-        process_key = data.get('key', None)
+        if process_key is None:
+            process_key = data.get('key', None)
         if not process_key:
             process_key = utils.generate_key()
-        description = data.get('description', None)
-        collect_stats = data.get('collect_stats', None)
 
         process = cls.get_or_insert(process_key, client=client, name=name)
-        process.description = description
+        if process.client != client:
+            raise exceptions.UnauthorizedException('Client "%s" is not ' \
+                'authorized to access Process "%s".' % (client.id, process.id))
+
+        process.description = data.get('description', None)
+        collect_stats = data.get('collect_stats', False)
         if collect_stats is not None:
             process.collect_stats = bool(collect_stats)
         return process

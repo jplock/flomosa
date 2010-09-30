@@ -31,8 +31,7 @@ class ProcessTest(HandlerTestBase):
 
     def test_api_put_process(self):
         process_key = 'test'
-        data = {'key': process_key, 'kind': 'Process', 'name': 'Test Process',
-                'description': 'Test Description', 'collect_stats': True}
+        data = {'key': process_key, 'kind': 'Process', 'name': 'Test Process'}
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value=process_key, wrap_oauth=True)
         self.assertEquals(self.response_code(), 201,
@@ -41,9 +40,73 @@ class ProcessTest(HandlerTestBase):
         resp_data = simplejson.loads(resp_json)
         self.assertEquals(resp_data['key'], process_key)
 
+    def test_api_put_process_no_step_name(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'steps': [
+            {'kind': 'Step'}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.MissingException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
+    def test_api_put_process_no_step_members(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'steps': [
+            {'kind': 'Step', 'name': 'Step 1'}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.MissingException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
+    def test_api_put_process_no_step_members(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'steps': [
+            {'kind': 'Step', 'name': 'Step 1', 'team': 'test'}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
+    def test_api_put_process_bad_step(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'steps': [
+            {'kind': 'Step', 'key': 'test', 'name': 'Step 1',
+             'members': ['test@flomosa.com']}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
+    def test_api_put_process_no_action_name(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'actions': [
+            {'kind': 'Action'}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.MissingException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
+    def test_api_put_process_bad_action(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'actions': [
+            {'kind': 'Action', 'key': 'test', 'name': 'Approved'}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
+    def test_api_put_process_action_bad_incoming(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'actions': [
+            {'kind': 'Action', 'name': 'Approved', 'incoming': ['test']}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
+    def test_api_put_process_action_bad_outgoing(self):
+        data = {'kind': 'Process', 'name': 'Test Process', 'actions': [
+            {'kind': 'Action', 'name': 'Approved', 'outgoing': ['test']}]}
+        body = simplejson.dumps(data)
+
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'put',
+                          body=body, wrap_oauth=True)
+
     def test_api_put_process_no_key(self):
-        data = {'kind': 'Process', 'name': 'Test Process',
-                'description': 'Test Description', 'collect_stats': True}
+        data = {'kind': 'Process', 'name': 'Test Process'}
         body = simplejson.dumps(data)
         self.handle('put', body=body, wrap_oauth=True)
         self.assertEquals(self.response_code(), 201,
@@ -60,7 +123,7 @@ class ProcessTest(HandlerTestBase):
                           body=body, wrap_oauth=True)
 
     def test_api_put_process_no_kind(self):
-        data = {'name': 'Test Process', 'description': 'Test Description'}
+        data = {'name': 'Test Process'}
         body = simplejson.dumps(data)
 
         self.assertRaises(exceptions.MissingException, self.handle, 'put',
@@ -168,24 +231,23 @@ class ProcessTest(HandlerTestBase):
 
         process_dict = process.to_dict()
         for key, value in data.items():
-            self.assertEqual(value, process_dict[key])
+            self.assertEquals(value, process_dict[key])
 
         process.put()
 
-        self.assertEqual(process.to_dict()['key'], process_key)
+        self.assertEquals(process.to_dict()['key'], process_key)
 
         process.delete()
 
     def test_process_methods(self):
         process_key = 'test'
-        data = {'name': 'Test Process', 'description': 'Test Description',
-                'collect_stats': True}
+        data = {'name': 'Test Process'}
         process = models.Process(key_name=process_key, client=self.client, **data)
         process.put()
 
-        self.assertEqual(process.id, process_key)
-        self.assertEqual(str(process), process_key)
-        self.assertEqual(unicode(process), process_key)
+        self.assertEquals(process.id, process_key)
+        self.assertEquals(str(process), process_key)
+        self.assertEquals(unicode(process), process_key)
         process.delete()
 
     def test_process_not_found(self):
