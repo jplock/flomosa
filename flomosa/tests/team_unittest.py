@@ -36,13 +36,13 @@ class TeamTest(HandlerTestBase):
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value=team_key, wrap_oauth=True)
         self.assertEqual(self.response_code(), 201,
-                          'Response code does not equal 201')
+                         'Response code does not equal 201')
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
             self.assertEqual(resp_data[key], data[key],
-                              'Response "%s" does not equal "%s"' % (key,
-                                                                     data[key]))
+                             'Response "%s" does not equal "%s"' % (key,
+                                                                    data[key]))
 
     def test_api_put_team_no_key(self):
         data = {'kind': 'Team', 'name': 'Test Team',
@@ -50,13 +50,13 @@ class TeamTest(HandlerTestBase):
         body = simplejson.dumps(data)
         self.handle('put', body=body, wrap_oauth=True)
         self.assertEqual(self.response_code(), 201,
-                          'Response code does not equal 201')
+                         'Response code does not equal 201')
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
             self.assertEqual(resp_data[key], data[key],
-                              'Response "%s" does not equal "%s"' % (key,
-                                                                     data[key]))
+                             'Response "%s" does not equal "%s"' % (key,
+                                                                    data[key]))
 
     def test_api_put_team_no_name(self):
         data = {'kind': 'Team', 'description': 'Test Description'}
@@ -92,16 +92,16 @@ class TeamTest(HandlerTestBase):
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value=team_key, wrap_oauth=True)
         self.assertEqual(self.response_code(), 201,
-                          'Response code does not equal 201')
+                         'Response code does not equal 201')
         self.handle('get', url_value=team_key, wrap_oauth=True)
         self.assertEqual(self.response_code(), 200,
-                          'Response code does not equal 200')
+                         'Response code does not equal 200')
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
             self.assertEqual(resp_data[key], data[key],
-                              'Response "%s" does not equal "%s"' % (key,
-                                                                     data[key]))
+                             'Response "%s" does not equal "%s"' % (key,
+                                                                    data[key]))
 
     def test_api_get_team_no_key(self):
         self.assertRaises(exceptions.MissingException, self.handle, 'get',
@@ -120,10 +120,10 @@ class TeamTest(HandlerTestBase):
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value=team_key, wrap_oauth=True)
         self.assertEqual(self.response_code(), 201,
-                          'Response code does not equal 201')
+                         'Response code does not equal 201')
         self.handle('delete', url_value=team_key, wrap_oauth=True)
         self.assertEqual(self.response_code(), 204,
-                          'Response code does not equal 204')
+                         'Response code does not equal 204')
 
     def test_api_delete_team_no_key(self):
         self.assertRaises(exceptions.MissingException, self.handle, 'delete',
