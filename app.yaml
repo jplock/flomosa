@@ -9,6 +9,18 @@ inbound_services:
 derived_file_type:
 - python_precompiled
 
+skip_files:
+- ^(.*/)?app\.yaml
+- ^(.*/)?app\.yml
+- ^(.*/)?index\.yaml
+- ^(.*/)?index\.yml
+- ^(.*/)?#.*#
+- ^(.*/)?.*~
+- ^(.*/)?.*\.py[co]
+- ^(.*/)?.*/RCS/.*
+- ^(.*/)?\..*
+- ^(.*/)?unittests*\.xml$
+
 handlers:
 - url: /
   script: flomosa/web/index.py

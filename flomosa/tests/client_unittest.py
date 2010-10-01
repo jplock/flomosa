@@ -50,6 +50,7 @@ class ClientTest(HandlerTestBase):
         self.assertEqual(str(client), client_key)
         self.assertEqual(unicode(client), client_key)
         self.assertEqual(client.secret, data['oauth_secret'])
+        self.assertEqual(client.email_address, data['email_address'])
 
     def test_client_not_found(self):
         self.assertRaises(exceptions.NotFoundException, models.Client.get,

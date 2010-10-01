@@ -37,7 +37,7 @@ class TeamHandler(OAuthHandler):
         from django.utils import simplejson
         data = simplejson.loads(self.request.body)
 
-        team = models.Team.from_dict(client, data)
+        team = models.Team.from_dict(client, data, team_key)
         team.put()
 
         logging.info('Returning Team "%s" as JSON to client.' % team.id)
