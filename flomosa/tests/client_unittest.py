@@ -19,9 +19,9 @@ class ClientTest(HandlerTestBase):
 
     def test_web_create_client(self):
         self.handle('get')
-        self.assertEquals(self.response_code(), 200, 'Response code is not 200')
-        self.assertEquals(self.response_body(), 'Test account created',
-                          'Response body is not "Test account created"')
+        self.assertEqual(self.response_code(), 200, 'Response code is not 200')
+        self.assertEqual(self.response_body(), 'Test account created',
+                         'Response body is not "Test account created"')
 
     def test_to_dict(self):
         client_key = 'test'
@@ -31,11 +31,11 @@ class ClientTest(HandlerTestBase):
 
         client_dict = client.to_dict()
         for key, value in data.items():
-            self.assertEquals(value, client_dict[key])
+            self.assertEqual(value, client_dict[key])
 
         client.put()
 
-        self.assertEquals(client.to_dict()['key'], client_key)
+        self.assertEqual(client.to_dict()['key'], client_key)
 
         client.delete()
 
@@ -46,11 +46,11 @@ class ClientTest(HandlerTestBase):
         client = models.Client(key_name=client_key, **data)
         client.put()
 
-        self.assertEquals(client.id, client_key)
-        self.assertEquals(str(client), client_key)
-        self.assertEquals(unicode(client), client_key)
-        self.assertEquals(client.secret, data['oauth_secret'])
-        self.assertEquals(client.email_address, data['email_address'])
+        self.assertEqual(client.id, client_key)
+        self.assertEqual(str(client), client_key)
+        self.assertEqual(unicode(client), client_key)
+        self.assertEqual(client.secret, data['oauth_secret'])
+        self.assertEqual(client.email_address, data['email_address'])
 
     def test_client_not_found(self):
         self.assertRaises(exceptions.NotFoundException, models.Client.get,

@@ -34,11 +34,11 @@ class ProcessTest(HandlerTestBase):
         data = {'key': process_key, 'kind': 'Process', 'name': 'Test Process'}
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value=process_key, wrap_oauth=True)
-        self.assertEquals(self.response_code(), 201,
+        self.assertEqual(self.response_code(), 201,
                           'Response code does not equal 201')
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
-        self.assertEquals(resp_data['key'], process_key)
+        self.assertEqual(resp_data['key'], process_key)
 
     def test_api_put_process_no_step_name(self):
         data = {'kind': 'Process', 'name': 'Test Process', 'steps': [
@@ -109,7 +109,7 @@ class ProcessTest(HandlerTestBase):
         data = {'kind': 'Process', 'name': 'Test Process'}
         body = simplejson.dumps(data)
         self.handle('put', body=body, wrap_oauth=True)
-        self.assertEquals(self.response_code(), 201,
+        self.assertEqual(self.response_code(), 201,
                           'Response code does not equal 201')
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
@@ -148,15 +148,15 @@ class ProcessTest(HandlerTestBase):
                 'description': 'Test Description', 'collect_stats': True}
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value=process_key, wrap_oauth=True)
-        self.assertEquals(self.response_code(), 201,
+        self.assertEqual(self.response_code(), 201,
                           'Response code does not equal 201')
         self.handle('get', url_value=process_key, wrap_oauth=True)
-        self.assertEquals(self.response_code(), 200,
+        self.assertEqual(self.response_code(), 200,
                           'Response code does not equal 200')
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
-            self.assertEquals(resp_data[key], data[key],
+            self.assertEqual(resp_data[key], data[key],
                               'Response "%s" does not equal "%s"' % (key,
                                                                      data[key]))
 
@@ -176,10 +176,10 @@ class ProcessTest(HandlerTestBase):
                 'description': 'Test Description', 'collect_stats': True}
         body = simplejson.dumps(data)
         self.handle('put', body=body, url_value=process_key, wrap_oauth=True)
-        self.assertEquals(self.response_code(), 201,
+        self.assertEqual(self.response_code(), 201,
                           'Response code does not equal 201')
         self.handle('delete', url_value=process_key, wrap_oauth=True)
-        self.assertEquals(self.response_code(), 204,
+        self.assertEqual(self.response_code(), 204,
                           'Response code does not equal 204')
 
     def test_api_delete_process_no_key(self):
@@ -231,11 +231,11 @@ class ProcessTest(HandlerTestBase):
 
         process_dict = process.to_dict()
         for key, value in data.items():
-            self.assertEquals(value, process_dict[key])
+            self.assertEqual(value, process_dict[key])
 
         process.put()
 
-        self.assertEquals(process.to_dict()['key'], process_key)
+        self.assertEqual(process.to_dict()['key'], process_key)
 
         process.delete()
 
@@ -245,9 +245,9 @@ class ProcessTest(HandlerTestBase):
         process = models.Process(key_name=process_key, client=self.client, **data)
         process.put()
 
-        self.assertEquals(process.id, process_key)
-        self.assertEquals(str(process), process_key)
-        self.assertEquals(unicode(process), process_key)
+        self.assertEqual(process.id, process_key)
+        self.assertEqual(str(process), process_key)
+        self.assertEqual(unicode(process), process_key)
         process.delete()
 
     def test_process_not_found(self):
