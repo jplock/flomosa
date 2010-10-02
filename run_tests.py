@@ -22,18 +22,21 @@ test.fix_path()
 from flomosa.tests.client_unittest import ClientTest
 from flomosa.tests.team_unittest import TeamTest
 from flomosa.tests.process_unittest import ProcessTest
+from flomosa.tests.step_unittest import StepTest
+from flomosa.tests.action_unittest import ActionTest
 
 
 def usage():
     print 'run_tests.py [-v verbosity] [-t testsuite] [-f format]'
-    print '    -t   run specific testsuite [all|client|team|process]'
-    print '    -v   verbosity [0|1|2]'
-    print '    -f   format [text|xml]'
+    print '  -t  run specific testsuite [all|client|team|process]'
+    print '  -v  verbosity [0|1|2]'
+    print '  -f  format [text|xml]'
 
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'ht:v:f:',
-                                   ['help', 'testsuite', 'verbosity', 'format'])
+                                   ['help', 'testsuite', 'verbosity',
+                                    'format'])
     except Exception:
         usage()
         sys.exit(2)
@@ -62,12 +65,16 @@ def main():
         suite.addTest(unittest.makeSuite(ClientTest))
         suite.addTest(unittest.makeSuite(TeamTest))
         suite.addTest(unittest.makeSuite(ProcessTest))
+        suite.addTest(unittest.makeSuite(StepTest))
+        suite.addTest(unittest.makeSuite(ActionTest))
     elif testsuite == 'client':
         suite.addTest(unittest.makeSuite(ClientTest))
     elif testsuite == 'team':
         suite.addTest(unittest.makeSuite(TeamTest))
     elif testsuite == 'process':
         suite.addTest(unittest.makeSuite(ProcessTest))
+        suite.addTest(unittest.makeSuite(StepTest))
+        suite.addTest(unittest.makeSuite(ActionTest))
     else:
         usage()
         sys.exit()

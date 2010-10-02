@@ -230,7 +230,7 @@ def get_tasks(queue_name, expected_count=None):
                                                                  expected_count)
     for task in tasks:
         task['body'] = base64.b64decode(task['body'])
-        # Convert headers list into a dictionary-
+        # Convert headers list into a dictionary
         task['headers'] = dict(task['headers'])
         if ('application/x-www-form-urlencoded' in
             task['headers'].get('content-type', '')):

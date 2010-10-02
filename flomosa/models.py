@@ -231,14 +231,15 @@ class Process(FlomosaBase):
                 raise exceptions.NotFoundException(
                     'Team "%s" does not exist.' % team_key)
 
+        step = None
         if step_key:
             step = Step.get_by_key_name(step_key, parent=self)
-            if not step:
-                raise exceptions.NotFoundException(
-                    'Step "%s" does not exist.' % step_key)
         else:
             step_key = utils.generate_key()
-            step = Step(key_name=step_key, parent=self, process=self, name=name)
+
+        if not step:
+            step = Step(key_name=step_key, parent=self, process=self,
+                        name=name)
 
         if team:
             step.team = team
@@ -264,24 +265,25 @@ class Process(FlomosaBase):
                       'is_complete': data.get('is_complete')}
             self.add_action(name, **kwargs)
 
-    def add_action(self, name, incoming=None, outgoing=None, is_complete=False,
+    def add_action(self, name, incoming, outgoing=None, is_complete=False,
                    action_key=None):
         """Add an action to this process."""
 
         if not incoming:
-            incoming = []
+            raise exceptions.MissingException(
+                'Actions require at least one incoming Step')
         if not outgoing:
             outgoing = []
         if is_complete and outgoing:
             is_complete = False
 
+        action = None
         if action_key:
             action = Action.get_by_key_name(action_key, parent=self)
-            if not action:
-                raise exceptions.NotFoundException(
-                    'Action "%s" does not exist.' % action_key)
         else:
             action_key = utils.generate_key()
+
+        if not action:
             action = Action(key_name=action_key, parent=self, process=self,
                             name=name)
         action.name = name
@@ -629,8 +631,8 @@ class Request(db.Expando):
             # of Execution objects to work on the request
             step = self.process.get_start_step()
             if not step:
-                raise ValidationException('Process "%s" does not have a ' \
-                                          'starting step.' % process.id)
+                raise exceptions.ValidationException('Process "%s" does not ' \
+                    'have a starting step.' % process.id)
 
             step.queue_tasks(self)
 
