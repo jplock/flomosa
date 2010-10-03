@@ -27,7 +27,7 @@ class StepTest(HandlerTestBase):
         super(StepTest, self).tearDown()
         self.client.delete()
 
-    def test_create_step(self):
+    def test_api_create_step(self):
         team_key = 'test'
         team = models.Team(key_name=team_key, client=self.client,
                            name='Test Team', members=['test@flomosa.com'])
@@ -67,7 +67,7 @@ class StepTest(HandlerTestBase):
                 for key, value in step2.items():
                     self.assertEqual(step[key], value)
 
-    def test_create_step_no_members(self):
+    def test_api_create_step_no_members(self):
         process_key = 'test'
         step1 = {'kind': 'Step', 'key': 'step1', 'name': '1st Step'}
 
@@ -81,7 +81,7 @@ class StepTest(HandlerTestBase):
         self.assertRaises(exceptions.MissingException, self.handle, 'put',
                           body=body, url_value=process_key, wrap_oauth=True)
 
-    def test_create_step_bad_team(self):
+    def test_api_create_step_bad_team(self):
         process_key = 'test'
         step1 = {'kind': 'Step', 'key': 'step1', 'name': '1st Step',
                  'team': 'test'}

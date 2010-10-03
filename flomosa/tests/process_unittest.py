@@ -11,7 +11,7 @@ from django.utils import simplejson
 
 from flomosa import exceptions, models
 from flomosa.test import HandlerTestBase, create_client
-from flomosa.api.process import ProcessHandler
+from flomosa.api.process import ProcessHandler, main
 
 
 class ProcessTest(HandlerTestBase):
@@ -239,3 +239,6 @@ class ProcessTest(HandlerTestBase):
 
     def test_api_invalid_method(self):
         self.assertRaises(AttributeError, self.handle, 'asdf', wrap_oauth=True)
+
+    def test_process_main(self):
+        main()

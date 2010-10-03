@@ -11,7 +11,7 @@ from django.utils import simplejson
 
 from flomosa import exceptions, models
 from flomosa.test import HandlerTestBase, create_client
-from flomosa.api.team import TeamHandler
+from flomosa.api.team import TeamHandler, main
 
 
 class TeamTest(HandlerTestBase):
@@ -214,3 +214,6 @@ class TeamTest(HandlerTestBase):
 
     def test_api_invalid_method(self):
         self.assertRaises(AttributeError, self.handle, 'asdf', wrap_oauth=True)
+
+    def test_team_main(self):
+        main()

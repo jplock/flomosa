@@ -27,7 +27,7 @@ class ActionTest(HandlerTestBase):
         super(ActionTest, self).tearDown()
         self.client.delete()
 
-    def test_create_action(self):
+    def test_api_create_action(self):
         team_key = 'test'
         team = models.Team(key_name=team_key, client=self.client,
                            name='Test Team', members=['test@flomosa.com'])
