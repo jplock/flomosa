@@ -28,7 +28,7 @@ from flomosa.tests.action_unittest import ActionTest
 
 def usage():
     print 'run_tests.py [-v verbosity] [-t testsuite] [-f format]'
-    print '  -t  run specific testsuite [all|client|team|process]'
+    print '  -t  run specific testsuite [all|client|team|process|action|step]'
     print '  -v  verbosity [0|1|2]'
     print '  -f  format [text|xml]'
 
@@ -58,6 +58,7 @@ def main():
         usage()
         sys.exit()
 
+    #logging.basicConfig(format='%(levelname)-8s %(filename)s] %(message)s')
     #logging.getLogger().setLevel(logging.DEBUG)
 
     suite = unittest.TestSuite()
@@ -73,8 +74,10 @@ def main():
         suite.addTest(unittest.makeSuite(TeamTest))
     elif testsuite == 'process':
         suite.addTest(unittest.makeSuite(ProcessTest))
-        suite.addTest(unittest.makeSuite(StepTest))
+    elif testsuite == 'action':
         suite.addTest(unittest.makeSuite(ActionTest))
+    elif testsuite == 'step':
+        suite.addTest(unittest.makeSuite(StepTest))
     else:
         usage()
         sys.exit()
