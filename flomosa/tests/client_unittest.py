@@ -9,7 +9,7 @@
 
 from flomosa import models, exceptions
 from flomosa.test import HandlerTestBase
-from flomosa.web.client import ClientHandler
+from flomosa.web.client import ClientHandler, main
 
 
 class ClientTest(HandlerTestBase):
@@ -56,3 +56,6 @@ class ClientTest(HandlerTestBase):
         self.assertRaises(exceptions.NotFoundException, models.Client.get,
                           'test')
         self.assertRaises(exceptions.MissingException, models.Client.get, None)
+
+    def test_client_main(self):
+        main()
