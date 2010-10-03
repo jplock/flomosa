@@ -11,7 +11,7 @@ from django.utils import simplejson
 
 from flomosa import exceptions, models
 from flomosa.test import HandlerTestBase, create_client
-from flomosa.api.team import TeamHandler, main
+from flomosa.api.team import TeamHandler
 
 
 class TeamTest(HandlerTestBase):
@@ -40,9 +40,9 @@ class TeamTest(HandlerTestBase):
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
-            self.assertEqual(resp_data[key], data[key],
+            self.assertEqual(resp_data[key], value,
                              'Response "%s" does not equal "%s"' % (key,
-                                                                    data[key]))
+                                                                    value))
 
     def test_api_put_team_no_key(self):
         data = {'kind': 'Team', 'name': 'Test Team',
@@ -54,9 +54,9 @@ class TeamTest(HandlerTestBase):
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
-            self.assertEqual(resp_data[key], data[key],
+            self.assertEqual(resp_data[key], value,
                              'Response "%s" does not equal "%s"' % (key,
-                                                                    data[key]))
+                                                                    value))
 
     def test_api_put_team_no_name(self):
         data = {'kind': 'Team', 'description': 'Test Description'}
@@ -99,17 +99,17 @@ class TeamTest(HandlerTestBase):
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
-            self.assertEqual(resp_data[key], data[key],
+            self.assertEqual(resp_data[key], value,
                              'Response "%s" does not equal "%s"' % (key,
-                                                                    data[key]))
+                                                                    value))
 
-    def test_api_get_team_no_key(self):
-        self.assertRaises(exceptions.MissingException, self.handle, 'get',
-                          wrap_oauth=True)
+    def test_api_get_team_bad_key(self):
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'get',
+                          url_value='test', wrap_oauth=True)
 
     def test_api_get_missing_oauth(self):
         self.assertRaises(exceptions.UnauthenticatedException,
-                          self.handle, 'get')
+                          self.handle, 'get', url_value='test')
 
     # DELETE Tests
 
@@ -125,13 +125,13 @@ class TeamTest(HandlerTestBase):
         self.assertEqual(self.response_code(), 204,
                          'Response code does not equal 204')
 
-    def test_api_delete_team_no_key(self):
-        self.assertRaises(exceptions.MissingException, self.handle, 'delete',
-                          wrap_oauth=True)
+    def test_api_delete_team_bad_key(self):
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'delete',
+                          url_value='test', wrap_oauth=True)
 
     def test_api_delete_missing_oauth(self):
         self.assertRaises(exceptions.UnauthenticatedException,
-                          self.handle, 'delete')
+                          self.handle, 'delete', url_value='test')
 
     # Other Tests
 
@@ -193,12 +193,6 @@ class TeamTest(HandlerTestBase):
         self.assertEqual(unicode(team), team_key)
         team.delete()
 
-    def test_team_not_found(self):
-        self.assertRaises(exceptions.NotFoundException, models.Team.get,
-                          'test', self.client)
-        self.assertRaises(exceptions.MissingException, models.Team.get,
-                          None, self.client)
-
     def test_team_no_access(self):
         team_key = 'test'
         data = {'name': 'Test Team', 'description': 'Test Description',
@@ -214,6 +208,3 @@ class TeamTest(HandlerTestBase):
 
     def test_api_invalid_method(self):
         self.assertRaises(AttributeError, self.handle, 'asdf', wrap_oauth=True)
-
-    def test_team_main(self):
-        main()

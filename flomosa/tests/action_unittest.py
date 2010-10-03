@@ -14,17 +14,17 @@ from flomosa.test import HandlerTestBase, create_client
 from flomosa.api.process import ProcessHandler
 
 
-class ActionTest(HandlerTestBase):
+class ProcessActionTest(HandlerTestBase):
     """Test Case for actions"""
 
     handler_class = ProcessHandler
 
     def setUp(self):
-        super(ActionTest, self).setUp()
+        super(ProcessActionTest, self).setUp()
         self.client = create_client()
 
     def tearDown(self):
-        super(ActionTest, self).tearDown()
+        super(ProcessActionTest, self).tearDown()
         self.client.delete()
 
     def test_api_create_action(self):

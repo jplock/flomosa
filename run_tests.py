@@ -22,13 +22,13 @@ test.fix_path()
 from flomosa.tests.client_unittest import ClientTest
 from flomosa.tests.team_unittest import TeamTest
 from flomosa.tests.process_unittest import ProcessTest
-from flomosa.tests.step_unittest import StepTest
-from flomosa.tests.action_unittest import ActionTest
+from flomosa.tests.step_unittest import ProcessStepTest, StepTest
+from flomosa.tests.action_unittest import ProcessActionTest
 
 
 def usage():
     print 'run_tests.py [-v verbosity] [-t testsuite] [-f format]'
-    print '  -t  run specific testsuite [all|client|team|process]'
+    print '  -t  run specific testsuite [all|client|team|process|action|step]'
     print '  -v  verbosity [0|1|2]'
     print '  -f  format [text|xml]'
 
@@ -58,6 +58,7 @@ def main():
         usage()
         sys.exit()
 
+    #logging.basicConfig(format='%(levelname)-8s %(filename)s] %(message)s')
     #logging.getLogger().setLevel(logging.DEBUG)
 
     suite = unittest.TestSuite()
@@ -65,16 +66,20 @@ def main():
         suite.addTest(unittest.makeSuite(ClientTest))
         suite.addTest(unittest.makeSuite(TeamTest))
         suite.addTest(unittest.makeSuite(ProcessTest))
+        suite.addTest(unittest.makeSuite(ProcessStepTest))
+        suite.addTest(unittest.makeSuite(ProcessActionTest))
         suite.addTest(unittest.makeSuite(StepTest))
-        suite.addTest(unittest.makeSuite(ActionTest))
     elif testsuite == 'client':
         suite.addTest(unittest.makeSuite(ClientTest))
     elif testsuite == 'team':
         suite.addTest(unittest.makeSuite(TeamTest))
     elif testsuite == 'process':
         suite.addTest(unittest.makeSuite(ProcessTest))
+    elif testsuite == 'action':
+        suite.addTest(unittest.makeSuite(ProcessActionTest))
+    elif testsuite == 'step':
+        suite.addTest(unittest.makeSuite(ProcessStepTest))
         suite.addTest(unittest.makeSuite(StepTest))
-        suite.addTest(unittest.makeSuite(ActionTest))
     else:
         usage()
         sys.exit()
