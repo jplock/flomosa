@@ -27,7 +27,7 @@ class ExecutionHandler(OAuthHandler):
                 'authorized to access Process "%s".' % (client.id, process.id))
         return execution
 
-    def get(self, execution_key=None):
+    def get(self, execution_key):
         logging.debug('Begin ExecutionHandler.get() method')
 
         execution = self.is_client_allowed(execution_key)

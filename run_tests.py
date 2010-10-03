@@ -22,8 +22,8 @@ test.fix_path()
 from flomosa.tests.client_unittest import ClientTest
 from flomosa.tests.team_unittest import TeamTest
 from flomosa.tests.process_unittest import ProcessTest
-from flomosa.tests.step_unittest import StepTest
-from flomosa.tests.action_unittest import ActionTest
+from flomosa.tests.step_unittest import ProcessStepTest, StepTest
+from flomosa.tests.action_unittest import ProcessActionTest
 
 
 def usage():
@@ -66,8 +66,9 @@ def main():
         suite.addTest(unittest.makeSuite(ClientTest))
         suite.addTest(unittest.makeSuite(TeamTest))
         suite.addTest(unittest.makeSuite(ProcessTest))
+        suite.addTest(unittest.makeSuite(ProcessStepTest))
+        suite.addTest(unittest.makeSuite(ProcessActionTest))
         suite.addTest(unittest.makeSuite(StepTest))
-        suite.addTest(unittest.makeSuite(ActionTest))
     elif testsuite == 'client':
         suite.addTest(unittest.makeSuite(ClientTest))
     elif testsuite == 'team':
@@ -75,8 +76,9 @@ def main():
     elif testsuite == 'process':
         suite.addTest(unittest.makeSuite(ProcessTest))
     elif testsuite == 'action':
-        suite.addTest(unittest.makeSuite(ActionTest))
+        suite.addTest(unittest.makeSuite(ProcessActionTest))
     elif testsuite == 'step':
+        suite.addTest(unittest.makeSuite(ProcessStepTest))
         suite.addTest(unittest.makeSuite(StepTest))
     else:
         usage()

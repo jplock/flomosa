@@ -11,7 +11,7 @@ from django.utils import simplejson
 
 from flomosa import exceptions, models
 from flomosa.test import HandlerTestBase, create_client
-from flomosa.api.process import ProcessHandler, main
+from flomosa.api.process import ProcessHandler
 
 
 class ProcessTest(HandlerTestBase):
@@ -91,17 +91,17 @@ class ProcessTest(HandlerTestBase):
         resp_json = self.response_body()
         resp_data = simplejson.loads(resp_json)
         for key, value in data.items():
-            self.assertEqual(resp_data[key], data[key],
+            self.assertEqual(resp_data[key], value,
                              'Response "%s" does not equal "%s"' % (key,
-                                                                    data[key]))
+                                                                    value))
 
-    def test_api_get_process_no_key(self):
-        self.assertRaises(exceptions.MissingException, self.handle, 'get',
-                          wrap_oauth=True)
+    def test_api_get_process_bad_key(self):
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'get',
+                          url_value='test', wrap_oauth=True)
 
     def test_api_get_missing_oauth(self):
         self.assertRaises(exceptions.UnauthenticatedException,
-                          self.handle, 'get')
+                          self.handle, 'get', url_value='test')
 
     # DELETE Tests
 
@@ -117,13 +117,13 @@ class ProcessTest(HandlerTestBase):
         self.assertEqual(self.response_code(), 204,
                          'Response code does not equal 204')
 
-    def test_api_delete_process_no_key(self):
-        self.assertRaises(exceptions.MissingException, self.handle, 'delete',
-                          wrap_oauth=True)
+    def test_api_delete_process_bad_key(self):
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'delete',
+                          url_value='test', wrap_oauth=True)
 
     def test_api_delete_missing_oauth(self):
         self.assertRaises(exceptions.UnauthenticatedException,
-                          self.handle, 'delete')
+                          self.handle, 'delete', url_value='test')
 
     # Other Tests
 
@@ -185,12 +185,6 @@ class ProcessTest(HandlerTestBase):
         self.assertEqual(unicode(process), process_key)
         process.delete()
 
-    def test_process_not_found(self):
-        self.assertRaises(exceptions.NotFoundException, models.Process.get,
-                          'test', self.client)
-        self.assertRaises(exceptions.MissingException, models.Process.get,
-                          None, self.client)
-
     def test_process_no_access(self):
         process_key = 'test'
         data = {'name': 'Test Process', 'description': 'Test Description',
@@ -239,6 +233,3 @@ class ProcessTest(HandlerTestBase):
 
     def test_api_invalid_method(self):
         self.assertRaises(AttributeError, self.handle, 'asdf', wrap_oauth=True)
-
-    def test_process_main(self):
-        main()

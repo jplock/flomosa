@@ -12,19 +12,20 @@ from django.utils import simplejson
 from flomosa import exceptions, models
 from flomosa.test import HandlerTestBase, create_client
 from flomosa.api.process import ProcessHandler
+from flomosa.api.step import StepAtomHandler
 
 
-class StepTest(HandlerTestBase):
+class ProcessStepTest(HandlerTestBase):
     """Test Case for steps"""
 
     handler_class = ProcessHandler
 
     def setUp(self):
-        super(StepTest, self).setUp()
+        super(ProcessStepTest, self).setUp()
         self.client = create_client()
 
     def tearDown(self):
-        super(StepTest, self).tearDown()
+        super(ProcessStepTest, self).tearDown()
         self.client.delete()
 
     def test_api_create_step(self):
@@ -96,25 +97,72 @@ class StepTest(HandlerTestBase):
         self.assertRaises(exceptions.NotFoundException, self.handle, 'put',
                           body=body, url_value=process_key, wrap_oauth=True)
 
+
+class StepTest(HandlerTestBase):
+    """Test Case for steps"""
+
+    handler_class = StepAtomHandler
+
+    def setUp(self):
+        super(StepTest, self).setUp()
+        self.client = create_client()
+
+    def tearDown(self):
+        super(StepTest, self).tearDown()
+        self.client.delete()
+
+    def test_api_get_step(self):
+        process_key = 'test'
+        process_data = {'key_name': process_key, 'client': self.client,
+                        'name': 'Test Process'}
+        process = models.Process(**process_data)
+
+        step_key = 'step1'
+        step_data = {'step_key': step_key, 'name': '1st Step',
+                     'members': ['test@flomosa.com']}
+
+        step = process.add_step(**step_data)
+
+        self.handle('get', url_value=step_key)
+        self.assertEqual(self.response_code(), 200,
+                         'Response code does not equal 200')
+
+        headers = {'Cache-Control': 'no-cache',
+                   'Content-Type': 'application/atom+xml'}
+
+        resp_headers = self.response_headers()
+        for key, value in resp_headers.items():
+            self.assertEqual(value, headers[key])
+
+    def test_api_get_step_bad_key(self):
+        self.assertRaises(exceptions.NotFoundException, self.handle, 'get',
+                          url_value='test')
+
     def test_step_is_valid(self):
         team = models.Team(key_name='test', client=self.client,
                            name='Test Team')
         process = models.Process(key_name='test', client=self.client,
                                  name='Test Process')
-        step = models.Step(key_name='test', process=process, name='1st Step')
+        step = process.add_step(step_key='test', name='1st Step',
+                                members=['test@flomosa.com'])
 
-        self.assertFalse(step.is_valid())
-        step.members = ['test@flomosa.com']
         self.assertTrue(step.is_valid())
         step.members = []
         step.team = team
         self.assertFalse(step.is_valid())
         team.members = ['test@flomosa.com']
         self.assertTrue(step.is_valid())
+        step.team = None
+        step.members = []
+        self.assertFalse(step.is_valid())
+        step.team = None
+        step.members = ['test@flomosa.com']
+        self.assertTrue(step.is_valid())
 
     def test_step_url(self):
         process = models.Process(key_name='test', client=self.client,
                                  name='Test Process')
-        step = models.Step(key_name='test', process=process, name='1st Step')
+        step = process.add_step(step_key='test', name='1st Step',
+                                members=['test@flomosa.com'])
         self.assertEqual(step.get_absolute_url(),
                          'https://flomosa.appspot.com/steps/test.atom')

@@ -60,7 +60,7 @@ def fix_path():
             sys.path.extend(dev_appserver.EXTRA_PATHS)
             return
 
-def setup_for_testing(require_indexes=True):
+def setup_for_testing(require_indexes=False):
     """Sets up the stubs for testing.
 
     Args:
