@@ -40,9 +40,8 @@ class ExecutionHandler(OAuthHandler):
 
 
 def main():
-    application = webapp.WSGIApplication([
-        (r'/executions/(.*)\.json', ExecutionHandler),
-        (r'/executions/', ExecutionHandler)], debug=False)
+    application = webapp.WSGIApplication([(r'/executions/(.*)\.json',
+                                           ExecutionHandler)], debug=False)
     util.run_wsgi_app(application)
 
 if __name__ == '__main__':

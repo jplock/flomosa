@@ -37,8 +37,6 @@ class ClientTest(HandlerTestBase):
 
         self.assertEqual(client.to_dict()['key'], client_key)
 
-        client.delete()
-
     def test_client_methods(self):
         client_key = 'test'
         data = {'oauth_secret': 'secret', 'email_address': 'test@flomosa.com',
