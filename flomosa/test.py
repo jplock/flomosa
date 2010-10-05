@@ -82,7 +82,8 @@ def setup_for_testing(require_indexes=True):
             datastore_path=None,
             blobstore_path=tempfile.mkdtemp(suffix='blobstore_stub'),
             require_indexes=require_indexes,
-            clear_datastore=False)
+            clear_datastore=False,
+            disable_task_running=False)
         dev_appserver_index.SetupIndexes(TEST_APP_ID, root_path)
         # Actually need to flush, even though we've reallocated. Maybe because
         # the memcache stub's cache is at the module level, not the API stub?

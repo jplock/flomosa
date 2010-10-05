@@ -144,7 +144,6 @@ class TeamTest(HandlerTestBase):
 
         url = 'https://flomosa.appspot.com/teams/%s.json' % team_key
         self.assertEqual(team.get_absolute_url(), url)
-        team.delete()
 
     def test_from_dict(self):
         self.assertRaises(exceptions.MissingException, models.Team.from_dict,
@@ -170,14 +169,12 @@ class TeamTest(HandlerTestBase):
         data = {'name': 'Test Team', 'description': 'Test Description',
                 'members': ['test1@flomosa.com', 'test2@flomosa.com']}
         team = models.Team(key_name=team_key, client=self.client, **data)
+        team.put()
 
         team_dict = team.to_dict()
         for key, value in data.items():
-            self.assertEqual(value, team_dict[key])
-
-        team.put()
-
-        self.assertEqual(team.to_dict()['key'], team_key)
+            self.assertEqual(team_dict[key], value)
+        self.assertEqual(team_dict['key'], team_key)
 
     def test_team_methods(self):
         team_key = 'test'

@@ -598,6 +598,12 @@ class Request(db.Expando):
     completed_date = db.DateTimeProperty()
     duration = db.IntegerProperty(default=0) # seconds
 
+    def __unicode__(self):
+        return self.id
+
+    def __str__(self):
+        return self.__unicode__()
+
     @property
     def id(self):
         """Return the unique ID for this request."""
@@ -608,7 +614,7 @@ class Request(db.Expando):
         return url
 
     @classmethod
-    def get(cls, key, client=None):
+    def get(cls, key, client):
         """Lookup the request key in memcache and then the datastore."""
         request = cache.get_from_cache(cls, key)
         if client and client.id != request.client.id:
@@ -673,18 +679,18 @@ class Request(db.Expando):
         """Return a dict of the dynamic properties of this request."""
 
         data = {}
-        for property in self.dynamic_properties():
-            data[property] = str(getattr(self, property))
+        for prop in self.dynamic_properties():
+            data[prop] = str(getattr(self, prop))
         return data
 
-    def get_executions(self):
+    def get_executions(self, limit=100):
         """Return executions in creation order."""
 
         query = Execution.all()
         query.filter('request =', self)
         query.order('start_date')
 
-        return query.fetch(100)
+        return query.fetch(limit)
 
     def to_dict(self):
         """Return request as a dict object."""
@@ -699,12 +705,11 @@ class Request(db.Expando):
             'is_completed': self.is_completed,
             'completed_date': str(self.completed_date),
             'duration': self.duration,
-            'executions': []
         }
-        for property in self.dynamic_properties():
-            data[property] = getattr(self, property)
-        for execution in self.get_executions():
-            data['executions'].append(execution.to_dict())
+        for prop in self.dynamic_properties():
+            data[prop] = getattr(self, prop)
+
+        data['executions'] = [exc.to_dict() for exc in self.get_executions()]
 
         if self.is_saved():
             data['key'] = self.id
