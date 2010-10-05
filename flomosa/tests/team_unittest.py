@@ -179,8 +179,6 @@ class TeamTest(HandlerTestBase):
 
         self.assertEqual(team.to_dict()['key'], team_key)
 
-        team.delete()
-
     def test_team_methods(self):
         team_key = 'test'
         data = {'name': 'Test Team', 'description': 'Test Description',
@@ -191,7 +189,6 @@ class TeamTest(HandlerTestBase):
         self.assertEqual(team.id, team_key)
         self.assertEqual(str(team), team_key)
         self.assertEqual(unicode(team), team_key)
-        team.delete()
 
     def test_team_no_access(self):
         team_key = 'test'
@@ -203,8 +200,6 @@ class TeamTest(HandlerTestBase):
         other_client = create_client('otherclient', 'otherclient')
         self.assertRaises(exceptions.UnauthorizedException, models.Team.get,
                           team_key, other_client)
-        other_client.delete()
-        team.delete()
 
     def test_api_invalid_method(self):
         self.assertRaises(AttributeError, self.handle, 'asdf', wrap_oauth=True)

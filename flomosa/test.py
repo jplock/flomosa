@@ -60,7 +60,7 @@ def fix_path():
             sys.path.extend(dev_appserver.EXTRA_PATHS)
             return
 
-def setup_for_testing(require_indexes=False):
+def setup_for_testing(require_indexes=True):
     """Sets up the stubs for testing.
 
     Args:
@@ -73,7 +73,8 @@ def setup_for_testing(require_indexes=False):
     before_level = logging.getLogger().getEffectiveLevel()
     try:
         logging.getLogger().setLevel(100)
-        root_path = os.path.realpath(os.path.dirname(__file__))
+        root_path = os.path.realpath(os.sep.join(
+            [os.path.dirname(__file__), '..']))
         dev_appserver.SetupStubs(
             TEST_APP_ID,
             root_path=root_path,

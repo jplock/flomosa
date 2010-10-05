@@ -171,7 +171,6 @@ class ProcessTest(HandlerTestBase):
 
         process.put()
         self.assertEqual(process.to_dict()['key'], process_key)
-        process.delete()
 
     def test_process_methods(self):
         process_key = 'test'
@@ -183,7 +182,6 @@ class ProcessTest(HandlerTestBase):
         self.assertEqual(process.id, process_key)
         self.assertEqual(str(process), process_key)
         self.assertEqual(unicode(process), process_key)
-        process.delete()
 
     def test_process_no_access(self):
         process_key = 'test'
@@ -196,8 +194,6 @@ class ProcessTest(HandlerTestBase):
         other_client = create_client('otherclient', 'otherclient')
         self.assertRaises(exceptions.UnauthorizedException, models.Process.get,
                           process_key, other_client)
-        other_client.delete()
-        process.delete()
 
     def test_process_is_valid(self):
         team_key = 'test'
@@ -229,7 +225,6 @@ class ProcessTest(HandlerTestBase):
         team.members = []
         team.put()
         self.assertFalse(process.is_valid())
-        team.delete()
 
     def test_api_invalid_method(self):
         self.assertRaises(AttributeError, self.handle, 'asdf', wrap_oauth=True)
