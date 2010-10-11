@@ -614,7 +614,7 @@ class Request(db.Expando):
         return url
 
     @classmethod
-    def get(cls, key, client):
+    def get(cls, key, client=None):
         """Lookup the request key in memcache and then the datastore."""
         request = cache.get_from_cache(cls, key)
         if client and client.id != request.client.id:

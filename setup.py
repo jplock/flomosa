@@ -36,9 +36,10 @@ setup(
     author_email='team@flomosa.com',
     url='http://github.com/flomosa/flomosa',
     packages=find_packages(),
+    scripts = ['run_tests.py'],
     cmdclass={'sdist': local_sdist},
     install_requires=[
-        'httplib2',
-        'oauth2'
+        'httplib2>=0.6.0',
+        'oauth2>=1.2.0'
     ],
 )

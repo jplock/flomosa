@@ -84,7 +84,7 @@ def install_dependencies(venv=VENV):
                  PIP_REQUIRES], redirect_output=False)
 
 
-    # Tell the virtual env how to "import nova"
+    # Tell the virtual env how to "import flomosa"
     pthfile = os.path.join(venv, 'lib', 'python2.5', 'site-packages',
                            'flomosa.pth')
     f = open(pthfile, 'w')
