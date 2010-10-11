@@ -50,17 +50,17 @@ if [ -e ${venv} ]; then
 else
   if [ $always_venv -eq 1 ]; then
     # Automatically install the virtualenv
-    python tools/install_venv.py
+    python2.5 tools/install_venv.py
   else
     echo -e "No virtual environment found...create one? (Y/n) \c"
     read use_ve
     if [ "x$use_ve" = "xY" ]; then
       # Install the virtualenv and run the test suite in it
-      python tools/install_venv.py
+      python2.5 tools/install_venv.py
     else
-      python run_tests.py
+      python2.5 run_tests.py
       exit
     fi
   fi
-  ${with_venv} python run_tests.py $@
+  ${with_venv} python2.5 run_tests.py $@
 fi
