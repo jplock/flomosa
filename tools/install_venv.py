@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -84,8 +84,8 @@ def install_dependencies(venv=VENV):
                  PIP_REQUIRES], redirect_output=False)
 
 
-    # Tell the virtual env how to "import nova"
-    pthfile = os.path.join(venv, 'lib', 'python2.6', 'site-packages',
+    # Tell the virtual env how to "import flomosa"
+    pthfile = os.path.join(venv, 'lib', 'python2.5', 'site-packages',
                            'flomosa.pth')
     f = open(pthfile, 'w')
     f.write("%s\n" % ROOT)

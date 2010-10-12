@@ -9,6 +9,7 @@
 
 import base64
 import cgi
+import cookielib
 import logging
 import os
 import StringIO
@@ -16,6 +17,7 @@ import sys
 import tempfile
 import unittest
 import urllib
+import urllib2
 
 import oauth2 as oauth
 
@@ -82,7 +84,8 @@ def setup_for_testing(require_indexes=True):
             datastore_path=None,
             blobstore_path=tempfile.mkdtemp(suffix='blobstore_stub'),
             require_indexes=require_indexes,
-            clear_datastore=False)
+            clear_datastore=False,
+            disable_task_running=False)
         dev_appserver_index.SetupIndexes(TEST_APP_ID, root_path)
         # Actually need to flush, even though we've reallocated. Maybe because
         # the memcache stub's cache is at the module level, not the API stub?
@@ -182,6 +185,8 @@ class HandlerTestBase(unittest.TestCase):
         self.resp = webapp.Response()
         self.req = create_test_request(method, body=body, params=params,
                                        wrap_oauth=wrap_oauth)
+        if headers:
+            self.req.headers.update(headers)
         handler = self.handler_class()
         handler.initialize(self.req, self.resp)
         handler_method = getattr(handler, method.lower())
@@ -236,4 +241,6 @@ def get_tasks(queue_name, expected_count=None):
         if ('application/x-www-form-urlencoded' in
             task['headers'].get('content-type', '')):
             task['params'] = dict(cgi.parse_qsl(task['body'], True))
+        task['headers']['HTTP_X_APPENGINE_TASKRETRYCOUNT'] = \
+            task['headers']['X-AppEngine-TaskRetryCount']
     return tasks

@@ -18,6 +18,11 @@ indexes:
 
 - kind: Execution
   properties:
+  - name: request
+  - name: start_date
+
+- kind: Execution
+  properties:
   - name: action
   - name: step
   - name: start_date
