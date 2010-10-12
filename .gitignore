@@ -5,3 +5,4 @@
 .coverage
 coverage.xml
 unittests.xml
+.flomosa-venv
