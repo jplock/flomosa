@@ -26,9 +26,11 @@ class FlomosaBase(db.Model):
         return self.key().id_or_name()
 
     def __unicode__(self):
-        return self.id
+        """Return the unique ID for this model."""
+        return unicode(self.id)
 
     def __str__(self):
+        """Return the unique ID for this model."""
         return self.__unicode__()
 
     @classmethod
@@ -54,18 +56,22 @@ class FlomosaBase(db.Model):
 
 
 class Hub(db.Model):
-    """PubSubHubBub hub URL listing."""
+    """PubSubHubbub hub URL listing."""
 
     url = db.LinkProperty() # http://pubsubhubbub.appspot.com
 
     def __unicode__(self):
+        """Return the Hub URL as a unicode string."""
         return unicode(self.hub_url)
 
     def __str__(self):
+        """Return the Hub URL as a unicode string."""
         return self.__unicode__()
 
 
 class Client(FlomosaBase):
+    """Clients have unique OAuth key/secret combinations."""
+
     oauth_secret = db.StringProperty()
     first_name = db.StringProperty()
     last_name = db.StringProperty()
@@ -76,6 +82,7 @@ class Client(FlomosaBase):
 
     @property
     def secret(self):
+        """Return the OAuth secret for this client."""
         return self.oauth_secret
 
     def to_dict(self):
@@ -97,6 +104,8 @@ class Client(FlomosaBase):
 
 
 class Team(FlomosaBase):
+    """Teams are a way to save lists of member email addresses."""
+
     client = db.ReferenceProperty(Client, collection_name='teams',
                                   required=True)
     name = db.StringProperty(required=True)
@@ -104,6 +113,7 @@ class Team(FlomosaBase):
     members = db.ListProperty(basestring)
 
     def get_absolute_url(self):
+        """Return the URL to access this team."""
         url = '%s/teams/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
@@ -157,6 +167,8 @@ class Team(FlomosaBase):
 
 
 class Process(FlomosaBase):
+    """Individual workflow process."""
+
     client = db.ReferenceProperty(Client, collection_name='processes',
                                   required=True)
     name = db.StringProperty(required=True)
@@ -165,6 +177,7 @@ class Process(FlomosaBase):
     has_steps = False
 
     def get_absolute_url(self):
+        """Return the URL to access this process."""
         url = '%s/processes/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
@@ -178,10 +191,7 @@ class Process(FlomosaBase):
         if self.is_saved() and not self.collect_stats:
             self.delete_stats()
 
-        process = cache.save_to_cache(self)
-        if process:
-            return process.key()
-        return None
+        return super(Process, self).put()
 
     def delete(self):
         """Delete the process from the datastore and memcache.
@@ -192,10 +202,11 @@ class Process(FlomosaBase):
 
         self.delete_stats()
         self.delete_steps_actions()
-        return cache.delete_from_cache(self)
+        return super(Process, self).delete()
 
     def add_steps(self, steps):
         """Add multiple steps to this process."""
+
         for data in steps:
             name = data.get('name', None)
             if not name:
@@ -253,6 +264,7 @@ class Process(FlomosaBase):
 
     def add_actions(self, actions):
         """Add multiple actions to this process."""
+
         for data in actions:
             name = data.get('name', None)
             if not name:
@@ -261,12 +273,10 @@ class Process(FlomosaBase):
 
             kwargs = {'incoming': data.get('incoming'),
                       'outgoing': data.get('outgoing'),
-                      'action_key': data.get('key'),
-                      'is_complete': data.get('is_complete')}
+                      'action_key': data.get('key')}
             self.add_action(name, **kwargs)
 
-    def add_action(self, name, incoming, outgoing=None, is_complete=False,
-                   action_key=None):
+    def add_action(self, name, incoming, outgoing=None, action_key=None):
         """Add an action to this process."""
 
         if not incoming:
@@ -274,8 +284,6 @@ class Process(FlomosaBase):
                 'Actions require at least one incoming Step')
         if not outgoing:
             outgoing = []
-        if is_complete and outgoing:
-            is_complete = False
 
         action = None
         if action_key:
@@ -287,20 +295,21 @@ class Process(FlomosaBase):
             action = Action(key_name=action_key, parent=self, process=self,
                             name=name)
         action.name = name
-        action.is_complete = bool(is_complete)
 
-        for step_key in incoming:
-            step = Step.get(step_key, parent=self)
-            if not step:
-                raise exceptions.NotFoundException(
-                    'Incoming Step "%s" does not exist.' % step_key)
-            action.add_incoming_step(step, save=False)
-        for step_key in outgoing:
-            step = Step.get(step_key, parent=self)
-            if not step:
-                raise exceptions.NotFoundException(
-                    'Outgoing Step "%s" does not exist.' % step_key)
-            action.add_outgoing_step(step, save=False)
+        for step in incoming:
+            if not isinstance(step, Step):
+                step = Step.get(step, parent=self)
+                if not step:
+                    raise exceptions.NotFoundException(
+                        'Incoming Step "%s" does not exist.' % step)
+            action.add_incoming_step(step)
+        for step in outgoing:
+            if not isinstance(step, Step):
+                step = Step.get(step, parent=self)
+                if not step:
+                    raise exceptions.NotFoundException(
+                        'Outgoing Step "%s" does not exist.' % step)
+            action.add_outgoing_step(step)
 
         action.put()
         return action
@@ -407,6 +416,8 @@ class Process(FlomosaBase):
 
 
 class Step(FlomosaBase):
+    """Multiple steps are assigned to a process."""
+
     process = db.ReferenceProperty(Process, collection_name='steps',
                                    required=True)
     name = db.StringProperty(required=True)
@@ -449,6 +460,7 @@ class Step(FlomosaBase):
         return False
 
     def get_absolute_url(self):
+        """Return the URL to access this step."""
         url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self.id)
         return url
 
@@ -533,6 +545,8 @@ class Step(FlomosaBase):
 
 
 class Action(FlomosaBase):
+    """Actions link together separate steps in a process."""
+
     process = db.ReferenceProperty(Process, collection_name='actions',
                                    required=True)
     name = db.StringProperty(required=True)
@@ -545,21 +559,17 @@ class Action(FlomosaBase):
             self.is_complete = False
         else:
             self.is_complete = True
-        super(Action, self).put()
+        return super(Action, self).put()
 
-    def add_incoming_step(self, step, save=True):
+    def add_incoming_step(self, step):
         """Add an incoming Step to this Action."""
         if step.key() not in self.incoming:
             self.incoming.append(step.key())
-            if save:
-                self.put()
 
-    def add_outgoing_step(self, step, save=True):
+    def add_outgoing_step(self, step):
         """Add an outgoing Step to this Action."""
         if step.key() not in self.outgoing:
             self.outgoing.append(step.key())
-            if save:
-                self.put()
 
     def to_dict(self):
         """Return action as a dict object."""
@@ -586,6 +596,8 @@ class Action(FlomosaBase):
 
 
 class Request(db.Expando):
+    """Request in a process."""
+
     client = db.ReferenceProperty(Client, collection_name='requests',
                                   required=True)
     process = db.ReferenceProperty(Process, collection_name='requests',
@@ -599,9 +611,11 @@ class Request(db.Expando):
     duration = db.IntegerProperty(default=0) # seconds
 
     def __unicode__(self):
-        return self.id
+        """Return the unique ID for this request."""
+        return unicode(self.id)
 
     def __str__(self):
+        """Return the unique ID for this request."""
         return self.__unicode__()
 
     @property
@@ -610,6 +624,7 @@ class Request(db.Expando):
         return self.key().id_or_name()
 
     def get_absolute_url(self):
+        """Return the URL to access this request."""
         url = '%s/requests/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
@@ -670,8 +685,8 @@ class Request(db.Expando):
             completed_date = datetime.datetime.now()
         self.completed_date = completed_date
         if self.submitted_date:
-            delta = self.completed_date - self.submitted_date
-            self.duration = delta.days * 86400 + delta.seconds
+            self.duration = utils.compute_duration(self.completed_date,
+                                                   self.submitted_date)
 
         return self.put()
 
@@ -680,7 +695,7 @@ class Request(db.Expando):
 
         data = {}
         for prop in self.dynamic_properties():
-            data[prop] = str(getattr(self, prop))
+            data[prop] = unicode(getattr(self, prop))
         return data
 
     def get_executions(self, limit=100):
@@ -706,8 +721,8 @@ class Request(db.Expando):
             'completed_date': str(self.completed_date),
             'duration': self.duration,
         }
-        for prop in self.dynamic_properties():
-            data[prop] = getattr(self, prop)
+        # Add in the user-submitted data
+        data.update(self.get_submitted_data())
 
         data['executions'] = [exc.to_dict() for exc in self.get_executions()]
 
@@ -717,6 +732,8 @@ class Request(db.Expando):
 
 
 class Execution(FlomosaBase):
+    """Execution step for a request through a process."""
+
     process = db.ReferenceProperty(Process, collection_name='executions',
                                    required=True)
     request = db.ReferenceProperty(Request, collection_name='executions',
@@ -738,6 +755,7 @@ class Execution(FlomosaBase):
     duration = db.IntegerProperty(default=0) # end_date-start_date
 
     def get_absolute_url(self):
+        """Returns the URL to access this execution."""
         url = '%s/executions/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
@@ -809,16 +827,27 @@ class Execution(FlomosaBase):
             raise exceptions.InternalException('"%s" is not a valid Action ' \
                                                'model.' % action)
 
+        found_action = False
+        for step_action in self.step.actions:
+            if action.id == step_action.id:
+                found_action = True
+                break
+
+        if not found_action:
+            raise exceptions.InternalException('"%s" is not a valid Action ' \
+                                               'for Step "%s".' % (action,
+                                                                   self.step))
+
         self.action = action
         if not end_date:
             end_date = datetime.datetime.now()
         self.end_date = end_date
         if self.viewed_date and not self.action_delay:
-            delta = self.end_date - self.viewed_date
-            self.action_delay = delta.days * 86400 + delta.seconds
+            self.action_delay = utils.compute_duration(self.end_date,
+                                                       self.viewed_date)
         if self.start_date and not self.duration:
-            delta = self.end_date - self.start_date
-            self.duration = delta.days * 86400 + delta.seconds
+            self.duration = utils.compute_duration(self.end_date,
+                                                   self.start_date)
 
         return self.put()
 
@@ -833,8 +862,8 @@ class Execution(FlomosaBase):
             viewed_date = datetime.datetime.now()
         self.viewed_date = viewed_date
         if self.sent_date and not self.email_delay:
-            delta = self.viewed_date - self.sent_date
-            self.email_delay = delta.days * 86400 + delta.seconds
+            self.email_delay = utils.compute_duration(self.viewed_date,
+                                                      self.sent_date)
 
         return self.put()
 
@@ -976,12 +1005,12 @@ class Statistic(db.Model):
                                 parent=process)
         monthly = cls.store_stat(request, process, timestamp, type='monthly',
                                  parent=yearly)
-        weekly = cls.store_stat(request, process, timestamp, type='weekly',
-                                parent=yearly)
+        cls.store_stat(request, process, timestamp, type='weekly',
+                       parent=yearly)
         daily = cls.store_stat(request, process, timestamp, type='daily',
-                               parent=weekly)
-        hourly = cls.store_stat(request, process, timestamp, type='hourly',
-                                parent=daily)
+                               parent=monthly)
+        cls.store_stat(request, process, timestamp, type='hourly',
+                       parent=daily)
 
     def to_dict(self):
         """Return statistics as a dict object."""
