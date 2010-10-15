@@ -1,40 +1,40 @@
 queue:
 - name: execution-creation
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
 
 - name: execution-process
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
 
 - name: request-callback
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
 
 - name: request-statistics
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
 
 - name: step-callback
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
 
 - name: mail-request-notify
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
   
 - name: mail-request-reminder
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
   
 - name: mail-request-confirmation
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
   
 - name: mail-request-complete
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
   
 - name: mail-request-step
   rate: 50/s
-  bucket_size: 20
+  bucket_size: 100
