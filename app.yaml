@@ -6,8 +6,9 @@ api_version: 1
 inbound_services:
 - mail
 
-derived_file_type:
-- python_precompiled
+builtins:
+- appstats: on
+- datastore_admin: on
 
 skip_files:
 - ^(.*/)?app\.yaml
@@ -20,6 +21,7 @@ skip_files:
 - ^(.*/)?.*/RCS/.*
 - ^(.*/)?\..*
 - ^(.*/)?unittests*\.xml$
+- ^(.*/)?coverage*\.xml$
 
 handlers:
 - url: /
