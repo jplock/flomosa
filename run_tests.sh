@@ -56,7 +56,7 @@ else
   else
     echo -e "No virtual environment found...create one? (Y/n) \c"
     read use_ve
-    if [ "x$use_ve" = "xY" ]; then
+    if [ "x$use_ve" = "xY" -o "x$use_ve" = "x" -o "x$use_ve" = "xy" ]; then
       # Install the virtualenv and run the test suite in it
       python2.5 tools/install_venv.py
     else
