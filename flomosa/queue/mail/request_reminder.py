@@ -15,7 +15,7 @@ from google.appengine.ext.webapp import template, util
 from google.appengine.api import mail
 from google.appengine.runtime import apiproxy_errors
 
-from flomosa import exceptions, models, settings
+from flomosa import is_development, exceptions, models, settings
 from flomosa.queue import QueueHandler
 
 
@@ -80,8 +80,9 @@ class TaskHandler(QueueHandler):
             raise exceptions.QuotaException('Over email quota limit to send ' \
                 'reminder email to "%s".' % execution.member)
         except Exception:
-            raise exceptions.InternalException('Unable to send reminder ' \
-                'email to "%s".' % execution.member)
+            if not is_development():
+                raise exceptions.InternalException('Unable to send reminder ' \
+                    'email to "%s".' % execution.member)
 
         execution.put()
 
