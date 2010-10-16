@@ -1,0 +1,28 @@
+handlers:
+- url: /requests/.*
+  script: flomosa/api/request.py
+  secure: optional
+
+- url: /processes/.*
+  script: flomosa/api/process.py
+  secure: optional
+
+- url: /executions/.*
+  script: flomosa/api/execution.py
+  secure: optional
+
+- url: /steps/.*
+  script: flomosa/api/step.py
+  secure: optional
+
+- url: /teams/.*
+  script: flomosa/api/team.py
+  secure: optional
+
+- url: /stats/.*
+  script: flomosa/api/stat.py
+  secure: optional
+  
+- url: /search/.*
+  script: flomosa/api/search.py
+  secure: optional

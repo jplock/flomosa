@@ -1,0 +1,16 @@
+handlers:
+- url: /
+  script: flomosa/web/index.py
+  secure: optional
+
+- url: /account/.*
+  script: flomosa/web/account.py
+  secure: always
+
+- url: /viewed/.*
+  script: flomosa/web/viewed.py
+  secure: optional
+
+- url: /clients/.*
+  script: flomosa/web/client.py
+  secure: optional
