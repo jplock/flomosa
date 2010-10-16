@@ -22,7 +22,7 @@ class ExecutionHandler(OAuthHandler):
         client = self.is_valid()
         execution = models.Execution.get(execution_key)
         process = execution.process
-        if client.id != process.client.id:
+        if client != process.client:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
                 'authorized to access Process "%s".' % (client.id, process.id))
         return execution

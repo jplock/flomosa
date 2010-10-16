@@ -8,7 +8,6 @@
 #
 
 import datetime
-import logging
 
 from google.appengine.ext import db
 from google.appengine.api.labs import taskqueue
@@ -22,25 +21,35 @@ class FlomosaBase(db.Model):
 
     @property
     def id(self):
-        """Return the unique ID for this model."""
+        """Return the unique ID for this model if it has been saved."""
+        if not self.is_saved():
+            return None
         return self.key().id_or_name()
 
     def __unicode__(self):
         """Return the unique ID for this model."""
-        return unicode(self.id)
+        return self.id
 
     def __str__(self):
         """Return the unique ID for this model."""
-        return self.__unicode__()
+        return self.id
+
+    def __eq__(self, other):
+        """Test that two models are equal by their unique ID's."""
+        return self.id == other.id
+
+    def __ne__(self, other):
+        """Test that two models are not equal by their unique ID's."""
+        return self.id != other.id
 
     @classmethod
     def get(cls, key, client=None, parent=None):
         """Lookup the model in memcache and then the datastore."""
         model = cache.get_from_cache(cls, key, parent)
-        if client and client.id != model.client.id:
+        if client and client != model.client:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
-                'authorized to access %s "%s".' % (client.id, model.kind(),
-                                                   model.id))
+                'authorized to access %s "%s".' % (client, model.kind(),
+                                                   model))
         return model
 
     def put(self):
@@ -89,6 +98,7 @@ class Client(FlomosaBase):
         """Return client as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'oauth_secret': self.oauth_secret,
             'first_name': self.first_name,
@@ -98,8 +108,6 @@ class Client(FlomosaBase):
             'password': self.password,
             'created_date': str(self.created_date)
         }
-        if self.is_saved():
-            data['key'] = self.id
         return data
 
 
@@ -114,7 +122,7 @@ class Team(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this team."""
-        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self.id)
+        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self)
         return url
 
     @classmethod
@@ -146,7 +154,7 @@ class Team(FlomosaBase):
         team = cls.get_or_insert(team_key, client=client, name=name)
         if team.client != client:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
-                'authorized to access Team "%s".' % (client.id, team.id))
+                'authorized to access Team "%s".' % (client, team))
 
         team.description = data.get('description', None)
         team.members = data.get('members', [])
@@ -156,13 +164,12 @@ class Team(FlomosaBase):
         """Return team as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'name': self.name,
             'description': self.description,
             'members': self.members
         }
-        if self.is_saved():
-            data['key'] = self.id
         return data
 
 
@@ -178,7 +185,7 @@ class Process(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this process."""
-        url = '%s/processes/%s.json' % (settings.HTTPS_URL, self.id)
+        url = '%s/processes/%s.json' % (settings.HTTPS_URL, self)
         return url
 
     def put(self):
@@ -202,6 +209,7 @@ class Process(FlomosaBase):
 
         self.delete_stats()
         self.delete_steps_actions()
+        self.delete_requests_executions()
         return super(Process, self).delete()
 
     def add_steps(self, steps):
@@ -314,11 +322,6 @@ class Process(FlomosaBase):
         action.put()
         return action
 
-    def delete_stats(self):
-        """Delete any statistic objects for this Process."""
-        for stats in self.stats:
-            stats.delete()
-
     @classmethod
     def from_dict(cls, client, data, process_key=None):
         """Return a new Process instance from a dict object."""
@@ -348,7 +351,7 @@ class Process(FlomosaBase):
         process = cls.get_or_insert(process_key, client=client, name=name)
         if process.client != client:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
-                'authorized to access Process "%s".' % (client.id, process.id))
+                'authorized to access Process "%s".' % (client, process))
 
         process.description = data.get('description', None)
         collect_stats = data.get('collect_stats', False)
@@ -356,8 +359,52 @@ class Process(FlomosaBase):
             process.collect_stats = bool(collect_stats)
         return process
 
+    def delete_stats(self):
+        """Delete any statistic objects for this Process."""
+
+        entities = []
+        entity_keys = []
+        for stat in self.stats:
+            entities.append(stat)
+            entity_keys.append(stat.id)
+
+        if entities:
+            try:
+                db.delete(entities)
+            except apiproxy_errors.CapabilityDisabledError:
+                raise exceptions.MaintenanceException('Unable to delete ' \
+                    'statistics from Process "%s" due to maintenance.' % self)
+
+        if entity_keys:
+            from google.appengine.api import memcache
+            memcache.delete_multi(entity_keys)
+
+    def delete_requests_executions(self):
+        """Delete any requests and execution objects for this Process."""
+
+        entities = []
+        entity_keys = []
+        for request in self.requests:
+            entities.append(request)
+            entity_keys.append(request.id)
+
+        for execution in self.executions:
+            entities.append(execution)
+            entity_keys.append(execution.id)
+
+        if entities:
+            try:
+                db.delete(entities)
+            except apiproxy_errors.CapabilityDisabledError:
+                raise exceptions.MaintenanceException('Unable to delete ' \
+                    'requests and executions from Process "%s" due to ' \
+                    'maintenance.' % self)
+        if entity_keys:
+            from google.appengine.api import memcache
+            memcache.delete_multi(entity_keys)
+
     def delete_steps_actions(self):
-        """Delete this process' steps and actions."""
+        """Delete any step and action objects for this Process."""
 
         entities = []
         entity_keys = []
@@ -376,7 +423,7 @@ class Process(FlomosaBase):
             except apiproxy_errors.CapabilityDisabledError:
                 raise exceptions.MaintenanceException('Unable to delete ' \
                     'steps and actions from Process "%s" due to ' \
-                    'maintenance.' % self.id)
+                    'maintenance.' % self)
         if entity_keys:
             from google.appengine.api import memcache
             memcache.delete_multi(entity_keys)
@@ -403,13 +450,12 @@ class Process(FlomosaBase):
         """Return process as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'name': self.name,
             'description': self.description,
             'collect_stats': self.collect_stats
         }
-        if self.is_saved():
-            data['key'] = self.id
         data['steps'] = [step.to_dict() for step in self.steps]
         data['actions'] = [action.to_dict() for action in self.actions]
         return data
@@ -461,13 +507,14 @@ class Step(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this step."""
-        url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self.id)
+        url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self)
         return url
 
     def to_dict(self):
         """Return step as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'name': self.name,
             'process': self.process.id,
@@ -476,11 +523,9 @@ class Step(FlomosaBase):
             'members': self.members
         }
         if self.team:
-            data['team'] = self.team.id
+            data['team'] = unicode(self.team)
         else:
             data['team'] = None
-        if self.is_saved():
-            data['key'] = self.id
         return data
 
     def queue_tasks(self, request):
@@ -575,15 +620,14 @@ class Action(FlomosaBase):
         """Return action as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
-            'process': self.process.id,
+            'process': unicode(self.process),
             'name': self.name,
             'is_complete': bool(self.is_complete),
             'incoming': [],
             'outgoing': []
         }
-        if self.is_saved():
-            data['key'] = self.id
         for step_key in self.incoming:
             step = Step.get(step_key)
             if step and step.id not in data['incoming']:
@@ -618,6 +662,14 @@ class Request(db.Expando):
         """Return the unique ID for this request."""
         return self.__unicode__()
 
+    def __eq__(self, other):
+        """Test that two requests are equal by their unique ID's."""
+        return self.id == other.id
+
+    def __ne__(self, other):
+        """Test that two requests are not equal by their unique ID's."""
+        return self.id != other.id
+
     @property
     def id(self):
         """Return the unique ID for this request."""
@@ -625,16 +677,16 @@ class Request(db.Expando):
 
     def get_absolute_url(self):
         """Return the URL to access this request."""
-        url = '%s/requests/%s.json' % (settings.HTTPS_URL, self.id)
+        url = '%s/requests/%s.json' % (settings.HTTPS_URL, self)
         return url
 
     @classmethod
     def get(cls, key, client=None):
         """Lookup the request key in memcache and then the datastore."""
         request = cache.get_from_cache(cls, key)
-        if client and client.id != request.client.id:
+        if client and client != request.client:
             raise exceptions.UnauthorizedException('Client "%s" is not ' \
-                'authorized to access Request "%s".' % (client.id, request.id))
+                'authorized to access Request "%s".' % (client, request))
         return request
 
     def put(self):
@@ -653,7 +705,7 @@ class Request(db.Expando):
             step = self.process.get_start_step()
             if not step:
                 raise exceptions.ValidationException('Process "%s" does not ' \
-                    'have a starting step.' % process.id)
+                    'have a starting step.' % process)
 
             step.queue_tasks(self)
 
@@ -756,13 +808,14 @@ class Execution(FlomosaBase):
 
     def get_absolute_url(self):
         """Returns the URL to access this execution."""
-        url = '%s/executions/%s.json' % (settings.HTTPS_URL, self.id)
+        url = '%s/executions/%s.json' % (settings.HTTPS_URL, self)
         return url
 
     def to_dict(self):
         """Return execution as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'process': self.process.id,
             'request': self.request.id,
@@ -799,8 +852,6 @@ class Execution(FlomosaBase):
             data['action'] = self.action.id
         if self.team:
             data['team'] = self.team.id
-        if self.is_saved():
-            data['key'] = self.id
         return data
 
     def set_sent(self, sent_date=None):
@@ -911,7 +962,10 @@ class Statistic(db.Model):
 
     @property
     def id(self):
-        return '%s_%s' % (self.process.id, self.date_key)
+        """Return the unique ID for this statistic if it has been saved."""
+        if not self.is_saved():
+            return None
+        return self.key().id_or_name()
 
     def log(self, request):
         """Store request data in a Statistic object."""
@@ -980,7 +1034,7 @@ class Statistic(db.Model):
                 temp, week_num, week_day = timestamp.isocalendar()
             date_key = str(date_key)
 
-        stat_key = '%s_%s' % (process.id, date_key)
+        stat_key = '%s_%s' % (process, date_key)
 
         stat = cls.get_by_key_name(stat_key, parent=parent)
         if not stat:
@@ -1016,6 +1070,7 @@ class Statistic(db.Model):
         """Return statistics as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'process': self.process.id,
             'type': self.type,
@@ -1032,6 +1087,4 @@ class Statistic(db.Model):
             'avg_request_seconds': self.avg_request_seconds,
             'total_request_seconds': self.total_request_seconds
         }
-        if self.is_saved():
-            data['key'] = self.id
         return data
