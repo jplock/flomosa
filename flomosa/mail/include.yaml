@@ -1,0 +1,8 @@
+handlers:
+- url: /_ah/mail/feedback@.*flomosa\.appspotmail\.com
+  script: flomosa/mail/feedback_handler.py
+  login: admin
+
+- url: /_ah/mail/.+
+  script: flomosa/mail/handler.py
+  login: admin

@@ -4,114 +4,31 @@ runtime: python
 api_version: 1
 
 inbound_services:
+- xmpp_message
 - mail
 
 builtins:
 - appstats: on
 - datastore_admin: on
 
+includes:
+- flomosa/api
+- flomosa/mail
+- flomosa/queue
+- flomosa/web
+
 skip_files:
 - ^(.*/)?app\.yaml
-- ^(.*/)?app\.yml
 - ^(.*/)?index\.yaml
-- ^(.*/)?index\.yml
 - ^(.*/)?#.*#
 - ^(.*/)?.*~
 - ^(.*/)?.*\.py[co]
 - ^(.*/)?.*/RCS/.*
 - ^(.*/)?\..*
-- ^(.*/)?unittests*\.xml$
-- ^(.*/)?coverage*\.xml$
-
-handlers:
-- url: /
-  script: flomosa/web/index.py
-  secure: optional
-
-- url: /account/.*
-  script: flomosa/web/account.py
-  secure: always
-
-- url: /viewed/.*
-  script: flomosa/web/viewed.py
-  secure: optional
-
-- url: /requests/.*
-  script: flomosa/api/request.py
-  secure: optional
-
-- url: /processes/.*
-  script: flomosa/api/process.py
-  secure: optional
-
-- url: /executions/.*
-  script: flomosa/api/execution.py
-  secure: optional
-
-- url: /steps/.*
-  script: flomosa/api/step.py
-  secure: optional
-
-- url: /teams/.*
-  script: flomosa/api/team.py
-  secure: optional
-
-- url: /stats/.*
-  script: flomosa/api/stat.py
-  secure: optional
-  
-- url: /search/.*
-  script: flomosa/api/search.py
-  secure: optional
-
-- url: /clients/.*
-  script: flomosa/web/client.py
-  secure: optional
-
-- url: /_ah/queue/execution-creation
-  script: flomosa/queue/execution_creation.py
-  #login: admin
-
-- url: /_ah/queue/execution-process
-  script: flomosa/queue/execution_process.py
-  #login: admin
-
-- url: /_ah/queue/step-callback
-  script: flomosa/queue/step_callback.py
-  #login: admin
-
-- url: /_ah/queue/request-callback
-  script: flomosa/queue/request_callback.py
-  #login: admin
-
-- url: /_ah/queue/request-statistics
-  script: flomosa/queue/request_statistics.py
-  #login: admin
-
-- url: /_ah/queue/mail-request-notify
-  script: flomosa/queue/mail/request_notify.py
-  #login: admin
-
-- url: /_ah/queue/mail-request-confirmation
-  script: flomosa/queue/mail/request_confirmation.py
-  #login: admin
-
-- url: /_ah/queue/mail-request-complete
-  script: flomosa/queue/mail/request_complete.py
-  #login: admin
-
-- url: /_ah/queue/mail-request-step
-  script: flomosa/queue/mail/request_step.py
-  #login: admin
-
-- url: /_ah/queue/mail-request-reminder
-  script: flomosa/queue/mail/request_reminder.py
-  #login: admin
-
-- url: /_ah/mail/feedback@.*flomosa\.appspotmail\.com
-  script: flomosa/mail/feedback_handler.py
-  login: admin
-
-- url: /_ah/mail/.+
-  script: flomosa/mail/handler.py
-  login: admin
+- ^(.*/)?flomosa\.kpf$
+- ^(.*/)?setup.*
+- ^(.*/)?run_tests.*
+- ^(.*/)?unittests\.xml$
+- ^(.*/)?coverage\.xml$
+- ^(.*/)?tools/.*
+- ^(.*/)?flomosa/tests/.*

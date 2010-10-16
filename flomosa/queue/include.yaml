@@ -1,0 +1,40 @@
+handlers:
+- url: /_ah/queue/execution-creation
+  script: flomosa/queue/execution_creation.py
+  login: admin
+
+- url: /_ah/queue/execution-process
+  script: flomosa/queue/execution_process.py
+  login: admin
+
+- url: /_ah/queue/step-callback
+  script: flomosa/queue/step_callback.py
+  login: admin
+
+- url: /_ah/queue/request-callback
+  script: flomosa/queue/request_callback.py
+  login: admin
+
+- url: /_ah/queue/request-statistics
+  script: flomosa/queue/request_statistics.py
+  login: admin
+
+- url: /_ah/queue/mail-request-notify
+  script: flomosa/queue/mail/request_notify.py
+  login: admin
+
+- url: /_ah/queue/mail-request-confirmation
+  script: flomosa/queue/mail/request_confirmation.py
+  login: admin
+
+- url: /_ah/queue/mail-request-complete
+  script: flomosa/queue/mail/request_complete.py
+  login: admin
+
+- url: /_ah/queue/mail-request-step
+  script: flomosa/queue/mail/request_step.py
+  login: admin
+
+- url: /_ah/queue/mail-request-reminder
+  script: flomosa/queue/mail/request_reminder.py
+  login: admin
