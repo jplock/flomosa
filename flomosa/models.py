@@ -181,6 +181,7 @@ class Process(FlomosaBase):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     collect_stats = db.BooleanProperty(default=False)
+    callbacks = db.ListProperty(basestring)
     has_steps = False
 
     def get_absolute_url(self):
@@ -454,6 +455,7 @@ class Process(FlomosaBase):
             'kind': self.kind(),
             'name': self.name,
             'description': self.description,
+            'callbacks': self.callbacks,
             'collect_stats': self.collect_stats
         }
         data['steps'] = [step.to_dict() for step in self.steps]
@@ -1010,9 +1012,9 @@ class Statistic(db.Model):
                                            timestamp.day)
                 month = timestamp.month
                 day = timestamp.day
-                temp, week_num, week_day = timestamp.isocalendar()
+                _, week_num, week_day = timestamp.isocalendar()
             elif type == 'weekly':
-                temp, week_num, week_day = timestamp.isocalendar()
+                _, week_num, week_day = timestamp.isocalendar()
                 date_key = '%dW%02d' % (timestamp.year, week_num)
             elif type == 'monthly':
                 date_key = '%d%02d' % (timestamp.year, timestamp.month)
@@ -1025,10 +1027,10 @@ class Statistic(db.Model):
                 month = timestamp.month
                 day = timestamp.day
                 hour = timestamp.hour
-                temp, week_num, week_day = timestamp.isocalendar()
+                _, week_num, week_day = timestamp.isocalendar()
             date_key = str(date_key)
 
-        stat_key = '%s_%s' % (process, date_key)
+        stat_key = '%s_%s' % (process.id, date_key)
 
         stat = cls.get_by_key_name(stat_key, parent=parent)
         if not stat:

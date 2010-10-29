@@ -15,6 +15,10 @@ handlers:
   script: flomosa/queue/request_callback.py
   login: admin
 
+- url: /_ah/queue/process-callback
+  script: flomosa/queue/process_callback.py
+  login: admin
+
 - url: /_ah/queue/request-statistics
   script: flomosa/queue/request_statistics.py
   login: admin
