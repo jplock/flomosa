@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -17,6 +17,7 @@ from flomosa import exceptions
 
 
 class QueueHandler(webapp.RequestHandler):
+    """Base handler for the other queue handlers."""
 
     def handle_exception(self, exception, debug_mode):
         if debug_mode:

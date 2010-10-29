@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -7,7 +7,6 @@
 # All Rights Reserved.
 #
 
-from datetime import datetime
 import logging
 
 from google.appengine.ext import webapp
@@ -20,12 +19,13 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles sending the initial email when a request enters a step."""
 
     def post(self):
         logging.debug('Begin mail-request-notify task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         execution_key = self.request.get('key')
         if not execution_key:
@@ -33,12 +33,12 @@ class TaskHandler(QueueHandler):
 
         execution = models.Execution.get(execution_key)
         if not execution.member:
-            raise exceptions.InternalException('Execution "%s" has no email ' \
-                                               'address.' % execution.id)
+            raise exceptions.InternalException(
+                'Execution "%s" has no email address.' % execution.id)
 
         if execution.sent_date:
             logging.warning('Execution "%s" notification already sent to ' \
-                '"%s". Exiting.' % (execution.id, execution.member))
+                            '"%s". Exiting.', execution.id, execution.member)
             return None
 
         request = execution.request
@@ -63,14 +63,14 @@ class TaskHandler(QueueHandler):
 
         message = mail.EmailMessage()
         message.sender = 'Flomosa <reply+%s@%s>' % (execution.id,
-            settings.EMAIL_DOMAIN)
+                                                    settings.EMAIL_DOMAIN)
         message.to = execution.member
         message.subject = '[flomosa] Request #%s' % request.id
         message.body = text_body
         message.html = html_body
 
-        logging.info('Sending email to "%s" for Execution "%s".' % \
-            (execution.member, execution.id))
+        logging.info('Sending email to "%s" for Execution "%s".',
+                     execution.member, execution.id)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
@@ -87,6 +87,7 @@ class TaskHandler(QueueHandler):
 
 
 def main():
+    """Handles sending the initial email when a request enters a step."""
     application = webapp.WSGIApplication([('/_ah/queue/mail-request-notify',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

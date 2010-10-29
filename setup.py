@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -37,9 +37,5 @@ setup(
     url='http://github.com/flomosa/flomosa',
     packages=find_packages(),
     scripts = ['run_tests.py'],
-    cmdclass={'sdist': local_sdist},
-    install_requires=[
-        'httplib2>=0.6.0',
-        'oauth2>=1.2.0'
-    ],
+    cmdclass={'sdist': local_sdist}
 )

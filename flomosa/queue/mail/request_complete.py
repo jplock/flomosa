@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -19,12 +19,13 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles sending the completion email back to the requestor."""
 
     def post(self):
         logging.debug('Begin mail-request-complete task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         execution_key = self.request.get('key')
         if not execution_key:
@@ -59,7 +60,7 @@ class TaskHandler(QueueHandler):
         message.body = text_body
         message.html = html_body
 
-        logging.info('Sending completion email to "%s".' % request.requestor)
+        logging.info('Sending completion email to "%s".', request.requestor)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
@@ -74,6 +75,7 @@ class TaskHandler(QueueHandler):
 
 
 def main():
+    """Handles sending the completion email back to the requestor."""
     application = webapp.WSGIApplication([('/_ah/queue/mail-request-complete',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

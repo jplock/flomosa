@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -9,7 +9,6 @@
 
 import calendar
 import copy
-import datetime
 import logging
 
 from google.appengine.ext import webapp
@@ -28,8 +27,10 @@ _STAT_TUPLE = (
     'total_request_seconds'
 )
 
+
 # TODO: has to be an internal function to do this
 def list_to_dict(keys, default_value=0):
+    """Returns a dict based on a list of keys and a default value."""
     new_dict = {}
     for key in keys:
         new_dict[key] = default_value
@@ -37,6 +38,7 @@ def list_to_dict(keys, default_value=0):
 
 
 class StatHandler(OAuthHandler):
+    """Base handler process statistics requests."""
 
     def get_param(self, name, required=True):
         """Get a request parameter, raising an exception if not valid.
@@ -60,14 +62,15 @@ class StatHandler(OAuthHandler):
             return return_stats
         if not value:
             if required:
-                raise exceptions.MissingException('Missing "%s" ' \
-                                                  'parameter.' % name)
+                raise exceptions.MissingException(
+                    'Missing "%s" parameter.' % name)
         else:
             value = int(value)
             return value
 
 
 class YearHandler(StatHandler):
+    """Handles requests for yearly process statistics."""
 
     def get(self, process_key):
         logging.debug('Begin YearHandler.get() method')
@@ -108,6 +111,7 @@ class YearHandler(StatHandler):
 
 
 class MonthHandler(StatHandler):
+    """Handles requests for monthly process statistics."""
 
     def get(self, process_key):
         logging.debug('Begin MonthHandler.get() method')
@@ -154,6 +158,7 @@ class MonthHandler(StatHandler):
 
 
 class WeekHandler(StatHandler):
+    """Handles requests for weekly process statistics."""
 
     def get(self, process_key):
         logging.debug('Begin WeekHandler.get() method')
@@ -197,6 +202,7 @@ class WeekHandler(StatHandler):
 
 
 class DayHandler(StatHandler):
+    """Handles requests for daily process statistics."""
 
     def get(self, process_key):
         logging.debug('Begin DayHandler.get() method')
@@ -242,6 +248,7 @@ class DayHandler(StatHandler):
 
 
 def main():
+    """Handles requests for process statistics."""
     application = webapp.WSGIApplication([
         (r'/stats/by-year/(.*)\.json', YearHandler),
         (r'/stats/by-month/(.*)\.json', MonthHandler),

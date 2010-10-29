@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -18,24 +18,25 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles logging a request in the process' statistics."""
 
     def post(self):
         logging.debug('Begin request-statistics task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         request_key = self.request.get('request_key')
         if not request_key:
-            raise exceptions.MissingException('Missing "request_key" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "request_key" parameter.')
 
         process_key = self.request.get('process_key')
         if not process_key:
-            raise exceptions.MissingException('Missing "process_key" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "process_key" parameter.')
 
-        timestamp = self.request.get('timestamp') # POSIX UTC timestamp
+        timestamp = self.request.get('timestamp')  # POSIX UTC timestamp
         if not timestamp:
             raise exceptions.MissingException('Missing "timestamp" parameter.')
 
@@ -48,13 +49,14 @@ class TaskHandler(QueueHandler):
                                   process, stat_time)
         except db.TransactionFailedError:
             logging.critical('Storing statistics failed for Request "%s". ' \
-                'Re-queuing.' % request.id)
+                'Re-queuing.', request.id)
             return self.halt_requeue()
 
         logging.debug('Finished request-statistics task handler')
 
 
 def main():
+    """Handles logging a request in the process' statistics."""
     application = webapp.WSGIApplication([('/_ah/queue/request-statistics',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

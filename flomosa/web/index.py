@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -17,6 +17,7 @@ from flomosa.web import SecureRequestHandler
 
 
 class MainHandler(SecureRequestHandler):
+    """Handles the flomosa API index page."""
 
     def get(self):
         logging.debug('Begin MainHandler.get() method')
@@ -33,7 +34,9 @@ class MainHandler(SecureRequestHandler):
 
         logging.debug('Finished MainHandler.get() method')
 
+
 def main():
+    """Handles the flomosa API index page."""
     application = webapp.WSGIApplication([('/', MainHandler)], debug=False)
     util.run_wsgi_app(application)
 

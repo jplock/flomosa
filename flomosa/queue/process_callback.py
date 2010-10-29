@@ -19,29 +19,32 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
-    """Handles sending the request ID to a callback URL specified in the
-    request form data."""
 
     def post(self):
-        logging.debug('Begin request-callback task handler')
+        logging.debug('Begin process-callback task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times', num_tries)
+        logging.info('Task has been executed %s times' % num_tries)
 
-        request_key = self.request.get('request_key')
+        execution_key = self.request.get('execution_key')
         callback_url = self.request.get('callback_url')
+        timestamp = self.request.get('timestamp')  # POSIX UTC timestamp
 
-        if not request_key:
+        if not execution_key:
             raise exceptions.MissingException(
-                'Missing "request_key" parameter.')
-
+                'Missing "execution_key" parameter.')
         if not callback_url:
             raise exceptions.MissingException(
                 'Missing "callback_url" parameter.')
+        if not timestamp:
+            raise exceptions.MissingException('Missing "timestamp" parameter.')
 
-        request = models.Request.get(request_key)
+        execution = models.Execution.get(execution_key)
 
-        form_data = urllib.urlencode({'key': request.id})
+        form_data = urllib.urlencode({'key': execution.request.id,
+                                      'step': execution.step.name,
+                                      'action': execution.action.name,
+                                      'timestamp': timestamp})
 
         rpc = urlfetch.create_rpc(deadline=2)
         urlfetch.make_fetch_call(rpc, url=callback_url, payload=form_data,
@@ -51,25 +54,24 @@ class TaskHandler(QueueHandler):
         try:
             result = rpc.get_result()
             if result.status_code == 200:
-                logging.info('Submitted POST request to "%s" for Request ' \
-                             '"%s".', callback_url, request.id)
+                logging.info(
+                    'Submitted POST request to "%s" for Request "%s".' % (
+                        callback_url, request.id))
             else:
                 logging.warning('Received an HTTP status of "%s" when ' \
-                    'submitting POST request to "%s" for Request "%s".',
-                    result.status_code, callback_url, request.id)
+                    'submitting POST request to "%s" for Request "%s".' % (
+                    result.status_code, callback_url, request.id))
                 self.halt_requeue()
         except urlfetch.DownloadError, ex:
             logging.warning('Could not submit POST request to "%s" for ' \
-                'Request "%s": %s', callback_url, request.id, ex)
+                'Request "%s": %s' % (callback_url, request.id, ex))
             self.halt_requeue()
 
-        logging.debug('Finished request-callback task handler')
+        logging.debug('Finished process-callback task handler')
 
 
 def main():
-    """Handles sending the request ID to a callback URL specified in the
-    request form data."""
-    application = webapp.WSGIApplication([('/_ah/queue/request-callback',
+    application = webapp.WSGIApplication([('/_ah/queue/process-callback',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)
 

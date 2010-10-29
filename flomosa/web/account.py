@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -17,8 +17,11 @@ from flomosa.web import SecureRequestHandler
 
 
 class AccountHandler(SecureRequestHandler):
+    """Handles account requests."""
 
     def show_form(self, template_vars=None):
+        """Render the form template in the browser."""
+
         if not template_vars:
             template_vars = {'uri': self.request.uri}
         if 'uri' not in template_vars:
@@ -48,14 +51,14 @@ class AccountHandler(SecureRequestHandler):
 
         if old_password:
             if self.encrypt_string(old_password) != client.password:
-                template_vars['messages'].append('Old password does not ' \
-                    'match your existing password')
+                template_vars['messages'].append(
+                    'Old password does not match your existing password')
             elif not new_password:
-                template_vars['messages'].append('Please provide a new ' \
-                    'password')
+                template_vars['messages'].append(
+                    'Please provide a new password')
             elif not confirm_password:
-                template_vars['messages'].append('Please confirm your new ' \
-                    'password')
+                template_vars['messages'].append(
+                    'Please confirm your new password')
             elif new_password != confirm_password:
                 template_vars['messages'].append('New passwords do not match')
 
@@ -109,7 +112,11 @@ class AccountHandler(SecureRequestHandler):
 
 
 class RegisterHandler(SecureRequestHandler):
+    """Handles account registration requests."""
+
     def show_form(self, template_vars=None):
+        """Render the form template in the browser."""
+
         if not template_vars:
             template_vars = {'uri': self.request.uri}
         elif 'uri' not in template_vars:
@@ -195,8 +202,11 @@ class RegisterHandler(SecureRequestHandler):
 
 
 class LoginHandler(SecureRequestHandler):
+    """Handles accountl ogin requests."""
 
     def show_form(self, template_vars=None):
+        """Render the form template in the browser."""
+
         if not template_vars:
             template_vars = {'uri': self.request.uri}
         elif 'uri' not in template_vars:
@@ -262,6 +272,7 @@ class LoginHandler(SecureRequestHandler):
 
 
 class LogoutHandler(SecureRequestHandler):
+    """Handles account logout requests."""
 
     def get(self):
         logging.debug('Begin LogoutHandler.get() method')
@@ -280,6 +291,7 @@ class LogoutHandler(SecureRequestHandler):
 
 
 class CloseHandler(SecureRequestHandler):
+    """Handles account close requests."""
 
     def get(self):
         logging.debug('Begin CloseHandler.get() method')
@@ -301,6 +313,7 @@ class CloseHandler(SecureRequestHandler):
 
 
 def main():
+    """Handles account requests."""
     application = webapp.WSGIApplication(
         [(r'/account/login/', LoginHandler),
         (r'/account/logout/', LogoutHandler),

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -67,11 +67,11 @@ class FlomosaBase(db.Model):
 class Hub(db.Model):
     """PubSubHubbub hub URL listing."""
 
-    url = db.LinkProperty() # http://pubsubhubbub.appspot.com
+    url = db.LinkProperty()  # http://pubsubhubbub.appspot.com
 
     def __unicode__(self):
         """Return the Hub URL as a unicode string."""
-        return unicode(self.hub_url)
+        return unicode(self.url)
 
     def __str__(self):
         """Return the Hub URL as a unicode string."""
@@ -122,7 +122,7 @@ class Team(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this team."""
-        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self)
+        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     @classmethod
@@ -181,11 +181,12 @@ class Process(FlomosaBase):
     name = db.StringProperty(required=True)
     description = db.TextProperty()
     collect_stats = db.BooleanProperty(default=False)
+    callbacks = db.ListProperty(basestring)
     has_steps = False
 
     def get_absolute_url(self):
         """Return the URL to access this process."""
-        url = '%s/processes/%s.json' % (settings.HTTPS_URL, self)
+        url = '%s/processes/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     def put(self):
@@ -431,7 +432,9 @@ class Process(FlomosaBase):
     def get_start_step(self):
         """Get start step in this process."""
 
-        query = Step.all().filter('is_start', True)
+        query = Step.all()
+        query.filter('process =', self)
+        query.filter('is_start', True)
         return query.get()
 
     def is_valid(self):
@@ -454,6 +457,7 @@ class Process(FlomosaBase):
             'kind': self.kind(),
             'name': self.name,
             'description': self.description,
+            'callbacks': self.callbacks,
             'collect_stats': self.collect_stats
         }
         data['steps'] = [step.to_dict() for step in self.steps]
@@ -507,7 +511,7 @@ class Step(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this step."""
-        url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self)
+        url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self.id)
         return url
 
     def to_dict(self):
@@ -523,7 +527,7 @@ class Step(FlomosaBase):
             'members': self.members
         }
         if self.team:
-            data['team'] = unicode(self.team)
+            data['team'] = self.team.id
         else:
             data['team'] = None
         return data
@@ -532,11 +536,11 @@ class Step(FlomosaBase):
         """Queue execution tasks for a given request."""
 
         if not isinstance(request, Request):
-            raise exceptions.InternalException('"%s" is not a valid Request ' \
-                                               'model.' % request)
+            raise exceptions.InternalException(
+                '"%s" is not a valid Request model.' % request)
         if not self.is_valid():
-            raise exceptions.InternalException('Step is not valid: no team ' \
-                                               'or members found.')
+            raise exceptions.InternalException(
+                'Step is not valid: no team or members found.')
 
         params = {'step_key': self.id, 'request_key': request.id}
         tasks = []
@@ -622,7 +626,7 @@ class Action(FlomosaBase):
         data = {
             'key': self.id,
             'kind': self.kind(),
-            'process': unicode(self.process),
+            'process': self.process.id,
             'name': self.name,
             'is_complete': bool(self.is_complete),
             'incoming': [],
@@ -652,7 +656,7 @@ class Request(db.Expando):
     submitted_date = db.DateTimeProperty(auto_now_add=True)
     is_completed = db.BooleanProperty(default=False)
     completed_date = db.DateTimeProperty()
-    duration = db.IntegerProperty(default=0) # seconds
+    duration = db.IntegerProperty(default=0)  # seconds
 
     def __unicode__(self):
         """Return the unique ID for this request."""
@@ -704,8 +708,9 @@ class Request(db.Expando):
             # of Execution objects to work on the request
             step = self.process.get_start_step()
             if not step:
-                raise exceptions.ValidationException('Process "%s" does not ' \
-                    'have a starting step.' % process)
+                raise exceptions.ValidationException(
+                    'Process "%s" does not have a starting step.' % \
+                    self.process)
 
             step.queue_tasks(self)
 
@@ -739,7 +744,6 @@ class Request(db.Expando):
         if self.submitted_date:
             self.duration = utils.compute_duration(self.completed_date,
                                                    self.submitted_date)
-
         return self.put()
 
     def get_submitted_data(self):
@@ -763,6 +767,7 @@ class Request(db.Expando):
         """Return request as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'process': self.process.id,
             'requestor': self.requestor,
@@ -777,9 +782,6 @@ class Request(db.Expando):
         data.update(self.get_submitted_data())
 
         data['executions'] = [exc.to_dict() for exc in self.get_executions()]
-
-        if self.is_saved():
-            data['key'] = self.id
         return data
 
 
@@ -802,13 +804,13 @@ class Execution(FlomosaBase):
     sent_date = db.DateTimeProperty()
     viewed_date = db.DateTimeProperty()
     end_date = db.DateTimeProperty()
-    email_delay = db.IntegerProperty(default=0) # viewed_date-sent_date
-    action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
-    duration = db.IntegerProperty(default=0) # end_date-start_date
+    email_delay = db.IntegerProperty(default=0)  # viewed_date-sent_date
+    action_delay = db.IntegerProperty(default=0)  # end_date-viewed_date
+    duration = db.IntegerProperty(default=0)  # end_date-start_date
 
     def get_absolute_url(self):
         """Returns the URL to access this execution."""
-        url = '%s/executions/%s.json' % (settings.HTTPS_URL, self)
+        url = '%s/executions/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     def to_dict(self):
@@ -864,7 +866,6 @@ class Execution(FlomosaBase):
         if not sent_date:
             sent_date = datetime.datetime.now()
         self.sent_date = sent_date
-
         return self.put()
 
     def set_completed(self, action, end_date=None):
@@ -875,8 +876,8 @@ class Execution(FlomosaBase):
             return None
 
         if not isinstance(action, Action):
-            raise exceptions.InternalException('"%s" is not a valid Action ' \
-                                               'model.' % action)
+            raise exceptions.InternalException(
+                '"%s" is not a valid Action model.' % action)
 
         found_action = False
         for step_action in self.step.actions:
@@ -885,9 +886,9 @@ class Execution(FlomosaBase):
                 break
 
         if not found_action:
-            raise exceptions.InternalException('"%s" is not a valid Action ' \
-                                               'for Step "%s".' % (action,
-                                                                   self.step))
+            raise exceptions.InternalException(
+                '"%s" is not a valid Action for Step "%s".' % (action,
+                                                               self.step))
 
         self.action = action
         if not end_date:
@@ -899,7 +900,6 @@ class Execution(FlomosaBase):
         if self.start_date and not self.duration:
             self.duration = utils.compute_duration(self.end_date,
                                                    self.start_date)
-
         return self.put()
 
     def set_viewed(self, viewed_date=None):
@@ -915,7 +915,6 @@ class Execution(FlomosaBase):
         if self.sent_date and not self.email_delay:
             self.email_delay = utils.compute_duration(self.viewed_date,
                                                       self.sent_date)
-
         return self.put()
 
     def is_step_completed(self, limit=30):
@@ -944,21 +943,27 @@ class Execution(FlomosaBase):
 
 
 class Statistic(db.Model):
+    """Stores statistical information for a process.
+
+    Each process will have one Statistic object for each year, one for each
+    month, one for each day of the year, and one for each hour in the day.
+    """
+
     process = db.ReferenceProperty(Process, collection_name='stats',
                                    required=True)
-    type = db.StringProperty(required=True)
+    level = db.StringProperty(required=True)
     year = db.IntegerProperty(required=True)
     month = db.IntegerProperty()
     day = db.IntegerProperty()
     hour = db.IntegerProperty()
-    week_day = db.IntegerProperty() # ISO format 1 = Monday, 7 = Sunday
+    week_day = db.IntegerProperty()  # ISO format 1 = Monday, 7 = Sunday
     week_num = db.IntegerProperty()
     num_requests = db.IntegerProperty(default=0)
     num_requests_completed = db.IntegerProperty(default=0)
-    min_request_seconds = db.IntegerProperty(default=0) # seconds
-    max_request_seconds = db.IntegerProperty(default=0) # seconds
-    avg_request_seconds = db.FloatProperty(default=0.0) # seconds
-    total_request_seconds = db.IntegerProperty(default=0) # seconds
+    min_request_seconds = db.IntegerProperty(default=0)  # seconds
+    max_request_seconds = db.IntegerProperty(default=0)  # seconds
+    avg_request_seconds = db.FloatProperty(default=0.0)  # seconds
+    total_request_seconds = db.IntegerProperty(default=0)  # seconds
 
     @property
     def id(self):
@@ -979,31 +984,31 @@ class Statistic(db.Model):
                 self.max_request_seconds = request.duration
             self.num_requests_completed += 1
             self.total_request_seconds += request.duration
-            self.avg_request_seconds = float(self.total_request_seconds /
-                                             self.num_requests_completed)
+            self.avg_request_seconds = (float(self.total_request_seconds) /
+                                        float(self.num_requests_completed))
         else:
             self.num_requests += 1
 
     @classmethod
-    def store_stat(cls, request, process, timestamp, type='daily', parent=None,
+    def store_stat(cls, request, process, timestamp, level='daily', parent=None,
                    date_key=None):
         """Store a Statistic object"""
 
         if not isinstance(process, Process):
-            raise exceptions.InternalException('"%s" is not a Process ' \
-                                               'model.' % process)
+            raise exceptions.InternalException(
+                '"%s" is not a Process model.' % process)
         if not isinstance(request, Request):
-            raise exceptions.InternalException('"%s" is not a Request ' \
-                                               'model.' % request)
+            raise exceptions.InternalException(
+                '"%s" is not a Request model.' % request)
 
-        valid_types = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
-        if type not in valid_types:
-            raise exceptions.InternalException('"%s" is an invalid type.' % \
-                                               type)
+        valid_levels = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
+        if level not in valid_levels:
+            raise exceptions.InternalException(
+                '"%s" is an invalid level.' % level)
 
         if not isinstance(timestamp, datetime.datetime):
-            raise exceptions.InternalException('Timestamp is not a valid ' \
-                                               'datetime object.')
+            raise exceptions.InternalException(
+                'Timestamp is not a valid datetime object.')
 
         month = None
         day = None
@@ -1011,35 +1016,35 @@ class Statistic(db.Model):
         week_day = None
         hour = None
         if date_key is None:
-            if type == 'daily':
+            if level == 'daily':
                 date_key = '%d%02d%02d' % (timestamp.year, timestamp.month,
                                            timestamp.day)
                 month = timestamp.month
                 day = timestamp.day
-                temp, week_num, week_day = timestamp.isocalendar()
-            elif type == 'weekly':
-                temp, week_num, week_day = timestamp.isocalendar()
+                _, week_num, week_day = timestamp.isocalendar()
+            elif level == 'weekly':
+                _, week_num, week_day = timestamp.isocalendar()
                 date_key = '%dW%02d' % (timestamp.year, week_num)
-            elif type == 'monthly':
+            elif level == 'monthly':
                 date_key = '%d%02d' % (timestamp.year, timestamp.month)
                 month = timestamp.month
-            elif type == 'yearly':
+            elif level == 'yearly':
                 date_key = timestamp.year
-            elif type == 'hourly':
+            elif level == 'hourly':
                 date_key = '%d%02d%02d%02d' % (timestamp.year, timestamp.month,
                                                timestamp.day, timestamp.hour)
                 month = timestamp.month
                 day = timestamp.day
                 hour = timestamp.hour
-                temp, week_num, week_day = timestamp.isocalendar()
+                _, week_num, week_day = timestamp.isocalendar()
             date_key = str(date_key)
 
-        stat_key = '%s_%s' % (process, date_key)
+        stat_key = '%s_%s' % (process.id, date_key)
 
         stat = cls.get_by_key_name(stat_key, parent=parent)
         if not stat:
             stat = cls(key_name=stat_key, parent=parent, process=process,
-                       type=type, year=timestamp.year)
+                       level=level, year=timestamp.year)
             stat.month = month
             stat.day = day
             stat.week_day = week_day
@@ -1055,15 +1060,15 @@ class Statistic(db.Model):
 
         if timestamp is None:
             timestamp = datetime.datetime.now()
-        yearly = cls.store_stat(request, process, timestamp, type='yearly',
+        yearly = cls.store_stat(request, process, timestamp, level='yearly',
                                 parent=process)
-        monthly = cls.store_stat(request, process, timestamp, type='monthly',
+        monthly = cls.store_stat(request, process, timestamp, level='monthly',
                                  parent=yearly)
-        cls.store_stat(request, process, timestamp, type='weekly',
+        cls.store_stat(request, process, timestamp, level='weekly',
                        parent=yearly)
-        daily = cls.store_stat(request, process, timestamp, type='daily',
+        daily = cls.store_stat(request, process, timestamp, level='daily',
                                parent=monthly)
-        cls.store_stat(request, process, timestamp, type='hourly',
+        cls.store_stat(request, process, timestamp, level='hourly',
                        parent=daily)
 
     def to_dict(self):
@@ -1073,7 +1078,7 @@ class Statistic(db.Model):
             'key': self.id,
             'kind': self.kind(),
             'process': self.process.id,
-            'type': self.type,
+            'level': self.level,
             'year': self.year,
             'month': self.month,
             'day': self.day,

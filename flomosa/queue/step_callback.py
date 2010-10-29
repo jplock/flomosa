@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -19,12 +19,13 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles notifying the PubSubHubbub hubs that a step has been updated."""
 
     def post(self):
         logging.debug('Begin step-callback task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         step_key = self.request.get('step_key')
         callback_url = self.request.get('callback_url')
@@ -33,13 +34,13 @@ class TaskHandler(QueueHandler):
             raise exceptions.MissingException('Missing "step_key" parameter.')
 
         if not callback_url:
-            raise exceptions.MissingException('Missing "callback_url" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "callback_url" parameter.')
 
         step = models.Step.get(step_key)
 
         hub_data = urllib.urlencode({'hub.url': step.get_absolute_url(),
-            'hub.mode': 'publish'}, doseq=True)
+                                     'hub.mode': 'publish'}, doseq=True)
 
         rpc = urlfetch.create_rpc(deadline=5)
         urlfetch.make_fetch_call(rpc, url=callback_url, payload=hub_data,
@@ -49,22 +50,23 @@ class TaskHandler(QueueHandler):
         try:
             result = rpc.get_result()
             if result.status_code == 204:
-                logging.info('Submitted POST request to "%s" for Step ' \
-                    '"%s".' % (callback_url, step.id))
+                logging.info('Submitted POST request to "%s" for Step "%s".',
+                             callback_url, step.id)
             else:
                 logging.warning('Received an HTTP status of "%s" when ' \
-                    'submitting POST request to "%s" for Step "%s".' % (
-                    result.status_code, callback_url, step.id))
+                    'submitting POST request to "%s" for Step "%s".',
+                    result.status_code, callback_url, step.id)
                 self.halt_requeue()
         except urlfetch.DownloadError, ex:
             logging.warning('Could not submit POST request to "%s" for ' \
-                'Step "%s" (%s).' % (callback_url, step.id, ex))
+                'Step "%s": %s.', callback_url, step.id, ex)
             self.halt_requeue()
 
         logging.debug('Finished step-callback task handler')
 
 
 def main():
+    """Handles notifying the PubSubHubbub hubs that a step has been updated."""
     application = webapp.WSGIApplication([('/_ah/queue/step-callback',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

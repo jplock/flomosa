@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -9,7 +9,6 @@
 
 import base64
 import cgi
-import cookielib
 import logging
 import os
 import StringIO
@@ -17,7 +16,6 @@ import sys
 import tempfile
 import unittest
 import urllib
-import urllib2
 
 import oauth2 as oauth
 
@@ -62,13 +60,13 @@ def fix_path():
             sys.path.extend(dev_appserver.EXTRA_PATHS)
             return
 
+
 def setup_for_testing(require_indexes=True):
     """Sets up the stubs for testing.
 
     Args:
         require_indexes: True if indexes should be required for all indexes.
     """
-    from google.appengine.api import apiproxy_stub_map
     from google.appengine.api import memcache
     from google.appengine.tools import dev_appserver
     from google.appengine.tools import dev_appserver_index
@@ -92,6 +90,7 @@ def setup_for_testing(require_indexes=True):
         memcache.flush_all()
     finally:
         logging.getLogger().setLevel(before_level)
+
 
 def create_test_request(method, body=None, params=None, wrap_oauth=False):
     """Creates a webapp.Request object for use in testing.
@@ -160,6 +159,8 @@ class HandlerTestBase(unittest.TestCase):
 
     # Set to the class being tested.
     handler_class = None
+    resp = None
+    req = None
 
     def setUp(self):
         """Sets up the test harness."""
@@ -233,7 +234,7 @@ def get_tasks(queue_name, expected_count=None):
 
     if expected_count is not None:
         assert len(tasks) == expected_count, 'found %s == %s' % (len(tasks),
-                                                                 expected_count)
+                                                                expected_count)
     for task in tasks:
         task['body'] = base64.b64decode(task['body'])
         # Convert headers list into a dictionary

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -9,7 +9,6 @@
 
 import logging
 import email.utils
-from datetime import datetime
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util, mail_handlers
@@ -19,18 +18,19 @@ from flomosa import exceptions, models
 
 
 class MailHandler(mail_handlers.InboundMailHandler):
+    """Handles inbound email when someone tasks action on a request."""
 
     def receive(self, message):
         logging.debug('Begin incoming mail handler')
 
         realname, recipient = email.utils.parseaddr(message.to)
         if not recipient:
-            logging.error('Invalid reply user "%s". Exiting.' % recipient)
+            logging.error('Invalid reply user "%s". Exiting.', recipient)
             return None
 
         user, hostname = recipient.split('@')
         if not user.startswith('reply+'):
-            logging.error('Invalid reply user "%s". Exiting.' % user)
+            logging.error('Invalid reply user "%s". Exiting.', user)
             return None
 
         temp, execution_key = user.split('+')
@@ -39,29 +39,29 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
         if isinstance(execution.action, models.Action):
             logging.error('Action "%s" already taken on Execution "%s". ' \
-                'Exiting.' % (execution.action.name, execution.id))
+                          'Exiting.', execution.action.name, execution.id)
             return None
 
         if not isinstance(execution.process, models.Process):
             logging.error('Execution "%s" does not have a process defined. ' \
-                'Exiting.' % execution.id)
+                          'Exiting.', execution.id)
             return None
 
         if not isinstance(execution.step, models.Step):
             logging.error('Execution "%s" does not have a step defined. ' \
-                'Exiting.' % execution.id)
+                          'Exiting.', execution.id)
             return None
 
         if not isinstance(execution.request, models.Request):
             logging.error('Execution "%s" does not have a request defined. ' \
-                'Exiting.' % execution.id)
+                          'Exiting.', execution.id)
             return None
 
         realname, sender = email.utils.parseaddr(message.sender)
 
         if execution.member.lower() != sender.lower():
-            logging.error('Email sent from "%s", expected "%s". Exiting.' % \
-                (sender, execution.member))
+            logging.error('Email sent from "%s", expected "%s". Exiting.',
+                          sender, execution.member)
             return None
 
         lines = []
@@ -76,7 +76,7 @@ class MailHandler(mail_handlers.InboundMailHandler):
                 for name, action in actions.iteritems():
                     if line.lower().find(name) != -1:
                         logging.info('Found Action named "%s" for Execution ' \
-                            '"%s".' % (action.name, execution.id))
+                                     '"%s".', action.name, execution.id)
                         executed_action = action
                         break
                 if isinstance(executed_action, models.Action) or \
@@ -86,7 +86,7 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
         reply_text = "\n".join(lines).strip().lower()
 
-        logging.info('Parsed reply "%s" from email.' % reply_text)
+        logging.info('Parsed reply "%s" from email.', reply_text)
 
         if not isinstance(executed_action, models.Action):
             raise exceptions.InternalException('Could not locate action ' \
@@ -94,15 +94,17 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
         execution.set_completed(executed_action)
 
-        logging.info('Queuing confirmation email to be sent to "%s".' % \
-            execution.member)
+        logging.info('Queuing confirmation email to be sent to "%s".',
+                     execution.member)
         task = taskqueue.Task(params={'key': execution.id})
         queue = taskqueue.Queue('mail-request-confirmation')
         queue.add(task)
 
         logging.debug('Finished incoming mail handler')
 
+
 def main():
+    """Handles inbound email when someone tasks action on a request."""
     application = webapp.WSGIApplication([MailHandler.mapping()], debug=False)
     util.run_wsgi_app(application)
 

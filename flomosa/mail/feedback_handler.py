@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -19,6 +19,7 @@ from flomosa import exceptions, settings
 
 
 class MailHandler(mail_handlers.InboundMailHandler):
+    """Handles forwarding mail send to the feedback email address."""
 
     def receive(self, inbound_message):
         logging.debug('Begin feedback@ incoming mail handler')
@@ -53,8 +54,8 @@ class MailHandler(mail_handlers.InboundMailHandler):
         if html_body:
             message.html = "\n".join(html_body)
 
-        logging.info('Forwarding feedback email to "%s".' % \
-            settings.FEEDBACK_EMAIL)
+        logging.info('Forwarding feedback email to "%s".',
+                     settings.FEEDBACK_EMAIL)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
@@ -66,7 +67,9 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
         logging.debug('Finished feedback@ incoming mail handler')
 
+
 def main():
+    """Handles forwarding mail send to the feedback email address."""
     application = webapp.WSGIApplication([MailHandler.mapping()], debug=False)
     util.run_wsgi_app(application)
 

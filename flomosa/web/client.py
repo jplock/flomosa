@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -22,13 +22,13 @@ SECRET = '1913b245-18ae-4caa-a491-cedd2e471a50'
 
 
 class ClientHandler(SecureRequestHandler):
+    """Handles client requests"""
 
     def get(self):
         logging.debug('Begin ClientHandler.get() method')
 
-        client = models.Client(key_name=KEY,
-            email_address='test@flomosa.com',
-            password=self.encrypt_string('test'))
+        client = models.Client(key_name=KEY, email_address='test@flomosa.com',
+                               password=self.encrypt_string('test'))
         client.first_name = 'Test'
         client.last_name = 'Test'
         client.company = 'Flomosa'
@@ -41,6 +41,7 @@ class ClientHandler(SecureRequestHandler):
 
 
 def main():
+    """Handles client requests"""
     application = webapp.WSGIApplication([(r'/clients/test', ClientHandler)],
         debug=False)
     util.run_wsgi_app(application)

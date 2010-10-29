@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -19,12 +19,14 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles sending an email to the members of a step when a new request
+    enters that step."""
 
     def post(self):
         logging.debug('Begin mail-request-step task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         execution_key = self.request.get('key')
         if not execution_key:
@@ -33,8 +35,8 @@ class TaskHandler(QueueHandler):
         execution = models.Execution.get(execution_key)
         request = execution.request
         if not request.requestor:
-            raise exceptions.InternalException('Request "%s" has no email ' \
-                                               'address.' % execution.id)
+            raise exceptions.InternalException(
+                'Request "%s" has no email address.' % execution.id)
 
         text_template_file = settings.TEMPLATE_DIR + '/email_step_text.tpl'
         html_template_file = settings.TEMPLATE_DIR + '/email_step_html.tpl'
@@ -59,7 +61,7 @@ class TaskHandler(QueueHandler):
         message.body = text_body
         message.html = html_body
 
-        logging.info('Sending step email to "%s".' % request.requestor)
+        logging.info('Sending step email to "%s".', request.requestor)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
@@ -74,6 +76,8 @@ class TaskHandler(QueueHandler):
 
 
 def main():
+    """Handles sending an email to the members of a step when a new request
+    enters that step."""
     application = webapp.WSGIApplication([('/_ah/queue/mail-request-step',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

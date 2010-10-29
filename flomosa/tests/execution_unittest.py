@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -30,6 +30,8 @@ class ExecutionTest(HandlerTestBase):
         self.client.delete()
 
     def _create_execution(self, execution_key):
+        """Creates an execution for the tests."""
+
         process = models.Process(key_name='test', client=self.client,
                                  name='Test Process')
         process.put()
