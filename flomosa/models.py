@@ -122,7 +122,7 @@ class Team(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this team."""
-        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self)
+        url = '%s/teams/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     @classmethod
@@ -185,7 +185,7 @@ class Process(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this process."""
-        url = '%s/processes/%s.json' % (settings.HTTPS_URL, self)
+        url = '%s/processes/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     def put(self):
@@ -507,7 +507,7 @@ class Step(FlomosaBase):
 
     def get_absolute_url(self):
         """Return the URL to access this step."""
-        url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self)
+        url = '%s/steps/%s.atom' % (settings.HTTPS_URL, self.id)
         return url
 
     def to_dict(self):
@@ -523,7 +523,7 @@ class Step(FlomosaBase):
             'members': self.members
         }
         if self.team:
-            data['team'] = unicode(self.team)
+            data['team'] = self.team.id
         else:
             data['team'] = None
         return data
@@ -532,11 +532,11 @@ class Step(FlomosaBase):
         """Queue execution tasks for a given request."""
 
         if not isinstance(request, Request):
-            raise exceptions.InternalException('"%s" is not a valid Request ' \
-                                               'model.' % request)
+            raise exceptions.InternalException(
+                '"%s" is not a valid Request model.' % request)
         if not self.is_valid():
-            raise exceptions.InternalException('Step is not valid: no team ' \
-                                               'or members found.')
+            raise exceptions.InternalException(
+                'Step is not valid: no team or members found.')
 
         params = {'step_key': self.id, 'request_key': request.id}
         tasks = []
@@ -622,7 +622,7 @@ class Action(FlomosaBase):
         data = {
             'key': self.id,
             'kind': self.kind(),
-            'process': unicode(self.process),
+            'process': self.process.id,
             'name': self.name,
             'is_complete': bool(self.is_complete),
             'incoming': [],
@@ -704,8 +704,8 @@ class Request(db.Expando):
             # of Execution objects to work on the request
             step = self.process.get_start_step()
             if not step:
-                raise exceptions.ValidationException('Process "%s" does not ' \
-                    'have a starting step.' % process)
+                raise exceptions.ValidationException(
+                    'Process "%s" does not have a starting step.' % process)
 
             step.queue_tasks(self)
 
@@ -739,7 +739,6 @@ class Request(db.Expando):
         if self.submitted_date:
             self.duration = utils.compute_duration(self.completed_date,
                                                    self.submitted_date)
-
         return self.put()
 
     def get_submitted_data(self):
@@ -763,6 +762,7 @@ class Request(db.Expando):
         """Return request as a dict object."""
 
         data = {
+            'key': self.id,
             'kind': self.kind(),
             'process': self.process.id,
             'requestor': self.requestor,
@@ -777,9 +777,6 @@ class Request(db.Expando):
         data.update(self.get_submitted_data())
 
         data['executions'] = [exc.to_dict() for exc in self.get_executions()]
-
-        if self.is_saved():
-            data['key'] = self.id
         return data
 
 
@@ -808,7 +805,7 @@ class Execution(FlomosaBase):
 
     def get_absolute_url(self):
         """Returns the URL to access this execution."""
-        url = '%s/executions/%s.json' % (settings.HTTPS_URL, self)
+        url = '%s/executions/%s.json' % (settings.HTTPS_URL, self.id)
         return url
 
     def to_dict(self):
@@ -864,7 +861,6 @@ class Execution(FlomosaBase):
         if not sent_date:
             sent_date = datetime.datetime.now()
         self.sent_date = sent_date
-
         return self.put()
 
     def set_completed(self, action, end_date=None):
@@ -875,8 +871,8 @@ class Execution(FlomosaBase):
             return None
 
         if not isinstance(action, Action):
-            raise exceptions.InternalException('"%s" is not a valid Action ' \
-                                               'model.' % action)
+            raise exceptions.InternalException(
+                '"%s" is not a valid Action model.' % action)
 
         found_action = False
         for step_action in self.step.actions:
@@ -885,9 +881,9 @@ class Execution(FlomosaBase):
                 break
 
         if not found_action:
-            raise exceptions.InternalException('"%s" is not a valid Action ' \
-                                               'for Step "%s".' % (action,
-                                                                   self.step))
+            raise exceptions.InternalException(
+                '"%s" is not a valid Action for Step "%s".' % (action,
+                                                               self.step))
 
         self.action = action
         if not end_date:
@@ -899,7 +895,6 @@ class Execution(FlomosaBase):
         if self.start_date and not self.duration:
             self.duration = utils.compute_duration(self.end_date,
                                                    self.start_date)
-
         return self.put()
 
     def set_viewed(self, viewed_date=None):
@@ -915,7 +910,6 @@ class Execution(FlomosaBase):
         if self.sent_date and not self.email_delay:
             self.email_delay = utils.compute_duration(self.viewed_date,
                                                       self.sent_date)
-
         return self.put()
 
     def is_step_completed(self, limit=30):
@@ -990,20 +984,20 @@ class Statistic(db.Model):
         """Store a Statistic object"""
 
         if not isinstance(process, Process):
-            raise exceptions.InternalException('"%s" is not a Process ' \
-                                               'model.' % process)
+            raise exceptions.InternalException(
+                '"%s" is not a Process model.' % process)
         if not isinstance(request, Request):
-            raise exceptions.InternalException('"%s" is not a Request ' \
-                                               'model.' % request)
+            raise exceptions.InternalException(
+                '"%s" is not a Request model.' % request)
 
         valid_types = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
         if type not in valid_types:
-            raise exceptions.InternalException('"%s" is an invalid type.' % \
-                                               type)
+            raise exceptions.InternalException(
+                '"%s" is an invalid type.' % type)
 
         if not isinstance(timestamp, datetime.datetime):
-            raise exceptions.InternalException('Timestamp is not a valid ' \
-                                               'datetime object.')
+            raise exceptions.InternalException(
+                'Timestamp is not a valid datetime object.')
 
         month = None
         day = None
