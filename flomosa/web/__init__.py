@@ -42,6 +42,7 @@ class SecureRequestHandler(webapp.RequestHandler):
             return default
 
     def _cookie_signature(self, *parts):
+        """Generates the signature for a cookie."""
         hash = hmac.new(settings.COOKIE_SECRET, digestmod=hashlib.sha1)
         for part in parts:
             hash.update(part)
@@ -54,7 +55,7 @@ class SecureRequestHandler(webapp.RequestHandler):
         return default
 
     def set_cookie(self, name, value, domain=None, expires=None, path='/',
-            expires_days=None):
+                   expires_days=None):
         """Sets the given cookie name/value with the given options."""
 
         name = _utf8(name)
@@ -86,7 +87,7 @@ class SecureRequestHandler(webapp.RequestHandler):
         """Deletes the cookie with the given name."""
         expires = datetime.datetime.utcnow() - datetime.timedelta(days=365)
         return self.set_cookie(name, value='', path=path, expires=expires,
-            domain=domain)
+                               domain=domain)
 
     def set_secure_cookie(self, name, value, expires_days=30, **kwargs):
         """Signs and timestamps a cookie so it cannot be forged.
@@ -153,6 +154,7 @@ class SecureRequestHandler(webapp.RequestHandler):
 
 
 def _utf8(s):
+    """Returns a UTF8 encoded string."""
     if isinstance(s, unicode):
         return s.encode('utf-8')
     assert isinstance(s, str)
@@ -160,6 +162,7 @@ def _utf8(s):
 
 
 def _time_independent_equals(a, b):
+    """Determine if two signatures are equal."""
     if len(a) != len(b):
         return False
     result = 0

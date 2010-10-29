@@ -17,6 +17,7 @@ from flomosa.api import OAuthHandler, build_json
 
 
 class ExecutionHandler(OAuthHandler):
+    """Handles execution API requests."""
 
     def is_client_allowed(self, execution_key):
         client = self.is_valid()
@@ -32,14 +33,15 @@ class ExecutionHandler(OAuthHandler):
 
         execution = self.is_client_allowed(execution_key)
 
-        logging.info('Returning Execution "%s" as JSON to client.' % \
-            execution.id)
+        logging.info('Returning Execution "%s" as JSON to client.',
+                     execution.id)
         build_json(self, execution.to_dict())
 
         logging.debug('Finished ExecutionHandler.get() method')
 
 
 def main():
+    """Handles execution API requests."""
     application = webapp.WSGIApplication([(r'/executions/(.*)\.json',
                                            ExecutionHandler)], debug=False)
     util.run_wsgi_app(application)

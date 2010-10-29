@@ -17,6 +17,7 @@ from flomosa.web import SecureRequestHandler
 
 
 class MainHandler(SecureRequestHandler):
+    """Handles the flomosa API index page."""
 
     def get(self):
         logging.debug('Begin MainHandler.get() method')
@@ -35,6 +36,7 @@ class MainHandler(SecureRequestHandler):
 
 
 def main():
+    """Handles the flomosa API index page."""
     application = webapp.WSGIApplication([('/', MainHandler)], debug=False)
     util.run_wsgi_app(application)
 

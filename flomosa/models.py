@@ -71,7 +71,7 @@ class Hub(db.Model):
 
     def __unicode__(self):
         """Return the Hub URL as a unicode string."""
-        return unicode(self.hub_url)
+        return unicode(self.url)
 
     def __str__(self):
         """Return the Hub URL as a unicode string."""
@@ -432,7 +432,9 @@ class Process(FlomosaBase):
     def get_start_step(self):
         """Get start step in this process."""
 
-        query = Step.all().filter('is_start', True)
+        query = Step.all()
+        query.filter('process =', self)
+        query.filter('is_start', True)
         return query.get()
 
     def is_valid(self):
@@ -707,7 +709,8 @@ class Request(db.Expando):
             step = self.process.get_start_step()
             if not step:
                 raise exceptions.ValidationException(
-                    'Process "%s" does not have a starting step.' % process)
+                    'Process "%s" does not have a starting step.' % \
+                    self.process)
 
             step.queue_tasks(self)
 
@@ -940,9 +943,15 @@ class Execution(FlomosaBase):
 
 
 class Statistic(db.Model):
+    """Stores statistical information for a process.
+
+    Each process will have one Statistic object for each year, one for each
+    month, one for each day of the year, and one for each hour in the day.
+    """
+
     process = db.ReferenceProperty(Process, collection_name='stats',
                                    required=True)
-    type = db.StringProperty(required=True)
+    level = db.StringProperty(required=True)
     year = db.IntegerProperty(required=True)
     month = db.IntegerProperty()
     day = db.IntegerProperty()
@@ -981,7 +990,7 @@ class Statistic(db.Model):
             self.num_requests += 1
 
     @classmethod
-    def store_stat(cls, request, process, timestamp, type='daily', parent=None,
+    def store_stat(cls, request, process, timestamp, level='daily', parent=None,
                    date_key=None):
         """Store a Statistic object"""
 
@@ -992,10 +1001,10 @@ class Statistic(db.Model):
             raise exceptions.InternalException(
                 '"%s" is not a Request model.' % request)
 
-        valid_types = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
-        if type not in valid_types:
+        valid_levels = ('daily', 'hourly', 'weekly', 'monthly', 'yearly')
+        if level not in valid_levels:
             raise exceptions.InternalException(
-                '"%s" is an invalid type.' % type)
+                '"%s" is an invalid level.' % level)
 
         if not isinstance(timestamp, datetime.datetime):
             raise exceptions.InternalException(
@@ -1007,21 +1016,21 @@ class Statistic(db.Model):
         week_day = None
         hour = None
         if date_key is None:
-            if type == 'daily':
+            if level == 'daily':
                 date_key = '%d%02d%02d' % (timestamp.year, timestamp.month,
                                            timestamp.day)
                 month = timestamp.month
                 day = timestamp.day
                 _, week_num, week_day = timestamp.isocalendar()
-            elif type == 'weekly':
+            elif level == 'weekly':
                 _, week_num, week_day = timestamp.isocalendar()
                 date_key = '%dW%02d' % (timestamp.year, week_num)
-            elif type == 'monthly':
+            elif level == 'monthly':
                 date_key = '%d%02d' % (timestamp.year, timestamp.month)
                 month = timestamp.month
-            elif type == 'yearly':
+            elif level == 'yearly':
                 date_key = timestamp.year
-            elif type == 'hourly':
+            elif level == 'hourly':
                 date_key = '%d%02d%02d%02d' % (timestamp.year, timestamp.month,
                                                timestamp.day, timestamp.hour)
                 month = timestamp.month
@@ -1035,7 +1044,7 @@ class Statistic(db.Model):
         stat = cls.get_by_key_name(stat_key, parent=parent)
         if not stat:
             stat = cls(key_name=stat_key, parent=parent, process=process,
-                       type=type, year=timestamp.year)
+                       level=level, year=timestamp.year)
             stat.month = month
             stat.day = day
             stat.week_day = week_day
@@ -1051,15 +1060,15 @@ class Statistic(db.Model):
 
         if timestamp is None:
             timestamp = datetime.datetime.now()
-        yearly = cls.store_stat(request, process, timestamp, type='yearly',
+        yearly = cls.store_stat(request, process, timestamp, level='yearly',
                                 parent=process)
-        monthly = cls.store_stat(request, process, timestamp, type='monthly',
+        monthly = cls.store_stat(request, process, timestamp, level='monthly',
                                  parent=yearly)
-        cls.store_stat(request, process, timestamp, type='weekly',
+        cls.store_stat(request, process, timestamp, level='weekly',
                        parent=yearly)
-        daily = cls.store_stat(request, process, timestamp, type='daily',
+        daily = cls.store_stat(request, process, timestamp, level='daily',
                                parent=monthly)
-        cls.store_stat(request, process, timestamp, type='hourly',
+        cls.store_stat(request, process, timestamp, level='hourly',
                        parent=daily)
 
     def to_dict(self):
@@ -1069,7 +1078,7 @@ class Statistic(db.Model):
             'key': self.id,
             'kind': self.kind(),
             'process': self.process.id,
-            'type': self.type,
+            'level': self.level,
             'year': self.year,
             'month': self.month,
             'day': self.day,

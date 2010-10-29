@@ -30,6 +30,8 @@ class ExecutionTest(HandlerTestBase):
         self.client.delete()
 
     def _create_execution(self, execution_key):
+        """Creates an execution for the tests."""
+
         process = models.Process(key_name='test', client=self.client,
                                  name='Test Process')
         process.put()

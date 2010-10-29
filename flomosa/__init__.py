@@ -14,6 +14,7 @@ import os
 
 
 def is_development():
+    """Returns a boolean whether we're running on the devserver or not."""
     try:
         env = os.environ['SERVER_SOFTWARE']
     except Exception:

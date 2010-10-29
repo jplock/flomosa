@@ -20,12 +20,13 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles send reminder emails for unactioned requests."""
 
     def post(self):
         logging.debug('Begin mail-request-reminder task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         execution_key = self.request.get('key')
         if not execution_key:
@@ -38,7 +39,7 @@ class TaskHandler(QueueHandler):
 
         if isinstance(execution.action, models.Action):
             logging.warning('Action already taken on Execution "%s". ' \
-                'Exiting.' % execution.id)
+                'Exiting.', execution.id)
             return None
 
         request = execution.request
@@ -72,8 +73,8 @@ class TaskHandler(QueueHandler):
         message.body = text_body
         message.html = html_body
 
-        logging.info('Sending reminder email to "%s" for Execution "%s".' % \
-            (execution.member, execution.id))
+        logging.info('Sending reminder email to "%s" for Execution "%s".',
+                     execution.member, execution.id)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
@@ -90,6 +91,7 @@ class TaskHandler(QueueHandler):
 
 
 def main():
+    """Handles send reminder emails for unactioned requests."""
     application = webapp.WSGIApplication([('/_ah/queue/mail-request-reminder',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

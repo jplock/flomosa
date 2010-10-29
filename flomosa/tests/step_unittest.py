@@ -112,16 +112,14 @@ class StepTest(HandlerTestBase):
         self.client.delete()
 
     def test_api_get_step(self):
-        process_key = 'test'
-        process_data = {'key_name': process_key, 'client': self.client,
+        process_data = {'key_name': 'test', 'client': self.client,
                         'name': 'Test Process'}
         process = models.Process(**process_data)
 
         step_key = 'step1'
         step_data = {'step_key': step_key, 'name': '1st Step',
                      'members': ['test@flomosa.com']}
-
-        step = process.add_step(**step_data)
+        process.add_step(**step_data)
 
         self.handle('get', url_value=step_key)
         self.assertEqual(self.response_code(), 200,

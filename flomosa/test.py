@@ -9,7 +9,6 @@
 
 import base64
 import cgi
-import cookielib
 import logging
 import os
 import StringIO
@@ -17,7 +16,6 @@ import sys
 import tempfile
 import unittest
 import urllib
-import urllib2
 
 import oauth2 as oauth
 
@@ -69,7 +67,6 @@ def setup_for_testing(require_indexes=True):
     Args:
         require_indexes: True if indexes should be required for all indexes.
     """
-    from google.appengine.api import apiproxy_stub_map
     from google.appengine.api import memcache
     from google.appengine.tools import dev_appserver
     from google.appengine.tools import dev_appserver_index
@@ -162,6 +159,8 @@ class HandlerTestBase(unittest.TestCase):
 
     # Set to the class being tested.
     handler_class = None
+    resp = None
+    req = None
 
     def setUp(self):
         """Sets up the test harness."""

@@ -19,8 +19,10 @@ from flomosa import exceptions, models
 
 
 class OAuthHandler(webapp.RequestHandler):
+    """Base handler for OAuth request authentication."""
 
     def __init__(self):
+        super(webapp.RequestHandler, self).__init__()
         self._server = oauth.Server()
         self._server.add_signature_method(oauth.SignatureMethod_HMAC_SHA1())
         self._server.add_signature_method(oauth.SignatureMethod_PLAINTEXT())
@@ -70,7 +72,7 @@ class OAuthHandler(webapp.RequestHandler):
 
         request = self.get_oauth_request()
         client = self.get_client(request)
-        params = self._server.verify_request(request, client, None)
+        self._server.verify_request(request, client, None)
 
         return client
 
@@ -82,7 +84,7 @@ class OAuthHandler(webapp.RequestHandler):
         return process
 
 
-def build_json(webapp, data, code=200, return_response=False):
+def build_json(app, data, code=200, return_response=False):
     """Build a JSON error message response."""
 
     if isinstance(data, exceptions.HTTPException):
@@ -98,13 +100,13 @@ def build_json(webapp, data, code=200, return_response=False):
     try:
         json = simplejson.dumps(data)
     except Exception, ex:
-        logging.critical('JSON ERROR: %s.' % ex)
+        logging.critical('JSON ENCODING ERROR: %s.', ex)
         return None
 
     if return_response:
         return json
 
-    webapp.error(code)
-    webapp.response.headers['Content-Type'] = 'application/json'
-    webapp.response.out.write(json)
+    app.error(code)
+    app.response.headers['Content-Type'] = 'application/json'
+    app.response.out.write(json)
     return None

@@ -17,6 +17,7 @@ from flomosa.api import OAuthHandler, build_json
 
 
 class TeamHandler(OAuthHandler):
+    """Handles team API requests."""
 
     def get(self, team_key):
         logging.debug('Begin TeamHandler.get() method')
@@ -24,7 +25,7 @@ class TeamHandler(OAuthHandler):
         client = self.is_valid()
         team = models.Team.get(team_key, client)
 
-        logging.info('Returning Team "%s" as JSON to client.' % team.id)
+        logging.info('Returning Team "%s" as JSON to client.', team.id)
         build_json(self, team.to_dict())
 
         logging.debug('Finished TeamHandler.get() method')
@@ -40,7 +41,7 @@ class TeamHandler(OAuthHandler):
         team = models.Team.from_dict(client, data, team_key)
         team.put()
 
-        logging.info('Returning Team "%s" as JSON to client.' % team.id)
+        logging.info('Returning Team "%s" as JSON to client.', team.id)
         build_json(self, team.to_dict(), 201)
 
         logging.debug('Finished TeamHandler.put() method')
@@ -58,6 +59,7 @@ class TeamHandler(OAuthHandler):
 
 
 def main():
+    """Handles team API requests."""
     application = webapp.WSGIApplication([
         (r'/teams/(.*)\.json', TeamHandler),
         (r'/teams/', TeamHandler)], debug=False)

@@ -19,12 +19,14 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles sending the request ID to a callback URL specified in the
+    request form data."""
 
     def post(self):
         logging.debug('Begin request-callback task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         request_key = self.request.get('request_key')
         callback_url = self.request.get('callback_url')
@@ -50,21 +52,23 @@ class TaskHandler(QueueHandler):
             result = rpc.get_result()
             if result.status_code == 200:
                 logging.info('Submitted POST request to "%s" for Request ' \
-                    '"%s".' % (callback_url, request.id))
+                             '"%s".', callback_url, request.id)
             else:
                 logging.warning('Received an HTTP status of "%s" when ' \
-                    'submitting POST request to "%s" for Request "%s".' % (
-                    result.status_code, callback_url, request.id))
+                    'submitting POST request to "%s" for Request "%s".',
+                    result.status_code, callback_url, request.id)
                 self.halt_requeue()
         except urlfetch.DownloadError, ex:
             logging.warning('Could not submit POST request to "%s" for ' \
-                'Request "%s" (%s).' % (callback_url, request.id, ex))
+                'Request "%s": %s', callback_url, request.id, ex)
             self.halt_requeue()
 
         logging.debug('Finished request-callback task handler')
 
 
 def main():
+    """Handles sending the request ID to a callback URL specified in the
+    request form data."""
     application = webapp.WSGIApplication([('/_ah/queue/request-callback',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

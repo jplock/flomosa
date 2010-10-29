@@ -19,12 +19,14 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles send the confirmation email when a request has been actioned
+    via email."""
 
     def post(self):
         logging.debug('Begin mail-request-confirmation task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         execution_key = self.request.get('key')
         if not execution_key:
@@ -65,7 +67,7 @@ class TaskHandler(QueueHandler):
         message.body = text_body
         message.html = html_body
 
-        logging.info('Sending confirmation email to "%s".' % execution.member)
+        logging.info('Sending confirmation email to "%s".', execution.member)
         try:
             message.send()
         except apiproxy_errors.OverQuotaError:
@@ -80,6 +82,8 @@ class TaskHandler(QueueHandler):
 
 
 def main():
+    """Handles send the confirmation email when a request has been actioned
+    via email."""
     application = webapp.WSGIApplication(
         [('/_ah/queue/mail-request-confirmation', TaskHandler)], debug=False)
     util.run_wsgi_app(application)

@@ -17,13 +17,14 @@ from flomosa.api import OAuthHandler, build_json
 
 
 class ProcessHandler(OAuthHandler):
+    """Handles process API requests."""
 
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() method')
 
         process = self.is_client_allowed(process_key)
 
-        logging.debug('Returning Process "%s" as JSON to client.' % process.id)
+        logging.debug('Returning Process "%s" as JSON to client.', process.id)
         build_json(self, process.to_dict())
 
         logging.debug('Finished ProcessHandler.get() method')
@@ -53,7 +54,7 @@ class ProcessHandler(OAuthHandler):
         process.delete_steps_actions()
 
         # Load any steps on this process
-        logging.info('Loading steps for Process "%s".' % process.id)
+        logging.info('Loading steps for Process "%s".', process.id)
         steps = data.get('steps', None)
         if steps:
             try:
@@ -63,7 +64,7 @@ class ProcessHandler(OAuthHandler):
                 raise exc
 
         # Load any actions on this process
-        logging.info('Loading actions for Process "%s".' % process.id)
+        logging.info('Loading actions for Process "%s".', process.id)
         actions = data.get('actions', None)
         if actions:
             try:
@@ -72,7 +73,7 @@ class ProcessHandler(OAuthHandler):
                 process.delete_steps_actions()
                 raise exc
 
-        logging.info('Returning Process "%s" as JSON to client.' % process.id)
+        logging.info('Returning Process "%s" as JSON to client.', process.id)
         build_json(self, {'key': process.id}, 201)
 
         logging.debug('Finished ProcessHandler.put() method')
@@ -89,6 +90,7 @@ class ProcessHandler(OAuthHandler):
 
 
 def main():
+    """Handles process API requests."""
     application = webapp.WSGIApplication([
         (r'/processes/(.*)\.json', ProcessHandler),
         (r'/processes/', ProcessHandler)], debug=False)

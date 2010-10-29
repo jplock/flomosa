@@ -18,6 +18,7 @@ from flomosa.api import OAuthHandler, build_json
 
 
 class RequestHandler(OAuthHandler):
+    """API handler for requests."""
 
     def get(self, request_key):
         logging.debug('Begin RequestHandler.get() method')
@@ -61,7 +62,7 @@ class RequestHandler(OAuthHandler):
         else:
             request_key = utils.generate_key()
             request = models.Request(key_name=request_key, process=process,
-                client=process.client, requestor=requestor)
+                                     client=process.client, requestor=requestor)
 
         callback_url = data.get('callback_url', None)
         response_url = data.get('response_url', None)
@@ -77,16 +78,16 @@ class RequestHandler(OAuthHandler):
             # Queue task to submit the callback response
             queue = taskqueue.Queue('request-callback')
             task = taskqueue.Task(params={'request_key': request.id,
-                'callback_url': callback_url})
+                                          'callback_url': callback_url})
             queue.add(task)
 
         if response_url:
-            logging.info(
-                'Permanently redirecting client to "%s".' % response_url)
+            logging.info('Permanently redirecting client to "%s".',
+                         response_url)
             self.redirect(response_url, permanent=True)
         else:
-            logging.info(
-                'Returning Request "%s" as JSON to client.' % request.id)
+            logging.info('Returning Request "%s" as JSON to client.',
+                         request.id)
             build_json(self, {'key': request.id}, 201)
 
         logging.debug('Finished RequestHandler.post() method')
@@ -109,6 +110,7 @@ class RequestHandler(OAuthHandler):
 
 
 def main():
+    """API handler for requests."""
     application = webapp.WSGIApplication(
         [(r'/requests/(.*)\.json', RequestHandler),
         (r'/requests/', RequestHandler)], debug=False)

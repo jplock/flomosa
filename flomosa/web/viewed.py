@@ -13,7 +13,7 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 
-from flomosa import models, utils
+from flomosa import models
 
 
 PIXEL_GIF = \
@@ -22,6 +22,8 @@ PIXEL_GIF = \
 
 
 class ViewedHandler(webapp.RequestHandler):
+    """Handles tracking when an execution has been viewed by returning a 1x1
+    transparent GIF image to the browser."""
 
     def output_pixel(self):
         """Output a transparent pixel GIF image to the user"""
@@ -50,6 +52,7 @@ class ViewedHandler(webapp.RequestHandler):
 
 
 class ActionHandler(webapp.RequestHandler):
+    """Handles processing an action for an execution."""
 
     def handle_exception(self, exception, debug_mode):
         if debug_mode:
@@ -73,6 +76,7 @@ class ActionHandler(webapp.RequestHandler):
 
 
 def main():
+    """Handles processing user actions."""
     application = webapp.WSGIApplication(
         [(r'/viewed/(.*)/(.*)\.json', ActionHandler),
         (r'/viewed/(.*)\.json', ViewedHandler)], debug=False)

@@ -17,26 +17,29 @@ from flomosa.api import OAuthHandler, build_json
 
 
 class ProcessHandler(OAuthHandler):
+    """Handles process search API requests."""
 
     def get(self, process_key):
         logging.debug('Begin ProcessHandler.get() method')
 
-        process = models.Process.get(process_key)
+        #process = models.Process.get(process_key)
 
         logging.debug('Finished ProcessHandler.get() method')
 
 
 class StepHandler(OAuthHandler):
+    """Handles step search API requests."""
 
     def get(self, step_key):
         logging.debug('Begin StepHandler.get() method')
 
-        step = models.Step.get(step_key)
+        #step = models.Step.get(step_key)
 
         logging.debug('Finished StepHandler.get() method')
 
 
 def main():
+    """Handles search API requests."""
     application = webapp.WSGIApplication(
         [(r'/search/process/(.*)\.json', ProcessHandler),
         (r'/search/step/(.*)\.json', StepHandler)], debug=False)

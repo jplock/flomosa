@@ -18,12 +18,13 @@ from flomosa.queue import QueueHandler
 
 
 class TaskHandler(QueueHandler):
+    """Handles creating execution objects."""
 
     def post(self):
         logging.debug('Begin execution-creation task handler')
 
         num_tries = self.request.headers['X-AppEngine-TaskRetryCount']
-        logging.info('Task has been executed %s times' % num_tries)
+        logging.info('Task has been executed %s times', num_tries)
 
         step_key = self.request.get('step_key')
         if not step_key:
@@ -65,6 +66,7 @@ class TaskHandler(QueueHandler):
 
 
 def main():
+    """Handles creating execution objects."""
     application = webapp.WSGIApplication([('/_ah/queue/execution-creation',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)

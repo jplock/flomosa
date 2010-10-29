@@ -9,7 +9,7 @@
 
 from django.utils import simplejson
 
-from flomosa import exceptions, models
+from flomosa import models
 from flomosa.test import HandlerTestBase, create_client
 from flomosa.api.process import ProcessHandler
 
@@ -28,8 +28,7 @@ class ProcessActionTest(HandlerTestBase):
         self.client.delete()
 
     def test_api_create_action(self):
-        team_key = 'test'
-        team = models.Team(key_name=team_key, client=self.client,
+        team = models.Team(key_name='test', client=self.client,
                            name='Test Team', members=['test@flomosa.com'])
         team.put()
 
@@ -37,7 +36,7 @@ class ProcessActionTest(HandlerTestBase):
         step1 = {'kind': 'Step', 'key': 'step1', 'name': '1st Step',
                  'members': ['test@flomosa.com']}
         step2 = {'kind': 'Step', 'key': 'step2', 'name': '2nd Step',
-                 'team': team_key}
+                 'team': 'test'}
         action1 = {'kind': 'Action', 'key': 'action1', 'name': 'Approved',
                    'incoming': ['step1'], 'outgoing': ['step2']}
         action2 = {'kind': 'Action', 'key': 'action2', 'name': 'Approved',

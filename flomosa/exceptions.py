@@ -30,6 +30,7 @@ class HTTPException(Exception):
 
 
 class UnauthorizedException(HTTPException):
+    """A client is unauthorized to access a process or request."""
     type = 'unauthorized'
 
     def __init__(self, body=''):
@@ -37,6 +38,7 @@ class UnauthorizedException(HTTPException):
 
 
 class UnauthenticatedException(HTTPException):
+    """The user did not provide a valid OAuth signature."""
     type = 'unauthenticated'
 
     def __init__(self, body=''):
@@ -44,6 +46,7 @@ class UnauthenticatedException(HTTPException):
 
 
 class NotFoundException(HTTPException):
+    """The requested resource was not found in the datastore."""
     type = 'notfound'
 
     def __init__(self, body=''):
@@ -51,6 +54,7 @@ class NotFoundException(HTTPException):
 
 
 class MaintenanceException(HTTPException):
+    """The datastore is down for maintenance."""
     type = 'maintenance'
 
     def __init__(self, body=''):
@@ -58,6 +62,7 @@ class MaintenanceException(HTTPException):
 
 
 class QuotaException(HTTPException):
+    """The client exceeded their monthly quota."""
     type = 'quota'
 
     def __init__(self, body=''):
@@ -65,6 +70,7 @@ class QuotaException(HTTPException):
 
 
 class InternalException(HTTPException):
+    """An internal error occurred."""
     type = 'error'
 
     def __init__(self, body=''):
@@ -72,6 +78,7 @@ class InternalException(HTTPException):
 
 
 class MissingException(HTTPException):
+    """A required value was missing from the request."""
     type = 'missing'
 
     def __init__(self, body=''):
@@ -79,6 +86,7 @@ class MissingException(HTTPException):
 
 
 class ValidationException(HTTPException):
+    """A value did not validate properly."""
     type = 'validation'
 
     def __init__(self, body=''):
