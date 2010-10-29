@@ -158,6 +158,7 @@ def _utf8(s):
     assert isinstance(s, str)
     return s
 
+
 def _time_independent_equals(a, b):
     if len(a) != len(b):
         return False

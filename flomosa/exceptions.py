@@ -31,47 +31,55 @@ class HTTPException(Exception):
 
 class UnauthorizedException(HTTPException):
     type = 'unauthorized'
+
     def __init__(self, body=''):
         super(UnauthorizedException, self).__init__(403, body=body)
 
 
 class UnauthenticatedException(HTTPException):
     type = 'unauthenticated'
+
     def __init__(self, body=''):
         super(UnauthenticatedException, self).__init__(401, body=body)
 
 
 class NotFoundException(HTTPException):
     type = 'notfound'
+
     def __init__(self, body=''):
         super(NotFoundException, self).__init__(404, body=body)
 
 
 class MaintenanceException(HTTPException):
     type = 'maintenance'
+
     def __init__(self, body=''):
         super(MaintenanceException, self).__init__(503, body=body)
 
 
 class QuotaException(HTTPException):
     type = 'quota'
+
     def __init__(self, body=''):
         super(QuotaException, self).__init__(503, body=body)
 
 
 class InternalException(HTTPException):
     type = 'error'
+
     def __init__(self, body=''):
         super(InternalException, self).__init__(500, body=body)
 
 
 class MissingException(HTTPException):
     type = 'missing'
+
     def __init__(self, body=''):
         super(MissingException, self).__init__(400, body=body)
 
 
 class ValidationException(HTTPException):
     type = 'validation'
+
     def __init__(self, body=''):
         super(ValidationException, self).__init__(500, body=body)

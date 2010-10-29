@@ -35,7 +35,7 @@ class TaskHandler(QueueHandler):
             raise exceptions.MissingException(
                 'Missing "process_key" parameter.')
 
-        timestamp = self.request.get('timestamp') # POSIX UTC timestamp
+        timestamp = self.request.get('timestamp')  # POSIX UTC timestamp
         if not timestamp:
             raise exceptions.MissingException('Missing "timestamp" parameter.')
 

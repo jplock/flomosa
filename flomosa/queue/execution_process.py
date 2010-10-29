@@ -124,9 +124,9 @@ class TaskHandler(QueueHandler):
                 queue.add(task)
 
                 # Send the completion email to the requestor
-                logging.info('Queuing completed email to be sent to "%s" for ' \
-                    'Request "%s".' % (execution.request.requestor,
-                    execution.request.id))
+                logging.info('Queuing completed email to be sent to "%s" ' \
+                             'for Request "%s".' % (
+                    execution.request.requestor, execution.request.id))
                 task = taskqueue.Task(params={'key': execution.id})
                 queue = taskqueue.Queue('mail-request-complete')
                 queue.add(task)
@@ -163,7 +163,7 @@ class TaskHandler(QueueHandler):
         # Reached reminder limit, cancel this execution
         if execution.reminder_count == settings.REMINDER_LIMIT:
             logging.warning('Reminder limit reached for Execution "%s". ' \
-                'Exiting.' % execution.id)
+                            'Exiting.' % execution.id)
             return self.halt_success()
 
         # Send a reminder email notification
@@ -187,7 +187,7 @@ class TaskHandler(QueueHandler):
                 queue.add(task)
             else:
                 logging.info('Reminder #%s delay for Execution "%s" has not ' \
-                    'expired (%s >= %s).' % (execution.reminder_count+1,
+                    'expired (%s >= %s).' % (execution.reminder_count + 1,
                     execution.id, num_seconds, settings.REMINDER_DELAY))
 
         logging.info('Re-queuing Execution "%s".' % execution.id)

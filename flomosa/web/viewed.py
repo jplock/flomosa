@@ -71,6 +71,7 @@ class ActionHandler(webapp.RequestHandler):
 
         logging.debug('Finished ActionHandler.get() method')
 
+
 def main():
     application = webapp.WSGIApplication(
         [(r'/viewed/(.*)/(.*)\.json', ActionHandler),

@@ -49,7 +49,7 @@ FEEDBACK_FORWARDER_EMAIL = 'feedback@%s' % EMAIL_DOMAIN
 REMINDER_LIMIT = 10
 
 # How often to send a reminder email (in seconds)
-REMINDER_DELAY = 43200 # 12 hours
+REMINDER_DELAY = 43200  # 12 hours
 
 # Number of times to retry the datastore
 DATASTORE_RETRY_ATTEMPTS = 5

@@ -28,6 +28,7 @@ _STAT_TUPLE = (
     'total_request_seconds'
 )
 
+
 # TODO: has to be an internal function to do this
 def list_to_dict(keys, default_value=0):
     new_dict = {}

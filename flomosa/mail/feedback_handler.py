@@ -66,6 +66,7 @@ class MailHandler(mail_handlers.InboundMailHandler):
 
         logging.debug('Finished feedback@ incoming mail handler')
 
+
 def main():
     application = webapp.WSGIApplication([MailHandler.mapping()], debug=False)
     util.run_wsgi_app(application)

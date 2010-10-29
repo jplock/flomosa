@@ -52,6 +52,7 @@ def get_from_cache(cls, key, parent=None):
 
     return model
 
+
 def save_to_cache(model):
     """
     Save a model to the datastore, then the cache.
@@ -66,7 +67,7 @@ def save_to_cache(model):
         while attempts <= settings.DATASTORE_RETRY_ATTEMPTS:
             timeout_ms = 100
             logging.debug('Storing %s "%s" in datastore (%d/%d).' % (
-                model.kind(), model.id, (attempts+1),
+                model.kind(), model.id, (attempts + 1),
                 settings.DATASTORE_RETRY_ATTEMPTS))
             try:
                 db.Model.put(model)
@@ -88,10 +89,12 @@ def save_to_cache(model):
 
     memcache.delete(model.id)
     if model.is_saved():
-        logging.debug('Storing %s "%s" in memcache.' % (model.kind(), model.id))
+        logging.debug('Storing %s "%s" in memcache.' % (model.kind(),
+                                                        model.id))
         memcache.set(model.id, model, namespace=model.kind())
 
     return model
+
 
 def delete_from_cache(model=None, kind=None, key=None):
     """

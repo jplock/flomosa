@@ -67,7 +67,7 @@ class FlomosaBase(db.Model):
 class Hub(db.Model):
     """PubSubHubbub hub URL listing."""
 
-    url = db.LinkProperty() # http://pubsubhubbub.appspot.com
+    url = db.LinkProperty()  # http://pubsubhubbub.appspot.com
 
     def __unicode__(self):
         """Return the Hub URL as a unicode string."""
@@ -654,7 +654,7 @@ class Request(db.Expando):
     submitted_date = db.DateTimeProperty(auto_now_add=True)
     is_completed = db.BooleanProperty(default=False)
     completed_date = db.DateTimeProperty()
-    duration = db.IntegerProperty(default=0) # seconds
+    duration = db.IntegerProperty(default=0)  # seconds
 
     def __unicode__(self):
         """Return the unique ID for this request."""
@@ -801,9 +801,9 @@ class Execution(FlomosaBase):
     sent_date = db.DateTimeProperty()
     viewed_date = db.DateTimeProperty()
     end_date = db.DateTimeProperty()
-    email_delay = db.IntegerProperty(default=0) # viewed_date-sent_date
-    action_delay = db.IntegerProperty(default=0) # end_date-viewed_date
-    duration = db.IntegerProperty(default=0) # end_date-start_date
+    email_delay = db.IntegerProperty(default=0)  # viewed_date-sent_date
+    action_delay = db.IntegerProperty(default=0)  # end_date-viewed_date
+    duration = db.IntegerProperty(default=0)  # end_date-start_date
 
     def get_absolute_url(self):
         """Returns the URL to access this execution."""
@@ -947,14 +947,14 @@ class Statistic(db.Model):
     month = db.IntegerProperty()
     day = db.IntegerProperty()
     hour = db.IntegerProperty()
-    week_day = db.IntegerProperty() # ISO format 1 = Monday, 7 = Sunday
+    week_day = db.IntegerProperty()  # ISO format 1 = Monday, 7 = Sunday
     week_num = db.IntegerProperty()
     num_requests = db.IntegerProperty(default=0)
     num_requests_completed = db.IntegerProperty(default=0)
-    min_request_seconds = db.IntegerProperty(default=0) # seconds
-    max_request_seconds = db.IntegerProperty(default=0) # seconds
-    avg_request_seconds = db.FloatProperty(default=0.0) # seconds
-    total_request_seconds = db.IntegerProperty(default=0) # seconds
+    min_request_seconds = db.IntegerProperty(default=0)  # seconds
+    max_request_seconds = db.IntegerProperty(default=0)  # seconds
+    avg_request_seconds = db.FloatProperty(default=0.0)  # seconds
+    total_request_seconds = db.IntegerProperty(default=0)  # seconds
 
     @property
     def id(self):
@@ -975,8 +975,8 @@ class Statistic(db.Model):
                 self.max_request_seconds = request.duration
             self.num_requests_completed += 1
             self.total_request_seconds += request.duration
-            self.avg_request_seconds = float(self.total_request_seconds /
-                                             self.num_requests_completed)
+            self.avg_request_seconds = (float(self.total_request_seconds) /
+                                        float(self.num_requests_completed))
         else:
             self.num_requests += 1
 

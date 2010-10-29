@@ -33,6 +33,7 @@ class MainHandler(SecureRequestHandler):
 
         logging.debug('Finished MainHandler.get() method')
 
+
 def main():
     application = webapp.WSGIApplication([('/', MainHandler)], debug=False)
     util.run_wsgi_app(application)
