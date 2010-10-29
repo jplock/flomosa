@@ -1,28 +1,28 @@
 handlers:
 - url: /requests/.*
   script: flomosa/api/request.py
-  secure: optional
+  secure: always
 
 - url: /processes/.*
   script: flomosa/api/process.py
-  secure: optional
+  secure: always
 
 - url: /executions/.*
   script: flomosa/api/execution.py
-  secure: optional
+  secure: always
 
 - url: /steps/.*
   script: flomosa/api/step.py
-  secure: optional
+  secure: always
 
 - url: /teams/.*
   script: flomosa/api/team.py
-  secure: optional
+  secure: always
 
 - url: /stats/.*
   script: flomosa/api/stat.py
-  secure: optional
+  secure: always
   
 - url: /search/.*
   script: flomosa/api/search.py
-  secure: optional
+  secure: always

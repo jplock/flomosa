@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -30,12 +30,12 @@ class TaskHandler(QueueHandler):
         callback_url = self.request.get('callback_url')
 
         if not request_key:
-            raise exceptions.MissingException('Missing "request_key" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "request_key" parameter.')
 
         if not callback_url:
-            raise exceptions.MissingException('Missing "callback_url" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "callback_url" parameter.')
 
         request = models.Request.get(request_key)
 

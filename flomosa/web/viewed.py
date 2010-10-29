@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -66,6 +66,7 @@ class ActionHandler(webapp.RequestHandler):
         action = models.Action.get(action_key)
         execution.set_completed(action)
 
+        # TODO: Make this a nicer page
         self.response.out.write('Thank you. You can close this window.')
 
         logging.debug('Finished ActionHandler.get() method')

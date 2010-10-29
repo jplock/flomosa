@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -33,8 +33,8 @@ class TaskHandler(QueueHandler):
         execution = models.Execution.get(execution_key)
         request = execution.request
         if not request.requestor:
-            raise exceptions.InternalException('Request "%s" has no email ' \
-                                               'address.' % execution.id)
+            raise exceptions.InternalException(
+                'Request "%s" has no email address.' % execution.id)
 
         text_template_file = settings.TEMPLATE_DIR + '/email_step_text.tpl'
         html_template_file = settings.TEMPLATE_DIR + '/email_step_html.tpl'

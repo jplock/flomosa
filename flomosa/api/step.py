@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -34,6 +34,9 @@ class StepAtomHandler(StepHandler):
         logging.debug('Begin StepAtomHandler.get() method')
 
         step = models.Step.get(step_key)
+        # TODO: Need to determine how to authorization clients accessing the
+        #       ATOM feed for a step. ATOM feeds can be signed according to
+        #       RFC4287 - http://tools.ietf.org/html/rfc4287#section-8.5
         #step = self.is_client_allowed(step_key)
 
         template_vars = {'step': step, 'url': settings.HTTPS_URL,

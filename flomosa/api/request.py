@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -25,8 +25,8 @@ class RequestHandler(OAuthHandler):
         client = self.is_valid()
 
         if not request_key:
-            raise exceptions.MissingException('Missing "request_key" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "request_key" parameter.')
 
         request = models.Request.get(request_key, client)
 
@@ -46,8 +46,8 @@ class RequestHandler(OAuthHandler):
         process = models.Process.get(process_key)
 
         if not process.is_valid():
-            raise exceptions.ValidationException('Process "%s" is not ' \
-                'valid.' % process_key)
+            raise exceptions.ValidationException(
+                'Process "%s" is not valid.' % process_key)
 
         requestor = data.get('requestor', None)
         if not requestor:
@@ -56,8 +56,8 @@ class RequestHandler(OAuthHandler):
         if request_key:
             request = models.Request.get(request_key)
             if request:
-                raise exceptions.InternalException('Request "%s" already ' \
-                    'exists.' % request_key)
+                raise exceptions.InternalException(
+                    'Request "%s" already exists.' % request_key)
         else:
             request_key = utils.generate_key()
             request = models.Request(key_name=request_key, process=process,
@@ -81,12 +81,12 @@ class RequestHandler(OAuthHandler):
             queue.add(task)
 
         if response_url:
-            logging.info('Permanently redirecting client to "%s".' % \
-                response_url)
+            logging.info(
+                'Permanently redirecting client to "%s".' % response_url)
             self.redirect(response_url, permanent=True)
         else:
-            logging.info('Returning Request "%s" as JSON to client.' % \
-                request.id)
+            logging.info(
+                'Returning Request "%s" as JSON to client.' % request.id)
             build_json(self, {'key': request.id}, 201)
 
         logging.debug('Finished RequestHandler.post() method')
@@ -97,8 +97,8 @@ class RequestHandler(OAuthHandler):
         client = self.is_valid()
 
         if not request_key:
-            raise exceptions.MissingException('Missing "request_key" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "request_key" parameter.')
 
         request = models.Request.get(request_key, client)
         request.delete()

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -26,6 +26,12 @@ from flomosa import models, settings
 
 
 class SecureRequestHandler(webapp.RequestHandler):
+    """RequestHandler which supports setting cookies which have a built-in
+    secure signature.
+
+    Portions of this code is from:
+    http://github.com/facebook/tornado/blob/master/tornado/web.py
+    """
 
     def get_current_client(self, default=None):
         """Return the currently logged in Client."""
@@ -44,7 +50,7 @@ class SecureRequestHandler(webapp.RequestHandler):
     def get_cookie(self, name, default=None):
         """Gets the value of the cookie with the given name, else default."""
         if name in self.request.cookies:
-            return self.request.cookies[name]
+            return self.request.cookies[name].value
         return default
 
     def set_cookie(self, name, value, domain=None, expires=None, path='/',

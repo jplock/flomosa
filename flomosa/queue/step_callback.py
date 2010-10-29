@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -33,8 +33,8 @@ class TaskHandler(QueueHandler):
             raise exceptions.MissingException('Missing "step_key" parameter.')
 
         if not callback_url:
-            raise exceptions.MissingException('Missing "callback_url" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "callback_url" parameter.')
 
         step = models.Step.get(step_key)
 

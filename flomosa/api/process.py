@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -42,8 +42,8 @@ class ProcessHandler(OAuthHandler):
             raise exceptions.MissingException('Missing "kind" parameter.')
 
         if data['kind'] != 'Process':
-            raise exceptions.MissingException('Invalid "kind" parameter; ' \
-                'expected "kind=Process".')
+            raise exceptions.MissingException(
+                'Invalid "kind" parameter; expected "kind=Process".')
 
         # Load the process data
         process = models.Process.from_dict(client, data, process_key)

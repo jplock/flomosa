@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -53,14 +53,14 @@ class OAuthHandler(webapp.RequestHandler):
         if not isinstance(request, oauth.Request):
             request = self.get_oauth_request()
         if not request:
-            raise exceptions.UnauthenticatedException('OAuth "Authorization" ' \
-                                                      'header not found')
+            raise exceptions.UnauthenticatedException(
+                'OAuth "Authorization" header not found')
 
         client_key = request.get_parameter('oauth_consumer_key')
         if not client_key:
-            raise exceptions.UnauthenticatedException('Missing ' \
-                '"oauth_consumer_key" parameter in OAuth "Authorization" ' \
-                'header')
+            raise exceptions.UnauthenticatedException(
+                'Missing "oauth_consumer_key" parameter in OAuth ' \
+                '"Authorization" header')
 
         client = models.Client.get(client_key)
         return client

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -60,8 +60,8 @@ class StatHandler(OAuthHandler):
             return return_stats
         if not value:
             if required:
-                raise exceptions.MissingException('Missing "%s" ' \
-                                                  'parameter.' % name)
+                raise exceptions.MissingException(
+                    'Missing "%s" parameter.' % name)
         else:
             value = int(value)
             return value

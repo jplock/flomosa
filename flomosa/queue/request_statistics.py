@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -27,13 +27,13 @@ class TaskHandler(QueueHandler):
 
         request_key = self.request.get('request_key')
         if not request_key:
-            raise exceptions.MissingException('Missing "request_key" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "request_key" parameter.')
 
         process_key = self.request.get('process_key')
         if not process_key:
-            raise exceptions.MissingException('Missing "process_key" ' \
-                                              'parameter.')
+            raise exceptions.MissingException(
+                'Missing "process_key" parameter.')
 
         timestamp = self.request.get('timestamp') # POSIX UTC timestamp
         if not timestamp:

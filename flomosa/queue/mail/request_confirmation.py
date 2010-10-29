@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -32,12 +32,12 @@ class TaskHandler(QueueHandler):
 
         execution = models.Execution.get(execution_key)
         if not execution.member:
-            raise exceptions.InternalException('Execution "%s" has no email ' \
-                                               'address.' % execution.id)
+            raise exceptions.InternalException(
+                'Execution "%s" has no email address.' % execution.id)
 
         if not isinstance(execution.action, models.Action):
-            raise exceptions.InternalException('Execution "%s" has no ' \
-                                               'action.' % execution.id)
+            raise exceptions.InternalException(
+                'Execution "%s" has no action.' % execution.id)
 
         request = execution.request
 

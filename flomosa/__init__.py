@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.5
 # -*- coding: utf8 -*-
 #
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
@@ -7,7 +7,7 @@
 # All Rights Reserved.
 #
 
-__version__ = '1.0'
+__version__ = '1.0.0'
 __all__ = ['is_development']
 
 import os
