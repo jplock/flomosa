@@ -38,8 +38,14 @@ class TaskHandler(QueueHandler):
                 'Execution "%s" has no email address.' % execution.id)
 
         if isinstance(execution.action, models.Action):
-            logging.warning('Action already taken on Execution "%s". ' \
-                'Exiting.', execution.id)
+            logging.warning('Action already taken on Execution "%s". Exiting.',
+                            execution.id)
+            return None
+
+        completed_execution = execution.is_step_completed()
+        if completed_execution:
+            logging.info('Step "%s" already completed by "%s". Exiting.',
+                            execution.step.id, completed_execution.member)
             return None
 
         request = execution.request
