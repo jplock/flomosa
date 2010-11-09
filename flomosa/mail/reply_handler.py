@@ -28,33 +28,37 @@ class MailHandler(mail_handlers.InboundMailHandler):
             logging.error('Invalid reply user "%s". Exiting.', recipient)
             return None
 
-        user, hostname = recipient.split('@')
+        user, hostname = recipient.split('@', 2)
         if not user.startswith('reply+'):
             logging.error('Invalid reply user "%s". Exiting.', user)
             return None
 
-        temp, execution_key = user.split('+')
+        _, execution_key = user.split('+', 2)
 
         execution = models.Execution.get(execution_key)
 
         if isinstance(execution.action, models.Action):
-            logging.error('Action "%s" already taken on Execution "%s". ' \
-                          'Exiting.', execution.action.name, execution.id)
+            logging.error(
+                'Action "%s" already taken on Execution "%s". Exiting.',
+                execution.action.name, execution.id)
             return None
 
         if not isinstance(execution.process, models.Process):
-            logging.error('Execution "%s" does not have a process defined. ' \
-                          'Exiting.', execution.id)
+            logging.error(
+                'Execution "%s" does not have a process defined. Exiting.',
+                execution.id)
             return None
 
         if not isinstance(execution.step, models.Step):
-            logging.error('Execution "%s" does not have a step defined. ' \
-                          'Exiting.', execution.id)
+            logging.error(
+                'Execution "%s" does not have a step defined. Exiting.',
+                execution.id)
             return None
 
         if not isinstance(execution.request, models.Request):
-            logging.error('Execution "%s" does not have a request defined. ' \
-                          'Exiting.', execution.id)
+            logging.error(
+                'Execution "%s" does not have a request defined. Exiting.',
+                execution.id)
             return None
 
         realname, sender = email.utils.parseaddr(message.sender)
@@ -75,8 +79,9 @@ class MailHandler(mail_handlers.InboundMailHandler):
             for line in body.decode().splitlines():
                 for name, action in actions.iteritems():
                     if line.lower().find(name) != -1:
-                        logging.info('Found Action named "%s" for Execution ' \
-                                     '"%s".', action.name, execution.id)
+                        logging.info(
+                            'Found Action named "%s" for Execution "%s".',
+                            action.name, execution.id)
                         executed_action = action
                         break
                 if isinstance(executed_action, models.Action) or \
@@ -89,8 +94,8 @@ class MailHandler(mail_handlers.InboundMailHandler):
         logging.info('Parsed reply "%s" from email.', reply_text)
 
         if not isinstance(executed_action, models.Action):
-            raise exceptions.InternalException('Could not locate action ' \
-                'named "%s".' % executed_action)
+            raise exceptions.InternalException(
+                'Could not locate action named "%s".' % executed_action)
 
         execution.set_completed(executed_action)
 
@@ -107,6 +112,7 @@ def main():
     """Handles inbound email when someone tasks action on a request."""
     application = webapp.WSGIApplication([MailHandler.mapping()], debug=False)
     util.run_wsgi_app(application)
+
 
 if __name__ == '__main__':
     main()
