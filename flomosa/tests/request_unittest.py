@@ -14,9 +14,6 @@ from django.utils import simplejson
 from flomosa import exceptions, models
 from flomosa.test import HandlerTestBase, create_client, get_tasks
 from flomosa.api.request import RequestHandler
-from flomosa.queue.execution_creation import TaskHandler as creation_handler
-from flomosa.queue.execution_process import TaskHandler as process_handler
-from flomosa.queue.mail.request_notify import TaskHandler as notify_handler
 
 
 class RequestTest(HandlerTestBase):
@@ -265,82 +262,6 @@ class RequestTest(HandlerTestBase):
         for key, value in data.items():
             self.assertEqual(request_dict[key], value)
         self.assertEqual(request_dict['key'], request_key)
-
-    def test_get_executions(self):
-        process = self._create_process()
-        request_key = self._create_request(process)
-        first_step = process.get_start_step()
-
-        # Try running the tasks
-        self.handler_class = creation_handler
-
-        create_tasks = get_tasks('execution-creation', 1)
-        for task in create_tasks:
-            headers = task['headers']
-            headers['HTTP_X_APPENGINE_TASKRETRYCOUNT'] = \
-                headers['X-AppEngine-TaskRetryCount']
-            params = task['params']
-            self.assertEqual(params['request_key'], request_key)
-            self.assertEqual(params['step_key'], first_step.id)
-            self.assertEqual(params['team_key'], 'None')
-            self.handle('post', params=params, headers=headers)
-
-        request = models.Request.get(request_key)
-        for exc in request.get_executions():
-            self.assertEqual(exc.step.id, first_step.id)
-            self.assertEqual(exc.request.id, request.id)
-            self.assertEqual(exc.process.id, process.id)
-
-    def test_execution_process(self):
-        process = self._create_process()
-        request_key = self._create_request(process)
-        first_step = process.get_start_step()
-
-        # Create the executions
-        self.handler_class = creation_handler
-
-        create_tasks = get_tasks('execution-creation', 1)
-        for task in create_tasks:
-            self.handle('post', params=task['params'], headers=task['headers'])
-
-        request = models.Request.get(request_key)
-        execution = request.get_executions()[0]
-        self.assertFalse(execution.queued_for_send)
-        self.assertEqual(execution.sent_date, None)
-
-        # Process the executions
-        self.handler_class = process_handler
-
-        process_tasks = get_tasks('execution-process', 1)
-        for task in process_tasks:
-            self.assertRaises(exceptions.MissingException, self.handle, 'post',
-                              params={}, headers=task['headers'])
-            self.assertRaises(exceptions.NotFoundException, self.handle, 'post',
-                              params={'key': 'test'}, headers=task['headers'])
-            self.handle('post', params=task['params'], headers=task['headers'])
-            self.assertEqual(self.response_code(), 500,
-                             'Response code does not equal 500.')
-
-        execution = request.get_executions()[0]
-        self.assertTrue(execution.queued_for_send)
-        self.assertEqual(execution.sent_date, None)
-
-        # Send the initial notification email
-        self.handler_class = notify_handler
-
-        notify_tasks = get_tasks('mail-request-notify', 1)
-        for task in notify_tasks:
-            self.assertRaises(exceptions.MissingException, self.handle, 'post',
-                              params={}, headers=task['headers'])
-            self.assertRaises(exceptions.NotFoundException, self.handle, 'post',
-                              params={'key': 'test'}, headers=task['headers'])
-            self.handle('post', params=task['params'], headers=task['headers'])
-            self.assertEqual(self.response_code(), 200,
-                             'Response code does not equal 200.')
-
-        execution = request.get_executions()[0]
-        self.assertTrue(execution.queued_for_send)
-        self.assertNotEqual(execution.sent_date, None)
 
 
 def _datetime_diff(date1, date2):

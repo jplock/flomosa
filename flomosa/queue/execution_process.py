@@ -99,71 +99,20 @@ class TaskHandler(QueueHandler):
             execution.put()
 
             logging.warning('Step "%s" completed by "%s" on "%s". Exiting.',
-                execution.step.id, completed_execution.member,
-                completed_execution.end_date)
+                            execution.step.id, completed_execution.member,
+                            completed_execution.end_date)
             return self.halt_success()
 
-        # If an action has been chosen, queue the next steps
+        # If an action has been chosen, halt this execution
         if execution.action and isinstance(execution.action, models.Action):
-            logging.info('Action "%s" taken on Execution "%s".',
-                execution.action.name, execution.id)
-
-            # If the action is a completion action
-            if execution.action.is_complete:
-                # If the request has not yet been marked as completed,
-                # compute the request duration
-                request.set_completed()
-
-                # Record the request in the Process statistics
-                logging.info('Queuing statistics collection for Request ' \
-                    '"%s".', execution.request.id)
-                queue = taskqueue.Queue('request-statistics')
-                task = taskqueue.Task(params={'request_key': request.id,
-                                        'process_key': execution.process.id,
-                                        'timestamp': time.time()})
-                queue.add(task)
-
-                # Send the completion email to the requestor
-                logging.info('Queuing completed email to be sent to "%s" ' \
-                             'for Request "%s".', execution.request.requestor,
-                             execution.request.id)
-                task = taskqueue.Task(params={'key': execution.id})
-                queue = taskqueue.Queue('mail-request-complete')
-                queue.add(task)
-
-                # Send this request to any process callbacks
-                queue = taskqueue.Queue('process-callback')
-                tasks = []
-                for callback_url in execution.process.callbacks:
-                    task = taskqueue.Task(params={
-                        'execution_key': execution.id,
-                        'callback_url': callback_url,
-                        'timestamp': time.time()})
-                    tasks.append(task)
-                queue.add(tasks)
-
-            # If the action didn't complete the process, queue a step
-            # completion email to be sent to the requestor and queue up any
-            # outgoing steps after this action.
-            else:
-                logging.info('Queuing step email to be sent to "%s".',
-                             request.requestor)
-                task = taskqueue.Task(params={'key': execution.id})
-                queue = taskqueue.Queue('mail-request-step')
-                queue.add(task)
-
-                for step_key in execution.action.outgoing:
-                    step = models.Step.get(step_key)
-                    if step and isinstance(step, models.Step):
-                        step.queue_tasks(execution.request)
-
             logging.info('Completed Execution "%s". Exiting.' % execution.id)
             return self.halt_success()
 
-        # Reached reminder limit, cancel this execution
+        # Reached reminder limit, halt this execution
         if execution.reminder_count == settings.REMINDER_LIMIT:
-            logging.warning('Reminder limit reached for Execution "%s". ' \
-                            'Exiting.', execution.id)
+            logging.warning(
+                'Reminder limit reached for Execution "%s". Exiting.',
+                execution.id)
             return self.halt_success()
 
         # Send a reminder email notification
@@ -186,8 +135,8 @@ class TaskHandler(QueueHandler):
                 queue = taskqueue.Queue('mail-request-reminder')
                 queue.add(task)
             else:
-                logging.info('Reminder #%s delay for Execution "%s" has not ' \
-                    'expired (%s >= %s).', (execution.reminder_count + 1),
+                logging.info('Reminder #%d delay for Execution "%s" has not ' \
+                    'expired (%d >= %d).', (execution.reminder_count + 1),
                     execution.id, num_seconds, settings.REMINDER_DELAY)
 
         logging.info('Re-queuing Execution "%s".', execution.id)

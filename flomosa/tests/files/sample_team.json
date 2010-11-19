@@ -1,0 +1,7 @@
+{
+    "members": ["test@flomosa.com"],
+    "kind": "Team",
+    "name": "Test Team",
+    "key": "test",
+    "description": null
+}
