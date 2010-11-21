@@ -15,11 +15,15 @@ import os
 
 def is_development():
     """Returns a boolean whether we're running on the devserver or not."""
+
     try:
         env = os.environ['SERVER_SOFTWARE']
     except Exception:
-        env = None
+        try:
+            env = os.environ['OS']
+        except Exception:
+            env = None
 
-    if env and env == 'Development/1.0':
+    if env and env in ('Development/1.0', 'Windows_NT'):
         return True
     return False
