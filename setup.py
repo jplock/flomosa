@@ -30,7 +30,7 @@ class local_sdist(sdist):
 
 setup(
     name='flomosa',
-    version='1.0.0',
+    version='2.0.0',
     description='Flomosa Google AppEngine code',
     author='Flomosa, LLC.',
     author_email='team@flomosa.com',

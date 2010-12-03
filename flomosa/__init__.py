@@ -7,7 +7,7 @@
 # All Rights Reserved.
 #
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'
 __all__ = ['is_development']
 
 import os
