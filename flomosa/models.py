@@ -12,7 +12,7 @@ import logging
 import time
 
 from google.appengine.ext import db
-from google.appengine.api.labs import taskqueue
+from google.appengine.api import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
 from flomosa import cache, exceptions, settings, utils

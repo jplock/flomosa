@@ -13,7 +13,7 @@ import time
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
-from google.appengine.api.labs import taskqueue
+from google.appengine.api import taskqueue
 
 from flomosa import exceptions, models, settings
 from flomosa.queue import QueueHandler

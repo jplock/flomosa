@@ -11,7 +11,7 @@ import logging
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
-from google.appengine.api.labs import taskqueue
+from google.appengine.api import taskqueue
 
 from flomosa import exceptions, models, utils
 from flomosa.queue import QueueHandler

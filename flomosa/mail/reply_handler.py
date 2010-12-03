@@ -12,7 +12,7 @@ import email.utils
 
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util, mail_handlers
-from google.appengine.api.labs import taskqueue
+from google.appengine.api import taskqueue
 
 from flomosa import exceptions, models
 
