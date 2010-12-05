@@ -22,8 +22,11 @@ def is_development():
         try:
             env = os.environ['OS']
         except Exception:
-            env = None
+            try:
+                env = os.environ['OSTYPE']
+            except Exception:
+                env = None
 
-    if env and env in ('Development/1.0', 'Windows_NT'):
+    if env and env in ('Development/1.0', 'Windows_NT', 'FreeBSD', 'darwin'):
         return True
     return False
