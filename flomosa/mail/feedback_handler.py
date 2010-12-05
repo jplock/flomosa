@@ -61,9 +61,9 @@ class MailHandler(mail_handlers.InboundMailHandler):
         except apiproxy_errors.OverQuotaError:
             raise exceptions.QuotaException('Over email quota limit to ' \
                 'forward feedback email to "%s".' % settings.FEEDBACK_EMAIL)
-        except Exception, e:
+        except Exception, ex:
             raise exceptions.InternalException('Unable to forward feedback ' \
-                'email to "%s" (%s). ' % (settings.FEEDBACK_EMAIL, e))
+                'email to "%s" (%s). ' % (settings.FEEDBACK_EMAIL, ex))
 
         logging.debug('Finished feedback@ incoming mail handler')
 
@@ -72,6 +72,7 @@ def main():
     """Handles forwarding mail send to the feedback email address."""
     application = webapp.WSGIApplication([MailHandler.mapping()], debug=False)
     util.run_wsgi_app(application)
+
 
 if __name__ == '__main__':
     main()

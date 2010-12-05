@@ -8,9 +8,11 @@
 #
 
 import datetime
+import logging
+import time
 
 from google.appengine.ext import db
-from google.appengine.api.labs import taskqueue
+from google.appengine.api import taskqueue
 from google.appengine.runtime import apiproxy_errors
 
 from flomosa import cache, exceptions, settings, utils
@@ -36,10 +38,14 @@ class FlomosaBase(db.Model):
 
     def __eq__(self, other):
         """Test that two models are equal by their unique ID's."""
+        if not other:
+            return False
         return self.id == other.id
 
     def __ne__(self, other):
         """Test that two models are not equal by their unique ID's."""
+        if not other:
+            return True
         return self.id != other.id
 
     @classmethod
@@ -668,10 +674,14 @@ class Request(db.Expando):
 
     def __eq__(self, other):
         """Test that two requests are equal by their unique ID's."""
+        if not other:
+            return False
         return self.id == other.id
 
     def __ne__(self, other):
         """Test that two requests are not equal by their unique ID's."""
+        if not other:
+            return True
         return self.id != other.id
 
     @property
@@ -754,11 +764,15 @@ class Request(db.Expando):
             data[prop] = unicode(getattr(self, prop))
         return data
 
-    def get_executions(self, limit=100):
+    def get_executions(self, actioned=None, limit=100):
         """Return executions in creation order."""
 
         query = Execution.all()
         query.filter('request =', self)
+        if actioned == True:
+            query.filter('action !=', None)
+        elif actioned == False:
+            query.filter('action =', None)
         query.order('start_date')
 
         return query.fetch(limit)
@@ -836,7 +850,7 @@ class Execution(FlomosaBase):
             'duration': self.duration
         }
         actions = []
-        for action in self.step.actions:
+        for action in self.get_available_actions():
             action_data = {'kind': action.kind(), 'key': action.id,
                            'name': action.name,
                            'is_complete': action.is_complete}
@@ -855,6 +869,11 @@ class Execution(FlomosaBase):
         if self.team:
             data['team'] = self.team.id
         return data
+
+    def get_available_actions(self):
+        """Get the available actions for this step."""
+        for action in self.step.actions:
+            yield action
 
     def set_sent(self, sent_date=None):
         """Set this execution as being sent."""
@@ -879,13 +898,10 @@ class Execution(FlomosaBase):
             raise exceptions.InternalException(
                 '"%s" is not a valid Action model.' % action)
 
-        found_action = False
-        for step_action in self.step.actions:
-            if action.id == step_action.id:
-                found_action = True
-                break
+        action_ids = [step_action.id for step_action in \
+                      self.get_available_actions()]
 
-        if not found_action:
+        if action.id not in action_ids:
             raise exceptions.InternalException(
                 '"%s" is not a valid Action for Step "%s".' % (action,
                                                                self.step))
@@ -900,6 +916,51 @@ class Execution(FlomosaBase):
         if self.start_date and not self.duration:
             self.duration = utils.compute_duration(self.end_date,
                                                    self.start_date)
+
+        if self.action.is_complete:
+            # If the request has not yet been marked as completed, compute the
+            # request duration
+            self.request.set_completed()
+
+            # Record the request in the Process statistics
+            logging.info('Queuing statistics collection for Request "%s".',
+                         self.request.id)
+            queue = taskqueue.Queue('request-statistics')
+            task = taskqueue.Task(params={'request_key': self.request.id,
+                                          'process_key': self.process.id,
+                                          'timestamp': time.time()})
+            queue.add(task)
+
+            # Send the completion email to the requestor
+            logging.info(
+                'Queuing completed email to be sent to "%s" for Request "%s".',
+                self.request.requestor, self.request.id)
+            task = taskqueue.Task(params={'key': self.id})
+            queue = taskqueue.Queue('mail-request-complete')
+            queue.add(task)
+
+            # Send this request to any process callbacks
+            tasks = []
+            for callback_url in self.process.callbacks:
+                task = taskqueue.Task(params={'execution_key': self.id,
+                                              'callback_url': callback_url,
+                                              'timestamp': time.time()})
+                tasks.append(task)
+            if tasks:
+                queue = taskqueue.Queue('process-callback')
+                queue.add(tasks)
+        else:
+            logging.info('Queuing step email to be sent to "%s".',
+                         self.request.requestor)
+            task = taskqueue.Task(params={'key': self.id})
+            queue = taskqueue.Queue('mail-request-step')
+            queue.add(task)
+
+            for step_key in self.action.outgoing:
+                step = Step.get(step_key)
+                if step:
+                    step.queue_tasks(self.request)
+
         return self.put()
 
     def set_viewed(self, viewed_date=None):

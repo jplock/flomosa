@@ -30,6 +30,12 @@ indexes:
 
 - kind: Execution
   properties:
+  - name: action
+  - name: request
+  - name: start_date
+
+- kind: Execution
+  properties:
   - name: request
   - name: step
   - name: member

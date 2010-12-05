@@ -3,6 +3,10 @@ handlers:
   script: flomosa/mail/feedback_handler.py
   login: admin
 
+- url: /_ah/mail/reply\+.*@.*flomosa\.appspotmail\.com
+  script: flomosa/mail/reply_handler.py
+  login: admin
+
 - url: /_ah/mail/.+
-  script: flomosa/mail/handler.py
+  script: flomosa/mail/feedback_handler.py
   login: admin

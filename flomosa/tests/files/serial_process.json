@@ -1,0 +1,68 @@
+{
+    "kind": "Process",
+    "name": "Test Process",
+    "actions": [
+        {
+            "kind": "Action",
+            "incoming": ["step-1"],
+            "name": "1-Reject",
+            "process": "test",
+            "outgoing": [],
+            "key": "action-1-reject",
+            "is_complete": true
+        },
+        {
+            "kind": "Action",
+            "incoming": ["step-2"],
+            "name": "2-Reject",
+            "process": "test",
+            "outgoing": [],
+            "key": "action-2-reject",
+            "is_complete": true
+        },
+        {
+            "kind": "Action",
+            "incoming": ["step-1"],
+            "name": "1-Approve",
+            "process": "test",
+            "outgoing": ["step-2"],
+            "key": "action-1-approve",
+            "is_complete": false
+        },
+        {
+            "kind": "Action",
+            "incoming": ["step-2"],
+            "name": "2-Approve",
+            "process": "test",
+            "outgoing": [],
+            "key": "action-2-approve",
+            "is_complete": true
+        }
+    ],
+    "callbacks": [],
+    "collect_stats": false,
+    "steps": [
+        {
+            "kind": "Step",
+            "name": "1st Step",
+            "process": "test",
+            "members": ["test@flomosa.com"],
+            "key": "step-1",
+            "team": null,
+            "is_start": true,
+            "description": null
+        },
+        {
+            "kind": "Step",
+            "name": "2nd Step",
+            "process": "test",
+            "members": ["test@flomosa.com"],
+            "key": "step-2",
+            "team": "test",
+            "is_start": false,
+            "description": null
+        }
+    ],
+    "key": "test",
+    "description": null
+}

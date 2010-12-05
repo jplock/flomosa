@@ -14,7 +14,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.api import urlfetch
 
-from flomosa import exceptions, models
+from flomosa import exceptions, models, is_development
 from flomosa.queue import QueueHandler
 
 
@@ -36,6 +36,10 @@ class TaskHandler(QueueHandler):
         if not callback_url:
             raise exceptions.MissingException(
                 'Missing "callback_url" parameter.')
+
+        if is_development():
+            logging.info('Skip POST\'ing hub notifications in development.')
+            return None
 
         step = models.Step.get(step_key)
 

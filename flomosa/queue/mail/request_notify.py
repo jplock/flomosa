@@ -41,6 +41,12 @@ class TaskHandler(QueueHandler):
                             '"%s". Exiting.', execution.id, execution.member)
             return None
 
+        completed_execution = execution.is_step_completed()
+        if completed_execution:
+            logging.info('Step "%s" already completed by "%s". Exiting.',
+                            execution.step.id, completed_execution.member)
+            return None
+
         request = execution.request
         step = execution.step
 
@@ -91,6 +97,7 @@ def main():
     application = webapp.WSGIApplication([('/_ah/queue/mail-request-notify',
         TaskHandler)], debug=False)
     util.run_wsgi_app(application)
+
 
 if __name__ == '__main__':
     main()

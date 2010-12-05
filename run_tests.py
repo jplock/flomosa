@@ -26,11 +26,12 @@ from flomosa.tests.step_unittest import ProcessStepTest, StepTest
 from flomosa.tests.action_unittest import ProcessActionTest
 from flomosa.tests.request_unittest import RequestTest
 from flomosa.tests.execution_unittest import ExecutionTest
+from flomosa.tests.workflow_unittest import WorkflowTest
 
 
 def usage():
     print 'run_tests.py [-v verbosity] [-t testsuite] [-f format]'
-    print '  -t  run specific testsuite [all|client|team|process|'
+    print '  -t  run specific testsuite [all|client|team|process|workflow|'
     print '                              action|step|request|execution]'
     print '  -v  verbosity [0|1|2]'
     print '  -f  format [text|xml]'
@@ -74,6 +75,7 @@ def main():
         suite.addTest(unittest.makeSuite(StepTest))
         suite.addTest(unittest.makeSuite(RequestTest))
         suite.addTest(unittest.makeSuite(ExecutionTest))
+        suite.addTest(unittest.makeSuite(WorkflowTest))
     elif testsuite == 'client':
         suite.addTest(unittest.makeSuite(ClientTest))
     elif testsuite == 'team':
@@ -89,6 +91,8 @@ def main():
         suite.addTest(unittest.makeSuite(RequestTest))
     elif testsuite == 'execution':
         suite.addTest(unittest.makeSuite(ExecutionTest))
+    elif testsuite == 'workflow':
+        suite.addTest(unittest.makeSuite(WorkflowTest))
     else:
         usage()
         sys.exit()

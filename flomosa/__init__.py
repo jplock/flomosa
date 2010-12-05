@@ -7,7 +7,7 @@
 # All Rights Reserved.
 #
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'
 __all__ = ['is_development']
 
 import os
@@ -15,11 +15,18 @@ import os
 
 def is_development():
     """Returns a boolean whether we're running on the devserver or not."""
+
     try:
         env = os.environ['SERVER_SOFTWARE']
     except Exception:
-        env = None
+        try:
+            env = os.environ['OS']
+        except Exception:
+            try:
+                env = os.environ['OSTYPE']
+            except Exception:
+                env = None
 
-    if env and env == 'Development/1.0':
+    if env and env in ('Development/1.0', 'Windows_NT', 'FreeBSD', 'darwin'):
         return True
     return False

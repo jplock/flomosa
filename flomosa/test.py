@@ -171,7 +171,7 @@ class HandlerTestBase(unittest.TestCase):
         pass
 
     def handle(self, method, body=None, url_value=None, headers=None,
-               params=None, wrap_oauth=False):
+               params=None, wrap_oauth=False, url_value2=None):
         """Runs a test of a webapp.RequestHandler.
 
         Args:
@@ -191,7 +191,9 @@ class HandlerTestBase(unittest.TestCase):
         handler = self.handler_class()
         handler.initialize(self.req, self.resp)
         handler_method = getattr(handler, method.lower())
-        if url_value:
+        if url_value and url_value2:
+            handler_method(url_value, url_value2)
+        elif url_value:
             handler_method(url_value)
         else:
             handler_method()
@@ -244,4 +246,11 @@ def get_tasks(queue_name, expected_count=None):
             task['params'] = dict(cgi.parse_qsl(task['body'], True))
         task['headers']['HTTP_X_APPENGINE_TASKRETRYCOUNT'] = \
             task['headers']['X-AppEngine-TaskRetryCount']
+    if queue_name != 'execution-process':
+        stub.FlushQueue(queue_name)
     return tasks
+
+def get_queues():
+    from google.appengine.api import apiproxy_stub_map
+    stub = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
+    return stub.GetQueues()
