@@ -19,9 +19,9 @@ queue:
   rate: 50/s
   bucket_size: 100
 
-- name: process-callback
-  rate: 50/s
-  bucket_size: 100
+#- name: process-callback
+#  rate: 50/s
+#  bucket_size: 100
 
 - name: mail-request-notify
   rate: 50/s
