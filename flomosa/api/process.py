@@ -19,7 +19,7 @@ from flomosa.api import OAuthHandler, build_json
 class ProcessHandler(OAuthHandler):
     """Handles process API requests."""
 
-    def get(self, process_key):
+    def get(self, process_key=None):
         logging.debug('Begin ProcessHandler.get() method')
 
         process = self.is_client_allowed(process_key)
@@ -78,7 +78,7 @@ class ProcessHandler(OAuthHandler):
 
         logging.debug('Finished ProcessHandler.put() method')
 
-    def delete(self, process_key):
+    def delete(self, process_key=None):
         logging.debug('Begin ProcessHandler.delete() method')
 
         process = self.is_client_allowed(process_key)

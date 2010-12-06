@@ -19,7 +19,7 @@ from flomosa.api import OAuthHandler, build_json
 class TeamHandler(OAuthHandler):
     """Handles team API requests."""
 
-    def get(self, team_key):
+    def get(self, team_key=None):
         logging.debug('Begin TeamHandler.get() method')
 
         client = self.is_valid()
@@ -46,7 +46,7 @@ class TeamHandler(OAuthHandler):
 
         logging.debug('Finished TeamHandler.put() method')
 
-    def delete(self, team_key):
+    def delete(self, team_key=None):
         logging.debug('Begin TeamHandler.delete() method')
 
         client = self.is_valid()

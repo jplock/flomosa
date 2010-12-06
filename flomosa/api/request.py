@@ -20,7 +20,7 @@ from flomosa.api import OAuthHandler, build_json
 class RequestHandler(OAuthHandler):
     """API handler for requests."""
 
-    def get(self, request_key):
+    def get(self, request_key=None):
         logging.debug('Begin RequestHandler.get() method')
 
         client = self.is_valid()
@@ -92,7 +92,7 @@ class RequestHandler(OAuthHandler):
 
         logging.debug('Finished RequestHandler.post() method')
 
-    def delete(self, request_key):
+    def delete(self, request_key=None):
         logging.debug('Begin RequestHandler.delete() method')
 
         client = self.is_valid()
