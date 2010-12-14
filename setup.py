@@ -8,9 +8,28 @@
 #
 
 import os
+import re
 import subprocess
 from setuptools import setup, find_packages
 from setuptools.command.sdist import sdist
+
+
+PKG = 'flomosa'
+VERSIONFILE = os.path.join(PKG, '_version.py')
+verstr = 'unknown'
+try:
+    verstrline = open(VERSIONFILE, 'rt').read()
+except EnvironmentError:
+    pass  # no version file
+else:
+    VSRE = r"^verstr = ['\"]([^'\"]*)['\"]"
+    mo = re.search(VSRE, verstrline, re.M)
+    if mo:
+        verstr = mo.group(1)
+    else:
+        print 'unable to find version in %s' % VERSIONFILE
+        raise RuntimeError('if %s.py exists, it must be well-formed' \
+                           % VERSIONFILE)
 
 
 class local_sdist(sdist):
@@ -20,8 +39,7 @@ class local_sdist(sdist):
         if os.path.isdir('.git'):
             # We're in a Git branch
 
-            log_cmd = subprocess.Popen(['git', 'log'],
-                                       stdout=subprocess.PIPE)
+            log_cmd = subprocess.Popen(['git', 'log'], stdout=subprocess.PIPE)
             changelog = log_cmd.communicate()[0]
             with open('ChangeLog', 'w') as changelog_file:
                 changelog_file.write(changelog)
@@ -29,13 +47,18 @@ class local_sdist(sdist):
 
 
 setup(
-    name='flomosa',
-    version='2.0.0',
-    description='Flomosa Google AppEngine code',
-    author='Flomosa, LLC.',
+    name=PKG,
+    version=verstr,
+    description='Flomosa AppEngine code',
+    author='Flomosa, LLC',
     author_email='team@flomosa.com',
     url='http://github.com/flomosa/flomosa',
     packages=find_packages(),
-    scripts = ['run_tests.py'],
+    provides=['flomosa'],
+    keywords='flomosa',
+    zip_safe=False,
+    namespace_packages=['flomosa'],
+    scripts=['run_tests.py'],
+    test_require=['coverage', 'xmlrunner'],
     cmdclass={'sdist': local_sdist}
 )
