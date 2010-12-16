@@ -48,7 +48,7 @@ if [ $force -eq 1 ]; then
 fi
 
 if [ -e ${venv} ]; then
-  ${with_venv} python run_tests.py $@
+  ${with_venv} python2.5 run_tests.py $@
 else
   if [ $always_venv -eq 1 ]; then
     # Automatically install the virtualenv

@@ -36,6 +36,7 @@ def usage():
     print '  -v  verbosity [0|1|2]'
     print '  -f  format [text|xml]'
 
+
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'ht:v:f:',
@@ -103,6 +104,7 @@ def main():
         import xmlrunner
         xmlrunner.XMLTestRunner(output='unittests.xml',
                                 verbose=True).run(suite)
+
 
 if __name__ == '__main__':
     main()
