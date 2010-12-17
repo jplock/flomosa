@@ -3,7 +3,7 @@ PYTHON        = $(shell test -x bin/python$(PYVERS) && \
                     /bin/echo -n bin/python$(PYVERS) || /bin/echo `which python$(PYVERS)`)
 VIRTUALENV    = $(shell /bin/echo -n `which virtualenv || \
                     which virtualenv-$(PYVERS) || which virtualenv$(PYVERS)`)
-VIRTUALENV   += --python=python$(PYVERS) --no-site-packages
+VIRTUALENV   += --python=python$(PYVERS) #--no-site-packages
 COVERAGE      = bin/coverage
 SRCDIR       := flomosa
 SOURCES      := $(shell find $(SRCDIR) -type f -name \*.py -not -name 'test_*')

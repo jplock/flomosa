@@ -178,7 +178,7 @@ class RequestTest(HandlerTestBase):
         request = models.Request(**data)
         request.put()
 
-        url = 'https://127.0.0.1:8080/requests/%s.json' % request_key
+        url = 'https://flomosa.appspot.com/requests/%s.json' % request_key
         self.assertEqual(request.get_absolute_url(), url)
 
     def test_request_methods(self):

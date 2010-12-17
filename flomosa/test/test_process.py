@@ -135,7 +135,7 @@ class ProcessTest(HandlerTestBase):
         process = models.Process(**data)
         process.put()
 
-        url = 'https://127.0.0.1:8080/processes/%s.json' % process_key
+        url = 'https://flomosa.appspot.com/processes/%s.json' % process_key
         self.assertEqual(process.get_absolute_url(), url)
         process.delete()
 

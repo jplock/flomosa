@@ -163,4 +163,4 @@ class StepTest(HandlerTestBase):
         step = process.add_step(step_key='test', name='1st Step',
                                 members=['test@flomosa.com'])
         self.assertEqual(step.get_absolute_url(),
-                         'https://127.0.0.1:8080/steps/test.atom')
+                         'https://flomosa.appspot.com/steps/test.atom')
