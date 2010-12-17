@@ -7,6 +7,7 @@
 # All Rights Reserved.
 #
 
+from __future__ import with_statement
 import os
 import re
 import subprocess
@@ -57,8 +58,7 @@ setup(
     provides=['flomosa'],
     keywords='flomosa',
     zip_safe=False,
-    namespace_packages=['flomosa'],
-    scripts=['run_tests.py'],
-    test_require=['coverage', 'xmlrunner'],
+    test_suite='flomosa.test',
+    tests_require=['coverage'],
     cmdclass={'sdist': local_sdist}
 )

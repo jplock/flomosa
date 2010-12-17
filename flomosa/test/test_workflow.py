@@ -8,8 +8,7 @@
 #
 
 from flomosa import models
-from flomosa.test import create_client, get_tasks
-from flomosa.tests import runner
+from flomosa.test import create_client, get_tasks, runner
 
 
 class WorkflowTest(runner.WorkflowRunner):

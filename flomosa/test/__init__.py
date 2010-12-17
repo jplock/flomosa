@@ -7,6 +7,9 @@
 # All Rights Reserved.
 #
 
+__all__ = ['create_client', 'fix_path', 'setup_for_testing',
+           'create_test_request', 'HandlerTestBase', 'get_tasks', 'get_queues']
+
 import base64
 import cgi
 import logging
@@ -74,7 +77,7 @@ def setup_for_testing(require_indexes=True):
     try:
         logging.getLogger().setLevel(100)
         root_path = os.path.realpath(os.sep.join(
-            [os.path.dirname(__file__), '..']))
+            [os.path.dirname(__file__), '..', '..']))
         dev_appserver.SetupStubs(
             TEST_APP_ID,
             root_path=root_path,
@@ -255,3 +258,6 @@ def get_queues():
     from google.appengine.api import apiproxy_stub_map
     stub = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
     return stub.GetQueues()
+
+
+fix_path()

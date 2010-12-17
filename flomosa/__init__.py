@@ -7,11 +7,12 @@
 # All Rights Reserved.
 #
 
-import _version
-__version__ = _version.__version__
 __all__ = ['is_development']
 
 import os
+
+import _version
+__version__ = _version.__version__
 
 
 def is_development():

@@ -1,68 +1,93 @@
-BASE        ?= $(PWD)
-BIN          = $(BASE)/bin
-PYVERS      := 2.5
-PYTHON       = $(BIN)/python$(PYVERS)
-PLATFORM     = $(shell uname -s)
-EZ_INSTALL  := $(BIN)/easy_install
-VIRTUALENV  ?= VIRTUALENV_USE_SETUPTOOLS=1 \
-               $(shell test -x `which virtualenv` && which virtualenv || \
-                       test -x `which virtualenv-$(PYVERS)` && \
-                                which virtualenv-$(PYVERS))
-VIRTUALENV  += --no-site-packages
-SETUP        = $(PYTHON) setup.py
-GIT_HEAD     = $(BASE)/.git/$(shell cut -d\  -f2-999 .git/HEAD)
-BUILD_NUMBER ?= 0000INVALID
+PYVERS        = 2.5
+PYTHON        = $(shell test -x bin/python$(PYVERS) && \
+                    echo bin/python$(PYVERS) || echo `which python$(PYVERS)`)
+VIRTUALENV    = $(shell /bin/echo -n `which virtualenv || \
+                                      which virtualenv-$(PYVERS) || \
+                                      which virtualenv$(PYVERS)`)
+VIRTUALENV   += --python=python$(PYVERS) --no-site-packages
+COVERAGE      = bin/coverage
+SRCDIR       := flomosa
+SOURCES      := $(shell find $(SRCDIR) -type f -name \*.py -not -name 'test_*')
+TESTS        := $(shell find $(SRCDIR) -type f -name test_\*.py)
+COVERED      := $(SOURCES)
+SETUP         = $(PYTHON) ./setup.py
+EZ_INSTALL    = $(SETUP) easy_install
+PYLINT        = bin/pylint --rcfile=.pylintrc
+BUILD_NUMBER ?= 1
 
-.PHONY: dev env clean xclean extraclean bundles \
-        debian/changelog
 
-sdist:
-    $(SETUP) sdist
+.PHONEY: test dev clean extraclean
 
-env: $(PYTHON)
+test:
+	$(SETUP) test
 
-$(PYTHON) $(BIN)/easy_install:
-    $(VIRTUALENV) .
+xunit.xml: bin/nosetests $(SOURCES) $(TESTS)
+	$(SETUP) nosetests --with-xunit --xunit-file=$@
 
-dev: env
-    $(SETUP) develop
-
-    @echo "        ==============================================================="
-    @echo "              To activate your shiny new environment, please run:"
-    @echo
-    @which figlet > /dev/null && figlet -c " . bin/activate" || \
-    echo "                                 . bin/activate"
-
-    @echo "        ==============================================================="
-
-lint flakes:
-    $(SETUP) flakes
+bin/nosetests: bin/easy_install
+	@$(EZ_INSTALL) nose
 
 coverage: .coverage
-    @$(COVERAGE) html -d $@ $(COVERED)
+	@$(COVERAGE) html -d $@ $(COVERED)
 
 coverage.xml: .coverage
-    @$(COVERAGE) xml $(COVERED)
+	@$(COVERAGE) xml $(COVERED)
 
 .coverage: $(SOURCES) $(TESTS)
-    -@$(COVERAGE) run --branch setup.py test -s flomosa.test
+	-@$(COVERAGE) run --branch $(SETUP) test
 
 bin/coverage: bin/easy_install
-    @$(EZ_INSTALL) coverage
+	@$(EZ_INSTALL) coverage
 
-prereqs: prereqs-$(PLATFORM)
-prereqs-Linux:
-    sudo apt-get install python2.5 python2.5-dev python-virtualenv
+bin/pep8: bin/easy_install
+	@$(EZ_INSTALL) pep8
 
-prereqs-Darwin:
-    sudo port install python_select python25 py25-virtualenv
-    sudo python_select python25
+pep8: bin/pep8
+	@bin/pep8 --repeat $(SRCDIR)
+
+pep8.txt: bin/pep8
+	@bin/pep8 --repeat $(SRCDIR) | perl -ple 's/: ([WE]\d+)/: [$1]/' > $@
+
+lint: bin/pylint
+	-$(PYLINT) -f colorized $(SRCDIR)
+
+lint.html: bin/pylint
+	-$(PYLINT) -f html $(SRCDIR) > $@
+
+lint.txt: bin/pylint
+	-$(PYLINT) -f parseable $(SRCDIR) > $@
+
+bin/pylint: bin/easy_install
+	@$(EZ_INSTALL) pylint
+
+tags: TAGS.gz
+
+TAGS.gz: TAGS
+	gzip $^
+
+TAGS: $(SOURCES)
+	ctags -eR .
+
+env: bin/easy_install
+
+bin/easy_install:
+	$(VIRTUALENV) .
+	-test -f deps/setuptools* && $@ -U deps/setuptools*
+
+dev: develop
+develop: env
+	nice -n 20 $(SETUP) develop
+	@echo "            ---------------------------------------------"
+	@echo "            To activate the development environment, run:"
+	@echo "                           . bin/activate"
+	@echo "            ---------------------------------------------"
 
 clean:
-    find . -type f -name \*.pyc -exec rm {} \;
-    rm -rf *.egg *.egg-info htmlcov build* src* dist coverage \
-           build-bundle* _trial_temp
+	find . -type f -name \*.pyc -exec rm {} \;
+	rm -rf build dist TAGS TAGS.gz flomosa.egg-info tmp .coverage \
+	       coverage coverage.xml lint.html lint.txt profile \
+	       .profile *.egg xunit.xml pep8.txt
 
 xclean: extraclean
 extraclean: clean
-    rm -rf .Python bin include lib
+	rm -rf bin lib .Python include
