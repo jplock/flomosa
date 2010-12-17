@@ -83,7 +83,7 @@ class ExecutionTest(HandlerTestBase):
     def test_get_url(self):
         execution_key = 'test'
         execution = self._create_execution(execution_key)
-        url = 'https://127.0.0.1:8080/executions/%s.json' % execution_key
+        url = 'https://flomosa.appspot.com/executions/%s.json' % execution_key
         self.assertEqual(execution.get_absolute_url(), url)
 
     def test_set_sent(self):

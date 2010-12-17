@@ -3,6 +3,11 @@
 *.egg-info
 *.swp
 .coverage
+.Python
+bin
+include
+lib
+coverage
 coverage.xml
-unittests.xml
-.flomosa-venv
+lint.*
+xunit.xml

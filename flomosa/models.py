@@ -53,9 +53,9 @@ class FlomosaBase(db.Model):
         """Lookup the model in memcache and then the datastore."""
         model = cache.get_from_cache(cls, key, parent)
         if client and client != model.client:
-            raise exceptions.UnauthorizedException('Client "%s" is not ' \
-                'authorized to access %s "%s".' % (client, model.kind(),
-                                                   model))
+            raise exceptions.UnauthorizedException(
+                'Client "%s" is not authorized to access %s "%s".' % (
+                    client, model.kind(), model))
         return model
 
     def put(self):
@@ -159,8 +159,9 @@ class Team(FlomosaBase):
 
         team = cls.get_or_insert(team_key, client=client, name=name)
         if team.client != client:
-            raise exceptions.UnauthorizedException('Client "%s" is not ' \
-                'authorized to access Team "%s".' % (client, team))
+            raise exceptions.UnauthorizedException(
+                'Client "%s" is not authorized to access Team "%s".' % (client,
+                                                                        team))
 
         team.description = data.get('description', None)
         team.members = data.get('members', [])
@@ -357,8 +358,9 @@ class Process(FlomosaBase):
 
         process = cls.get_or_insert(process_key, client=client, name=name)
         if process.client != client:
-            raise exceptions.UnauthorizedException('Client "%s" is not ' \
-                'authorized to access Process "%s".' % (client, process))
+            raise exceptions.UnauthorizedException(
+                'Client "%s" is not authorized to access Process "%s".' % (
+                    client, process))
 
         process.description = data.get('description', None)
         collect_stats = data.get('collect_stats', False)

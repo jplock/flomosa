@@ -26,7 +26,7 @@ exclude_lines =
 ignore_errors = True
 
 [html]
-directory = coverage_html_report
+directory = coverage
 
 [xml]
 output = coverage.xml

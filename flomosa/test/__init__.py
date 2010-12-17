@@ -7,6 +7,9 @@
 # All Rights Reserved.
 #
 
+__all__ = ['setUp', 'create_client', 'fix_path', 'setup_for_testing',
+           'create_test_request', 'HandlerTestBase', 'get_tasks', 'get_queues']
+
 import base64
 import cgi
 import logging
@@ -26,6 +29,10 @@ TEST_VERSION_ID = '2'
 # test@flomosa.com
 TEST_KEY = '4ef3e685-37c1-43f9-ae03-0a21523051c6'
 TEST_SECRET = '1913b245-18ae-4caa-a491-cedd2e471a50'
+
+
+def setUp():
+    fix_path()
 
 
 def create_client(key=TEST_KEY, secret=TEST_SECRET):
@@ -74,7 +81,7 @@ def setup_for_testing(require_indexes=True):
     try:
         logging.getLogger().setLevel(100)
         root_path = os.path.realpath(os.sep.join(
-            [os.path.dirname(__file__), '..']))
+            [os.path.dirname(__file__), '..', '..']))
         dev_appserver.SetupStubs(
             TEST_APP_ID,
             root_path=root_path,
@@ -92,7 +99,7 @@ def setup_for_testing(require_indexes=True):
         logging.getLogger().setLevel(before_level)
 
 
-def create_test_request(method, body=None, params=None, wrap_oauth=False):
+def create_request(method, body=None, params=None, wrap_oauth=False):
     """Creates a webapp.Request object for use in testing.
 
     Args:
@@ -184,8 +191,8 @@ class HandlerTestBase(unittest.TestCase):
         """
         from google.appengine.ext import webapp
         self.resp = webapp.Response()
-        self.req = create_test_request(method, body=body, params=params,
-                                       wrap_oauth=wrap_oauth)
+        self.req = create_request(method, body=body, params=params,
+                                  wrap_oauth=wrap_oauth)
         if headers:
             self.req.headers.update(headers)
         handler = self.handler_class()
@@ -250,7 +257,11 @@ def get_tasks(queue_name, expected_count=None):
         stub.FlushQueue(queue_name)
     return tasks
 
+
 def get_queues():
     from google.appengine.api import apiproxy_stub_map
     stub = apiproxy_stub_map.apiproxy.GetStub('taskqueue')
     return stub.GetQueues()
+
+
+fix_path()

@@ -31,10 +31,7 @@ FEEDBACK_EMAIL = 'feedback@flomosa.com'
 EMAIL_DOMAIN = '%s.appspotmail.com' % APPLICATION_NAME
 
 # Full URL domain name on AppEngine
-if flomosa.is_development():
-    URL_DOMAIN = '127.0.0.1:8080'
-else:
-    URL_DOMAIN = '%s.appspot.com' % APPLICATION_NAME
+URL_DOMAIN = '%s.appspot.com' % APPLICATION_NAME
 
 # Full HTTP domain URL
 HTTP_URL = 'http://%s' % URL_DOMAIN

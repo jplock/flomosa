@@ -142,7 +142,7 @@ class TeamTest(HandlerTestBase):
         team = models.Team(**data)
         team.put()
 
-        url = 'https://127.0.0.1:8080/teams/%s.json' % team_key
+        url = 'https://flomosa.appspot.com/teams/%s.json' % team_key
         self.assertEqual(team.get_absolute_url(), url)
 
     def test_from_dict(self):
