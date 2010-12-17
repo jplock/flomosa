@@ -1,16 +1,15 @@
 PYVERS        = 2.5
 PYTHON        = $(shell test -x bin/python$(PYVERS) && \
-                    echo bin/python$(PYVERS) || echo `which python$(PYVERS)`)
+                    /bin/echo -n bin/python$(PYVERS) || /bin/echo `which python$(PYVERS)`)
 VIRTUALENV    = $(shell /bin/echo -n `which virtualenv || \
-                                      which virtualenv-$(PYVERS) || \
-                                      which virtualenv$(PYVERS)`)
+                    which virtualenv-$(PYVERS) || which virtualenv$(PYVERS)`)
 VIRTUALENV   += --python=python$(PYVERS) --no-site-packages
 COVERAGE      = bin/coverage
 SRCDIR       := flomosa
 SOURCES      := $(shell find $(SRCDIR) -type f -name \*.py -not -name 'test_*')
 TESTS        := $(shell find $(SRCDIR) -type f -name test_\*.py)
 COVERED      := $(SOURCES)
-SETUP         = $(PYTHON) ./setup.py
+SETUP         = $(PYTHON) setup.py
 EZ_INSTALL    = $(SETUP) easy_install
 PYLINT        = bin/pylint --rcfile=.pylintrc
 BUILD_NUMBER ?= 1
