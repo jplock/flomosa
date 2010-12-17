@@ -12,7 +12,7 @@ COVERED      := $(SOURCES)
 SETUP         = $(PYTHON) setup.py
 EZ_INSTALL    = $(SETUP) easy_install
 PYLINT        = bin/pylint --rcfile=.pylintrc
-COVERAGE      = bin/coverage --rcfile=.coveragerc
+COVERAGE      = bin/coverage
 PEP8          = bin/pep8 --repeat $(SRCDIR)
 BUILD_NUMBER ?= 1
 
