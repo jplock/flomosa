@@ -22,7 +22,7 @@ test:
 	$(SETUP) test
 
 xunit.xml: bin/nosetests $(SOURCES) $(TESTS)
-	$(SETUP) nosetests --with-xunit --xunit-file=$@
+	$(SETUP) nosetests -w $(SRCDIR)/test --with-xunit --xunit-file=$@
 
 bin/nosetests: bin/easy_install
 	@$(EZ_INSTALL) nose
@@ -33,8 +33,8 @@ coverage: .coverage
 coverage.xml: .coverage
 	@$(COVERAGE) xml $(COVERED)
 
-.coverage: $(SOURCES) $(TESTS)
-	-@$(COVERAGE) run --branch $(SETUP) test
+.coverage: $(SOURCES) $(TESTS) bin/coverage
+	-@$(COVERAGE) run --branch --source=$(SRCDIR) setup.py test
 
 bin/coverage: bin/easy_install
 	@$(EZ_INSTALL) coverage

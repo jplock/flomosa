@@ -59,6 +59,5 @@ setup(
     keywords='flomosa',
     zip_safe=False,
     test_suite='flomosa.test',
-    tests_require=['coverage'],
     cmdclass={'sdist': local_sdist}
 )
